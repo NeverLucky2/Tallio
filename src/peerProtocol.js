@@ -41,7 +41,13 @@ export function createReassembler() {
       const entry = buffers.get(id);
       if (!entry) return null;
       const chunk = data instanceof Uint8Array ? data : new Uint8Array(data);
-      entry.buffer.set(chunk, i * CHUNK_SIZE);
+      const offset = i * CHUNK_SIZE;
+      if (offset < 0 || offset + chunk.byteLength > entry.size) {
+        // Bad chunk — drop the entire transfer rather than partially-corrupting the buffer.
+        buffers.delete(id);
+        return null;
+      }
+      entry.buffer.set(chunk, offset);
       entry.received += chunk.byteLength;
       return { progress: Math.min(1, entry.received / entry.size) };
     },

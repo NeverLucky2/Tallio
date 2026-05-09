@@ -126,4 +126,11 @@ describe('createReassembler', () => {
     const result = r.onChunk({ id: 'never-started', i: 0, data: new ArrayBuffer(10) });
     expect(result).toBeNull();
   });
+
+  it('drops the transfer when a chunk index is out of range', () => {
+    const r = createReassembler();
+    r.onStart({ id: 'x', size: 100 });
+    expect(r.onChunk({ id: 'x', i: 99, data: new Uint8Array(10) })).toBeNull();
+    expect(r.onEnd({ id: 'x' })).toBeNull();
+  });
 });
