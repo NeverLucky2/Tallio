@@ -1,0 +1,58 @@
+export const CHUNK_SIZE = 16 * 1024;
+
+export const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+];
+
+export const PEER_CONFIG = { config: { iceServers: ICE_SERVERS } };
+
+export function peerIdFor(sessionId) {
+  return `bt-${sessionId}`;
+}
+
+export function makeImageChunks(bytes, mime) {
+  const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const id = crypto.randomUUID();
+  const size = buffer.byteLength;
+  const chunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
+  const slices = [];
+  for (let i = 0; i < chunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, size);
+    slices.push(buffer.slice(start, end));
+  }
+  return {
+    start: { t: 'img-start', id, mime, size, chunks },
+    chunks: slices.map((data, i) => ({ t: 'img-chunk', id, i, data })),
+    end: { t: 'img-end', id },
+  };
+}
+
+export function createReassembler() {
+  const buffers = new Map();
+  return {
+    onStart({ id, size }) {
+      buffers.set(id, { size, received: 0, buffer: new Uint8Array(size) });
+    },
+    onChunk({ id, i, data }) {
+      const entry = buffers.get(id);
+      if (!entry) return null;
+      const chunk = data instanceof Uint8Array ? data : new Uint8Array(data);
+      entry.buffer.set(chunk, i * CHUNK_SIZE);
+      entry.received += chunk.byteLength;
+      return { progress: Math.min(1, entry.received / entry.size) };
+    },
+    onEnd({ id }) {
+      const entry = buffers.get(id);
+      if (!entry) return null;
+      buffers.delete(id);
+      return entry.buffer;
+    },
+    drop(id) {
+      buffers.delete(id);
+    },
+  };
+}
