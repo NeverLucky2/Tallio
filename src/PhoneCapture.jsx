@@ -35,6 +35,21 @@ export default function PhoneCapture() {
   const [cameraError, setCameraError] = useState(null);
   const [cameraAttempt, setCameraAttempt] = useState(0);
   const [captured, setCaptured] = useState(null); // { blob, previewUrl }
+  const [justSent, setJustSent] = useState(false);
+
+  const onSend = async () => {
+    if (!captured) return;
+    const arrayBuffer = await captured.blob.arrayBuffer();
+    await peer.sendImage(new Uint8Array(arrayBuffer));
+    setCaptured(null);            // useEffect handles previewUrl revocation
+    setJustSent(true);
+  };
+
+  useEffect(() => {
+    if (!justSent) return;
+    const t = setTimeout(() => setJustSent(false), 1500);
+    return () => clearTimeout(t);
+  }, [justSent]);
 
   const onShutter = async () => {
     if (!videoRef.current || !cameraReady) return;
@@ -198,6 +213,26 @@ export default function PhoneCapture() {
     );
   }
 
+  if (justSent) {
+    return (
+      <div className="phone-root">
+        <div className="phone-check">✓</div>
+        <h1>Sent to desktop</h1>
+        <p className="phone-sub">Ready for the next bill</p>
+      </div>
+    );
+  }
+
+  if (peer.status === 'sending') {
+    return (
+      <div className="phone-root">
+        <div className="phone-spinner" />
+        <h1>Sending…</h1>
+        <p className="phone-sub">{Math.round(peer.sendProgress * 100)}% transferred</p>
+      </div>
+    );
+  }
+
   // TODO: a transient peer disconnect/error during preview currently tears
   // the captured image away because those branches render before this one.
   // For v1 we accept the loss; revisit if it becomes annoying.
@@ -214,7 +249,7 @@ export default function PhoneCapture() {
 
         <div className="phone-preview-actions">
           <button className="phone-btn" onClick={onRetake}>Retake</button>
-          <button className="phone-btn phone-btn-primary">Send to desktop</button>
+          <button className="phone-btn phone-btn-primary" onClick={onSend}>Send to desktop</button>
         </div>
       </div>
     );

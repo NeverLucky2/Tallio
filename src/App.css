@@ -1514,3 +1514,10 @@
   background: rgba(0, 0, 0, 0.55);
 }
 .phone-preview-actions .phone-btn { flex: 1; padding: 14px 16px; font-size: 16px; }
+
+.phone-check {
+  font-size: 56px;
+  color: #86e0a8;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 12px rgba(134, 224, 168, 0.45));
+}
