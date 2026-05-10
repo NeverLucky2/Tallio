@@ -1373,3 +1373,128 @@
   justify-content: flex-end;
 }
 
+.phone-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(212, 168, 83, 0.18);
+  border-top-color: #d4a853;
+  border-radius: 50%;
+  animation: phone-spin 0.9s linear infinite;
+  margin-bottom: 8px;
+}
+@keyframes phone-spin { to { transform: rotate(360deg); } }
+
+.phone-sub {
+  font-size: 13px;
+  color: rgba(240, 230, 210, 0.6);
+  margin: 0;
+}
+
+.phone-btn {
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  border: 1px solid rgba(240, 230, 210, 0.18);
+  background: rgba(240, 230, 210, 0.05);
+  color: #f0e6d2;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.phone-btn-primary {
+  background: #d4a853;
+  color: #0a0a0f;
+  border-color: #d4a853;
+}
+
+.phone-camera {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: #f0e6d2;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Outfit', sans-serif;
+}
+
+.phone-camera-topbar {
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 2;
+}
+.phone-camera-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 18px;
+  color: #d4a853;
+}
+.phone-camera-status {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #86e0a8;
+}
+
+.phone-camera-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.phone-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.phone-camera-frame {
+  position: absolute;
+  inset: 12% 8%;
+  border: 1px dashed rgba(240, 230, 210, 0.45);
+  border-radius: 6px;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 10px;
+}
+.phone-camera-frame-label {
+  font-size: 11px;
+  color: rgba(240, 230, 210, 0.65);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+.phone-camera-bottom {
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.55);
+}
+
+.phone-shutter {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease;
+}
+.phone-shutter:active { transform: scale(0.94); }
+.phone-shutter:disabled { opacity: 0.45; cursor: not-allowed; }
+.phone-shutter-inner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #d4a853;
+  display: block;
+}
+.phone-shutter:disabled .phone-shutter-inner { background: rgba(255,255,255,0.18); }
