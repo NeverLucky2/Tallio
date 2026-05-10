@@ -3,6 +3,8 @@ import Tesseract from 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesserac
 import PhoneCapture from './PhoneCapture.jsx';
 import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
+import useSettings from './useSettings.js';
+import SettingsPanel from './SettingsPanel.jsx';
 import './App.css';
 
 const performOCR = async (imageSource, onProgress) => {
@@ -450,6 +452,19 @@ function BillTracker() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const desktopPeer = useDesktopPeer();
   const [showPairing, setShowPairing] = useState(false);
+  const settings = useSettings();
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsBanner, setSettingsBanner] = useState(null);
+
+  const openSettings = (banner = null) => {
+    setSettingsBanner(banner);
+    setShowSettings(true);
+  };
+
+  const closeSettings = () => {
+    setShowSettings(false);
+    setSettingsBanner(null);
+  };
 
   const openPairing = () => {
     if (!desktopPeer.active) desktopPeer.start();
@@ -736,6 +751,14 @@ function BillTracker() {
         />
       )}
 
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          onClose={closeSettings}
+          banner={settingsBanner}
+        />
+      )}
+
       {/* Undo Toast */}
       {undoToast && (
         <div className="toast">
@@ -754,6 +777,9 @@ function BillTracker() {
             <p className="brand-sub">Scan · Track · Manage</p>
           </div>
           <div className="header-actions">
+            <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">
+              ⚙
+            </button>
             <button
               onClick={undo}
               disabled={history.length === 0}
