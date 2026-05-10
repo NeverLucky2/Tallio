@@ -1,6 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Tesseract from 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js';
 import PhoneCapture from './PhoneCapture.jsx';
+import useDesktopPeer from './useDesktopPeer.js';
+import PairingPanel from './PairingPanel.jsx';
 import './App.css';
 
 const performOCR = async (imageSource, onProgress) => {
@@ -446,6 +448,13 @@ function BillTracker() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [ocrProgress, setOcrProgress] = useState(0);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const desktopPeer = useDesktopPeer();
+  const [showPairing, setShowPairing] = useState(false);
+
+  const openPairing = () => {
+    if (!desktopPeer.active) desktopPeer.start();
+    setShowPairing(true);
+  };
   const fileInputRef = useRef(null);
   const toastTimerRef = useRef(null);
   const hasLoaded = useRef(false);
@@ -712,6 +721,13 @@ function BillTracker() {
         </div>
       )}
 
+      {showPairing && (
+        <PairingPanel
+          peer={desktopPeer}
+          onClose={() => setShowPairing(false)}
+        />
+      )}
+
       {/* Undo Toast */}
       {undoToast && (
         <div className="toast">
@@ -780,6 +796,10 @@ function BillTracker() {
                 + Manual
               </button>
 
+              <button onClick={openPairing} className="btn btn-action">
+                ⌘ Pair Phone
+              </button>
+
               {!isMobile && (
                 <div className="format-badge">PDF · OCR</div>
               )}
@@ -818,12 +838,6 @@ function BillTracker() {
           {/* Sidebar */}
           <div className="sidebar">
             <CategoryBreakdown bills={bills} />
-
-            <div className="info-panel">
-              <span className="info-panel-icon">◎</span>
-              <h3 className="info-panel-title">Mobile App Coming Soon</h3>
-              <p className="info-panel-desc">Snap bills on the go and sync with desktop</p>
-            </div>
 
             <div className="formats-panel">
               <p className="formats-label">Supported Formats</p>
