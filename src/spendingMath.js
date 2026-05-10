@@ -98,6 +98,137 @@ function daysInMonth(month) {
   return new Date(y, m, 0).getDate();
 }
 
+function normalizeDescription(desc) {
+  return (desc || '').toUpperCase().trim().replace(/\s+/g, ' ');
+}
+
+function monthsBetween(fromMonth, toMonth) {
+  const [y1, m1] = fromMonth.split('-').map(n => parseInt(n, 10));
+  const [y2, m2] = toMonth.split('-').map(n => parseInt(n, 10));
+  return (y2 - y1) * 12 + (m2 - m1);
+}
+
+function mode(values) {
+  const counts = new Map();
+  for (const v of values) counts.set(v, (counts.get(v) || 0) + 1);
+  let best = values[0];
+  let max = 0;
+  for (const [v, c] of counts) {
+    if (c > max) { best = v; max = c; }
+  }
+  return best;
+}
+
+export function findRecurringCharges(bills, today = currentMonth()) {
+  const groups = new Map();
+  for (const bill of bills || []) {
+    for (const item of bill.items || []) {
+      if (!item || typeof item.description !== 'string') continue;
+      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      const key = normalizeDescription(item.description);
+      if (!key) continue;
+      const date = getItemDate(bill, item);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({
+        date,
+        month: date.slice(0, 7),
+        amount: item.amount,
+        vendor: bill.vendor || 'Unknown',
+        category: item.category || 'Other',
+        description: item.description.trim(),
+      });
+    }
+  }
+
+  const results = [];
+  for (const occurrences of groups.values()) {
+    const monthsSet = new Set(occurrences.map(o => o.month));
+    if (monthsSet.size < 2) continue;
+
+    const amounts = occurrences.map(o => o.amount);
+    const avg = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+    const maxDeviation = avg > 0
+      ? Math.max(...amounts.map(a => Math.abs(a - avg) / avg))
+      : 0;
+    const varies = maxDeviation > 0.15;
+
+    const days = occurrences.map(o => parseInt(o.date.slice(8, 10), 10));
+    const dayRange = Math.max(...days) - Math.min(...days);
+
+    // Allow varying amounts when transactions cluster on similar days each
+    // month (e.g. monthly tithes scaled to paycheck). Otherwise require
+    // amounts to be roughly consistent.
+    if (dayRange > 7 && varies) continue;
+
+    const sortedByDate = [...occurrences].sort((a, b) => a.date.localeCompare(b.date));
+    const firstDate = sortedByDate[0].date;
+    const lastDate = sortedByDate[sortedByDate.length - 1].date;
+    const lastAmount = sortedByDate[sortedByDate.length - 1].amount;
+    const monthsSinceLast = monthsBetween(lastDate.slice(0, 7), today);
+    const active = monthsSinceLast >= 0 && monthsSinceLast <= 1;
+
+    results.push({
+      description: mode(occurrences.map(o => o.description)),
+      vendor: mode(occurrences.map(o => o.vendor)),
+      category: mode(occurrences.map(o => o.category)),
+      avgAmount: avg,
+      lastAmount,
+      varies,
+      monthCount: monthsSet.size,
+      occurrences: occurrences.length,
+      firstDate,
+      lastDate,
+      active,
+    });
+  }
+
+  results.sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    return b.avgAmount - a.avgAmount;
+  });
+
+  return results;
+}
+
+export function aggregateByKeyword(bills, keyword) {
+  const empty = { total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 };
+  if (!keyword || typeof keyword !== 'string' || !keyword.trim()) return empty;
+  const needle = keyword.trim().toLowerCase();
+
+  let total = 0;
+  let occurrences = 0;
+  let lastDate = null;
+  const byMonth = {};
+  const categoryCounts = new Map();
+
+  for (const bill of bills || []) {
+    for (const item of bill.items || []) {
+      if (!item || typeof item.description !== 'string') continue;
+      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!item.description.toLowerCase().includes(needle)) continue;
+
+      const date = getItemDate(bill, item);
+      const month = date.slice(0, 7);
+      total += item.amount;
+      byMonth[month] = (byMonth[month] || 0) + item.amount;
+      occurrences += 1;
+      if (!lastDate || date > lastDate) lastDate = date;
+      const cat = item.category || 'Other';
+      categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+    }
+  }
+
+  if (occurrences === 0) return empty;
+
+  let category = null;
+  let max = 0;
+  for (const [cat, count] of categoryCounts) {
+    if (count > max) { category = cat; max = count; }
+  }
+
+  return { total, byMonth, lastDate, category, occurrences };
+}
+
 export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
   const days = daysInMonth(targetMonth);
   const buckets = [];

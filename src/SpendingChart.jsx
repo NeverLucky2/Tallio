@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   aggregateByMonth,
   aggregateByDay,
@@ -20,25 +20,88 @@ const formatCurrency = (amount) => new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD',
 }).format(amount);
 
-export default function SpendingChart({ bills }) {
+const formatCurrencyShort = (amount) => {
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 10_000)    return `$${Math.round(amount / 1000)}K`;
+  if (amount >= 1_000)     return `$${(amount / 1000).toFixed(1)}K`;
+  return `$${Math.round(amount)}`;
+};
+
+const STACK_HEADROOM_PCT = 88; // leave room above bars for the total label
+
+const VENDOR_COLOR_KEY = 'billtracker-vendor-colors';
+
+export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
   const [vendorFilter, setVendorFilter] = useState(null); // null = all
   const [drillMonth, setDrillMonth] = useState(null);     // null = monthly view
+  const previousMonthRef = useRef(null);                  // captured at first drill-in
+  const [vendorColors, setVendorColors] = useState(() => {
+    try {
+      const saved = localStorage.getItem(VENDOR_COLOR_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VENDOR_COLOR_KEY, JSON.stringify(vendorColors));
+    } catch (e) {
+      console.error('Failed to persist vendor colors:', e);
+    }
+  }, [vendorColors]);
+
+  const resolveVendorColor = (vendor) => vendorColors[vendor] || getVendorColor(vendor);
+
+  const windowEnd = new Date().toISOString().slice(0, 7);
 
   const vendors = useMemo(() => {
     const set = new Set();
-    for (const b of bills) if (b.vendor) set.add(b.vendor);
+    const window = new Set(getMonthWindow(windowEnd));
+    for (const b of bills) {
+      if (!b.vendor) continue;
+      if (!window.has(b.month)) continue;
+      const hasSpending = (b.items || []).some(
+        i => Number.isFinite(i.amount) && i.amount > 0
+      );
+      if (hasSpending) set.add(b.vendor);
+    }
     return Array.from(set).sort();
-  }, [bills]);
+  }, [bills, windowEnd]);
 
   // If the selected vendor was deleted, treat as "All" without a setState call.
   const effectiveFilter = vendorFilter !== null && vendors.includes(vendorFilter) ? vendorFilter : null;
 
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-
   const monthly = useMemo(
-    () => aggregateByMonth(bills, currentMonthKey, effectiveFilter),
-    [bills, currentMonthKey, effectiveFilter]
+    () => aggregateByMonth(bills, windowEnd, effectiveFilter),
+    [bills, windowEnd, effectiveFilter]
   );
+
+  // If selectedMonth changes from outside (e.g. header toggle) while a drill is
+  // active and out of sync, exit drill — bar/drill-nav clicks set both in the
+  // same render so this won't fire for those.
+  useEffect(() => {
+    if (drillMonth !== null && drillMonth !== selectedMonth) {
+      setDrillMonth(null);
+      previousMonthRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
+
+  const enterDrill = (month) => {
+    if (drillMonth === null) previousMonthRef.current = selectedMonth;
+    setDrillMonth(month);
+    if (onSelectMonth) onSelectMonth(month);
+  };
+
+  const exitDrill = () => {
+    const restore = previousMonthRef.current;
+    previousMonthRef.current = null;
+    setDrillMonth(null);
+    if (onSelectMonth && restore) onSelectMonth(restore);
+  };
 
   const daily = useMemo(() => {
     if (!drillMonth) return null;
@@ -46,6 +109,11 @@ export default function SpendingChart({ bills }) {
   }, [bills, drillMonth, effectiveFilter]);
 
   const isAll = effectiveFilter === null;
+
+  const filteredTotal = useMemo(() => {
+    if (drillMonth && daily) return daily.reduce((s, d) => s + d.total, 0);
+    return monthly.reduce((s, m) => s + m.total, 0);
+  }, [monthly, daily, drillMonth]);
 
   if (bills.length === 0) {
     return (
@@ -68,7 +136,7 @@ export default function SpendingChart({ bills }) {
           key={v}
           className={`spending-chip${effectiveFilter === v ? ' active' : ''}`}
           onClick={() => setVendorFilter(v)}
-          style={effectiveFilter === v ? { background: getVendorColor(v), color: '#0b0e16' } : null}
+          style={effectiveFilter === v ? { background: resolveVendorColor(v), color: '#0b0e16' } : null}
         >
           {v}
         </button>
@@ -81,10 +149,17 @@ export default function SpendingChart({ bills }) {
     return (
       <div className="spending-legend">
         {vendors.map(v => (
-          <span key={v} className="spending-legend-item">
-            <span className="spending-legend-swatch" style={{ background: getVendorColor(v) }} />
+          <label key={v} className="spending-legend-item" title={`Click to recolor ${v}`}>
+            <input
+              type="color"
+              value={resolveVendorColor(v)}
+              onChange={(e) => setVendorColors(prev => ({ ...prev, [v]: e.target.value }))}
+              className="spending-legend-color-input"
+              aria-label={`Pick color for ${v}`}
+            />
+            <span className="spending-legend-swatch" style={{ background: resolveVendorColor(v) }} />
             {v}
-          </span>
+          </label>
         ))}
       </div>
     );
@@ -98,22 +173,23 @@ export default function SpendingChart({ bills }) {
     return (
       <div className="spending-bars">
         {monthly.map(m => {
-          const pct = (m.total / max) * 100;
-          const isCurrent = m.month === currentMonthKey;
+          const pct = (m.total / max) * STACK_HEADROOM_PCT;
+          const isCurrent = m.month === selectedMonth;
           return (
             <button
               key={m.month}
               className={`spending-bar${isCurrent ? ' current' : ''}`}
-              onClick={() => setDrillMonth(m.month)}
+              onClick={() => enterDrill(m.month)}
               title={`${formatMonthLong(m.month)} — ${formatCurrency(m.total)}`}
             >
+              <span className="spending-bar-total">{formatCurrencyShort(m.total)}</span>
               <div className="spending-bar-stack" style={{ height: `${pct}%` }}>
                 {isAll ? renderStack(m) : (
                   <div
                     className="spending-bar-segment"
                     style={{
                       background: effectiveFilter
-                        ? getVendorColor(effectiveFilter)
+                        ? resolveVendorColor(effectiveFilter)
                         : '#5b8dff',
                       height: '100%',
                     }}
@@ -136,16 +212,21 @@ export default function SpendingChart({ bills }) {
         <div
           key={vendor}
           className="spending-bar-segment"
-          style={{ background: getVendorColor(vendor), height: `${segPct}%` }}
+          style={{ background: resolveVendorColor(vendor), height: `${segPct}%` }}
         />
       );
     });
   };
 
-  const months = getMonthWindow(currentMonthKey);
+  const months = getMonthWindow(windowEnd);
   const drillIdx = drillMonth ? months.indexOf(drillMonth) : -1;
   const canPrev = drillIdx > 0;
   const canNext = drillIdx >= 0 && drillIdx < months.length - 1;
+
+  const drillNavTo = (month) => {
+    setDrillMonth(month);
+    if (onSelectMonth) onSelectMonth(month);
+  };
 
   const renderDailyBars = () => {
     const max = Math.max(...daily.map(d => d.total), 1);
@@ -155,7 +236,7 @@ export default function SpendingChart({ bills }) {
     return (
       <div className="spending-bars spending-bars-daily">
         {daily.map(d => {
-          const pct = (d.total / max) * 100;
+          const pct = (d.total / max) * STACK_HEADROOM_PCT;
           return (
             <div
               key={d.day}
@@ -168,7 +249,7 @@ export default function SpendingChart({ bills }) {
                     className="spending-bar-segment"
                     style={{
                       background: effectiveFilter
-                        ? getVendorColor(effectiveFilter)
+                        ? resolveVendorColor(effectiveFilter)
                         : '#5b8dff',
                       height: '100%',
                     }}
@@ -187,13 +268,13 @@ export default function SpendingChart({ bills }) {
 
   const renderDailyHeader = () => (
     <div className="spending-drill-header">
-      <button className="spending-back" onClick={() => setDrillMonth(null)} aria-label="Back to monthly">
+      <button className="spending-back" onClick={exitDrill} aria-label="Back to monthly">
         ← Back
       </button>
       <div className="spending-drill-nav">
         <button
           className="spending-back"
-          onClick={() => canPrev && setDrillMonth(months[drillIdx - 1])}
+          onClick={() => canPrev && drillNavTo(months[drillIdx - 1])}
           disabled={!canPrev}
           aria-label="Previous month"
         >
@@ -202,7 +283,7 @@ export default function SpendingChart({ bills }) {
         <span className="spending-drill-month">{formatMonthLong(drillMonth)}</span>
         <button
           className="spending-back"
-          onClick={() => canNext && setDrillMonth(months[drillIdx + 1])}
+          onClick={() => canNext && drillNavTo(months[drillIdx + 1])}
           disabled={!canNext}
           aria-label="Next month"
         >
@@ -213,10 +294,16 @@ export default function SpendingChart({ bills }) {
     </div>
   );
 
+  const totalLabel = effectiveFilter ? effectiveFilter : 'All cards';
+
   return (
     <div className="spending-panel">
       <div className="spending-header">
         <h2 className="spending-title">Spending</h2>
+        <div>
+          <span className="spending-total-label">{totalLabel}</span>
+          <span className="spending-total">{formatCurrency(filteredTotal)}</span>
+        </div>
       </div>
       {renderChips()}
       {renderLegend()}

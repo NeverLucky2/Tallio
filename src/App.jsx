@@ -6,13 +6,14 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword } from './spendingMath.js';
 import './App.css';
 
 const categories = [
   { name: "Utilities",      icon: "⚡", color: "#F59E0B" },
   { name: "Groceries",      icon: "🛒", color: "#10B981" },
   { name: "Healthcare",     icon: "💊", color: "#EF4444" },
+  { name: "Fitness",        icon: "🧗", color: "#84CC16" },
   { name: "Insurance",      icon: "🛡️", color: "#6366F1" },
   { name: "Entertainment",  icon: "🎬", color: "#EC4899" },
   { name: "Transportation", icon: "🚗", color: "#8B5CF6" },
@@ -23,6 +24,8 @@ const categories = [
   { name: "Donations",      icon: "🙏", color: "#e879a0" },
   { name: "Other",          icon: "📋", color: "#6B7280" }
 ];
+
+const FALLBACK_CATEGORY = categories.find(c => c.name === 'Other');
 
 const autoCategorizeTx = (description) => {
   const desc = description.toUpperCase();
@@ -43,6 +46,9 @@ const autoCategorizeTx = (description) => {
       desc.includes('PARISH') || desc.includes('DIOCESE') || desc.includes('SYNAGOGUE') ||
       desc.includes('MOSQUE') || desc.includes('TEMPLE') || desc.includes('CHARITY') ||
       desc.includes('FOUNDATION') || desc.includes('NONPROFIT') || desc.includes('NON-PROFIT')) return "Donations";
+  if (desc.includes('FIRST ASCENT') || desc.includes('GYM') || desc.includes('FITNESS') ||
+      desc.includes('CLIMBING') || desc.includes('CROSSFIT') || desc.includes('YOGA') ||
+      desc.includes('PILATES')) return "Fitness";
   return "Other";
 };
 
@@ -60,6 +66,50 @@ const formatMonth = (monthString) => {
     month: 'long',
     year: 'numeric'
   });
+};
+
+const formatMonthCompact = (monthString) => {
+  if (!monthString || !/^\d{4}-\d{2}$/.test(monthString)) return '';
+  const [y, m] = monthString.split('-').map(n => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+
+const shiftMonth = (monthString, delta) => {
+  const [y, m] = monthString.split('-').map(n => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const MonthToggle = ({ selectedMonth, onChange }) => {
+  const today = currentMonthKey();
+  const canNext = selectedMonth < today;
+  return (
+    <div className="month-toggle" role="group" aria-label="Month filter">
+      <button
+        type="button"
+        className="month-toggle-btn"
+        onClick={() => onChange(shiftMonth(selectedMonth, -1))}
+        aria-label="Previous month"
+      >
+        ‹
+      </button>
+      <span className="month-toggle-label">{formatMonthCompact(selectedMonth)}</span>
+      <button
+        type="button"
+        className="month-toggle-btn"
+        onClick={() => canNext && onChange(shiftMonth(selectedMonth, 1))}
+        disabled={!canNext}
+        aria-label="Next month"
+      >
+        ›
+      </button>
+    </div>
+  );
 };
 
 
@@ -145,7 +195,7 @@ const CameraCapture = ({ onCapture, onClose }) => {
 // ---- Bill Item Row ----
 
 const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
-  const category = categories.find(c => c.name === item.category) || categories[10];
+  const category = categories.find(c => c.name === item.category) || FALLBACK_CATEGORY;
   const itemDate = item.date || getItemDate(bill, item);
 
   if (isMobile) {
@@ -211,13 +261,6 @@ const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
         {category.icon}
       </div>
       <input
-        type="text"
-        value={item.description}
-        onChange={(e) => onUpdate({ ...item, description: e.target.value })}
-        className="input-transparent"
-        placeholder="Description"
-      />
-      <input
         type="date"
         value={itemDate}
         onChange={(e) => onUpdate({ ...item, date: e.target.value })}
@@ -232,6 +275,13 @@ const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
           <option key={cat.name} value={cat.name}>{cat.icon} {cat.name}</option>
         ))}
       </select>
+      <input
+        type="text"
+        value={item.description}
+        onChange={(e) => onUpdate({ ...item, description: e.target.value })}
+        className="input-transparent"
+        placeholder="Description"
+      />
       <div className="input-amount-wrap">
         <span className="input-amount-prefix">$</span>
         <input
@@ -339,7 +389,7 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
 
 // ---- Summary Card ----
 
-const SummaryCard = ({ title, amount, isCount, colorKey }) => (
+const SummaryCard = ({ title, amount, isCount, colorKey, delta }) => (
   <div className={`stat-card stat-card-${colorKey}`}>
     <div className="stat-label">
       <div className={`stat-dot stat-dot-${colorKey}`} />
@@ -348,13 +398,19 @@ const SummaryCard = ({ title, amount, isCount, colorKey }) => (
     <div className="stat-value">
       {isCount ? amount : formatCurrency(amount)}
     </div>
+    {delta && (
+      <div className={`stat-delta stat-delta-${delta.direction}`}>
+        {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
+        <span className="stat-delta-ref"> vs {delta.prevLabel}</span>
+      </div>
+    )}
   </div>
 );
 
 
 // ---- Category Breakdown ----
 
-const CategoryBreakdown = ({ bills }) => {
+const CategoryBreakdown = ({ bills, selectedMonth }) => {
   const categoryTotals = {};
   bills.forEach(bill => {
     bill.items.forEach(item => {
@@ -373,14 +429,17 @@ const CategoryBreakdown = ({ bills }) => {
     <div className="panel">
       <div className="panel-header">
         <h3 className="panel-title">Categories</h3>
+        {selectedMonth && (
+          <span className="panel-sub">{formatMonthCompact(selectedMonth)}</span>
+        )}
       </div>
 
       {sortedCategories.length === 0 ? (
-        <p className="panel-empty">No expenses recorded yet</p>
+        <p className="panel-empty">No expenses for {selectedMonth ? formatMonth(selectedMonth) : 'this period'}</p>
       ) : (
         <div className="cat-list">
           {sortedCategories.map(([categoryName, amount]) => {
-            const category = categories.find(c => c.name === categoryName) || categories[10];
+            const category = categories.find(c => c.name === categoryName) || FALLBACK_CATEGORY;
             const percentage = (amount / maxAmount) * 100;
             return (
               <div key={categoryName}>
@@ -409,10 +468,170 @@ const CategoryBreakdown = ({ bills }) => {
 };
 
 
+// ---- Tracked Keywords Panel ----
+
+const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth }) => {
+  const [draft, setDraft] = useState('');
+
+  const submit = () => {
+    const k = draft.trim();
+    if (!k) return;
+    onAdd(k);
+    setDraft('');
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h3 className="panel-title">Tracked</h3>
+        {keywords.length > 0 && <span className="panel-sub">{keywords.length} keyword{keywords.length === 1 ? '' : 's'}</span>}
+      </div>
+
+      <div className="track-input-row">
+        <input
+          type="text"
+          className="track-input"
+          placeholder="Track a keyword (e.g. CHURCH, MCDONALD)"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+        <button type="button" className="track-add" onClick={submit} aria-label="Add keyword">+</button>
+      </div>
+
+      {keywords.length === 0 ? (
+        <p className="panel-empty">Pin keywords to monitor spending at specific places.</p>
+      ) : (
+        <div className="track-list">
+          {keywords.map(kw => {
+            const summary = aggregateByKeyword(bills, kw);
+            const thisMonth = summary.byMonth[selectedMonth] || 0;
+            const prevMonthKey = shiftMonth(selectedMonth, -1);
+            const prevMonth = summary.byMonth[prevMonthKey] || 0;
+            let delta = null;
+            if (prevMonth > 0) {
+              const change = (thisMonth - prevMonth) / prevMonth;
+              delta = {
+                pct: Math.round(Math.abs(change) * 100),
+                direction: change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat',
+              };
+            }
+            const cat = categories.find(c => c.name === summary.category) || FALLBACK_CATEGORY;
+            return (
+              <div key={kw} className="track-row">
+                <div className="track-row-main">
+                  <span className="track-icon" style={{ background: `${cat.color}18`, border: `1px solid ${cat.color}28` }}>
+                    {cat.icon}
+                  </span>
+                  <div className="track-row-text">
+                    <div className="track-row-keyword">{kw}</div>
+                    <div className="track-row-meta">
+                      {summary.occurrences > 0
+                        ? `last ${summary.lastDate} · ${summary.occurrences} hit${summary.occurrences === 1 ? '' : 's'}`
+                        : 'No matches yet'}
+                    </div>
+                  </div>
+                </div>
+                <div className="track-row-right">
+                  <div className="track-amount">{formatCurrency(thisMonth)}</div>
+                  {delta && (
+                    <span className={`track-delta track-delta-${delta.direction}`}>
+                      {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="track-remove"
+                  onClick={() => onRemove(kw)}
+                  aria-label={`Stop tracking ${kw}`}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ---- Subscriptions Panel ----
+
+const Subscriptions = ({ bills, today, trackedKeywords = [] }) => {
+  const all = findRecurringCharges(bills, today);
+  const charges = all.filter(c => !trackedKeywords.some(kw =>
+    c.description.toUpperCase().includes(kw.toUpperCase())
+  ));
+  if (charges.length === 0) return null;
+
+  const monthlyTotal = charges
+    .filter(c => c.active)
+    .reduce((s, c) => s + c.lastAmount, 0);
+
+  return (
+    <div className="panel">
+      <div className="panel-header">
+        <h3 className="panel-title">Subscriptions</h3>
+        <span className="panel-sub">~{formatCurrency(monthlyTotal)}/mo</span>
+      </div>
+      <div className="sub-list">
+        {charges.map(c => {
+          const cat = categories.find(k => k.name === c.category) || FALLBACK_CATEGORY;
+          return (
+            <div key={`${c.vendor}-${c.description}`} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
+              <div className="sub-row-main">
+                <span className="sub-icon" style={{ background: `${cat.color}18`, border: `1px solid ${cat.color}28` }}>
+                  {cat.icon}
+                </span>
+                <div className="sub-row-text">
+                  <div className="sub-row-desc">{c.description}</div>
+                  <div className="sub-row-meta">
+                    {c.vendor} · {c.monthCount} mo · last {c.lastDate}
+                  </div>
+                </div>
+              </div>
+              <div className="sub-row-right">
+                <div className="sub-amount">
+                  {formatCurrency(c.lastAmount)}
+                  {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(c.avgAmount)}`}>varies</span>}
+                </div>
+                <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
+                  {c.active ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+
 // ---- Main App ----
 
 function BillTracker() {
-  const [bills, setBills] = useState([]);
+  const [bills, setBills] = useState(() => {
+    try {
+      const saved = localStorage.getItem('billtracker-bills');
+      return saved ? migrateBills(JSON.parse(saved)) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedMonth, setSelectedMonth] = useState(() => currentMonthKey());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [trackedKeywords, setTrackedKeywords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('billtracker-tracked-keywords');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [history, setHistory] = useState([]);
   const [undoToast, setUndoToast] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -457,30 +676,35 @@ function BillTracker() {
 
   const fileInputRef = useRef(null);
   const toastTimerRef = useRef(null);
-  const hasLoaded = useRef(false);
 
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1024;
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('billtracker-bills');
-      if (saved) setBills(migrateBills(JSON.parse(saved)));
-    } catch (e) {
-      // No saved bills yet
-    } finally {
-      hasLoaded.current = true;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoaded.current) return;
-    try {
       localStorage.setItem('billtracker-bills', JSON.stringify(bills));
     } catch (e) {
       console.error('Failed to save bills:', e);
     }
   }, [bills]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('billtracker-tracked-keywords', JSON.stringify(trackedKeywords));
+    } catch (e) {
+      console.error('Failed to save tracked keywords:', e);
+    }
+  }, [trackedKeywords]);
+
+  const addKeyword = (raw) => {
+    const k = raw.trim().toUpperCase();
+    if (!k) return;
+    setTrackedKeywords(prev => prev.includes(k) ? prev : [...prev, k]);
+  };
+
+  const removeKeyword = (kw) => {
+    setTrackedKeywords(prev => prev.filter(k => k !== kw));
+  };
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -506,13 +730,49 @@ function BillTracker() {
     sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
   );
 
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const thisMonthTotal = bills.reduce((sum, bill) => {
-    return sum + bill.items.reduce((itemSum, item) => {
-      const itemMonth = getItemDate(bill, item).slice(0, 7);
-      return itemMonth === currentMonthKey ? itemSum + item.amount : itemSum;
-    }, 0);
-  }, 0);
+  const todayMonth = currentMonthKey();
+  const monthBills = bills.filter(bill => bill.month === selectedMonth);
+  const selectedMonthTotal = monthBills.reduce((sum, bill) =>
+    sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
+  );
+  const monthCardTitle = selectedMonth === todayMonth
+    ? 'This Month'
+    : formatMonthCompact(selectedMonth);
+
+  const previousMonth = shiftMonth(selectedMonth, -1);
+  const previousMonthTotal = bills
+    .filter(bill => bill.month === previousMonth)
+    .reduce((sum, bill) =>
+      sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
+    );
+
+  let monthDelta = null;
+  if (previousMonthTotal > 0) {
+    const change = (selectedMonthTotal - previousMonthTotal) / previousMonthTotal;
+    monthDelta = {
+      pct: Math.round(Math.abs(change) * 100),
+      direction: change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat',
+      prevLabel: formatMonthCompact(previousMonth),
+    };
+  }
+
+  const searchActive = searchTerm.trim().length > 0;
+  const matchesSearch = (bill, term) => {
+    if (!term) return true;
+    const t = term.toLowerCase();
+    if ((bill.vendor || '').toLowerCase().includes(t)) return true;
+    const num = parseFloat(t);
+    for (const item of bill.items || []) {
+      if ((item.description || '').toLowerCase().includes(t)) return true;
+      if ((item.category || '').toLowerCase().includes(t)) return true;
+      if (Number.isFinite(num) && Math.abs(item.amount - num) < 0.01) return true;
+    }
+    return false;
+  };
+
+  const visibleBills = searchActive
+    ? bills.filter(b => matchesSearch(b, searchTerm))
+    : monthBills;
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
@@ -670,9 +930,12 @@ function BillTracker() {
         {/* Header */}
         <header className="header">
           <div className="brand">
-            <h1 className="brand-title">
-              Bill<span className="brand-title-accent">Tracker</span>
-            </h1>
+            <div className="brand-row">
+              <h1 className="brand-title">
+                Bill<span className="brand-title-accent">Tracker</span>
+              </h1>
+              <MonthToggle selectedMonth={selectedMonth} onChange={setSelectedMonth} />
+            </div>
             <p className="brand-sub">Scan · Track · Manage</p>
           </div>
           <div className="header-actions">
@@ -695,12 +958,16 @@ function BillTracker() {
         {/* Stats */}
         <div className="stats-grid">
           <SummaryCard title="Total Expenses" amount={totalExpenses} colorKey="blue" />
-          <SummaryCard title="This Month"     amount={thisMonthTotal} colorKey="green" />
+          <SummaryCard title={monthCardTitle}  amount={selectedMonthTotal} colorKey="green" delta={monthDelta} />
           <SummaryCard title="Total Bills"    amount={bills.length} isCount={true} colorKey="purple" />
         </div>
 
         {/* Spending Hero */}
-        <SpendingChart bills={bills} />
+        <SpendingChart
+          bills={bills}
+          selectedMonth={selectedMonth}
+          onSelectMonth={setSelectedMonth}
+        />
 
         {/* Main Grid */}
         <div className="main-grid">
@@ -741,8 +1008,34 @@ function BillTracker() {
             {/* Bills List */}
             <div className="section-header">
               <h2 className="section-title">Bills</h2>
-              <span className="section-count">{bills.length}</span>
+              <span className="section-count">{visibleBills.length}</span>
             </div>
+
+            {bills.length > 0 && (
+              <div className={`search-row${searchActive ? ' search-row-active' : ''}`}>
+                <span className="search-icon">⌕</span>
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Search by vendor, description, category, or amount…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchActive && (
+                  <>
+                    <span className="search-scope">All months</span>
+                    <button
+                      type="button"
+                      className="search-clear"
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Clear search"
+                    >
+                      ×
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {bills.length === 0 ? (
               <div className="empty-state">
@@ -755,8 +1048,18 @@ function BillTracker() {
                   ◉ Scan Your First Bill
                 </button>
               </div>
+            ) : visibleBills.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-glyph">◌</div>
+                <h3 className="empty-title">
+                  {searchActive ? `No matches for "${searchTerm}"` : `No bills for ${formatMonth(selectedMonth)}`}
+                </h3>
+                <p className="empty-desc">
+                  {searchActive ? 'Try a different keyword or amount.' : 'Use the month toggle above to view another month.'}
+                </p>
+              </div>
             ) : (
-              bills.map(bill => (
+              visibleBills.map(bill => (
                 <BillCard
                   key={bill.id}
                   bill={bill}
@@ -770,7 +1073,15 @@ function BillTracker() {
 
           {/* Sidebar */}
           <div className="sidebar">
-            <CategoryBreakdown bills={bills} />
+            <CategoryBreakdown bills={searchActive ? visibleBills : monthBills} selectedMonth={searchActive ? null : selectedMonth} />
+            <TrackedPanel
+              bills={bills}
+              keywords={trackedKeywords}
+              onAdd={addKeyword}
+              onRemove={removeKeyword}
+              selectedMonth={selectedMonth}
+            />
+            <Subscriptions bills={bills} today={todayMonth} trackedKeywords={trackedKeywords} />
 
             <div className="formats-panel">
               <p className="formats-label">Supported Formats</p>

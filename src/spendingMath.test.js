@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -260,5 +260,248 @@ describe('aggregateByDay', () => {
     }];
     const result = aggregateByDay(cross, '2026-05');
     expect(result.every(d => d.total === 0)).toBe(true);
+  });
+});
+
+describe('findRecurringCharges', () => {
+  const subscription = (month, day, amount = 15.99, description = 'NETFLIX', vendor = 'Chase') => ({
+    id: `${month}-${description}`, vendor, month,
+    items: [{ id: `${month}-${description}`, description, amount, date: `${month}-${String(day).padStart(2, '0')}`, category: 'Subscriptions' }],
+  });
+
+  it('detects a charge that recurs across 3 distinct months', () => {
+    const bills = [
+      subscription('2026-03', 5),
+      subscription('2026-04', 5),
+      subscription('2026-05', 5),
+    ];
+    const result = findRecurringCharges(bills, '2026-05');
+    expect(result).toHaveLength(1);
+    expect(result[0].description).toBe('NETFLIX');
+    expect(result[0].monthCount).toBe(3);
+  });
+
+  it('ignores items that appear in only one month', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'COFFEE', amount: 5, date: '2026-05-01', category: 'Dining' },
+        { description: 'COFFEE', amount: 5, date: '2026-05-15', category: 'Dining' },
+      ]},
+    ];
+    expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
+  });
+
+  it('reports the average amount across occurrences', () => {
+    const bills = [
+      subscription('2026-04', 5, 9.99),
+      subscription('2026-05', 5, 10.99),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.avgAmount).toBeCloseTo(10.49, 2);
+  });
+
+  it('rejects charges with scattered days AND varying amounts', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-04', items: [
+        { description: 'GROCERIES', amount: 50, date: '2026-04-03', category: 'Groceries' },
+      ]},
+      { id: '2', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'GROCERIES', amount: 120, date: '2026-05-22', category: 'Groceries' },
+      ]},
+    ];
+    expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
+  });
+
+  it('detects recurring charges with consistent day even when amount varies (e.g. donations)', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-03', items: [
+        { description: 'CHURCH OFFERING', amount: 450, date: '2026-03-01', category: 'Donations' },
+      ]},
+      { id: '2', vendor: 'Chase', month: '2026-04', items: [
+        { description: 'CHURCH OFFERING', amount: 620, date: '2026-04-02', category: 'Donations' },
+      ]},
+      { id: '3', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'CHURCH OFFERING', amount: 525, date: '2026-05-01', category: 'Donations' },
+      ]},
+    ];
+    const result = findRecurringCharges(bills, '2026-05');
+    expect(result).toHaveLength(1);
+    expect(result[0].description).toBe('CHURCH OFFERING');
+  });
+
+  it('returns lastAmount as the amount of the most recent occurrence', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-04', items: [
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+      ]},
+      { id: '2', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+      ]},
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.lastAmount).toBe(600);
+  });
+
+  it('flags varies=true when amounts differ by more than 15%', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-04', items: [
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+      ]},
+      { id: '2', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+      ]},
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.varies).toBe(true);
+  });
+
+  it('flags varies=false when amounts are within 15%', () => {
+    const bills = [
+      subscription('2026-04', 5, 15.99),
+      subscription('2026-05', 5, 15.99),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.varies).toBe(false);
+  });
+
+  it('marks active when last seen in selected month', () => {
+    const bills = [
+      subscription('2026-04', 5),
+      subscription('2026-05', 5),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.active).toBe(true);
+  });
+
+  it('marks active when last seen one month before today', () => {
+    const bills = [
+      subscription('2026-03', 5),
+      subscription('2026-04', 5),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.active).toBe(true);
+  });
+
+  it('marks inactive when last seen more than one month ago', () => {
+    const bills = [
+      subscription('2026-01', 5),
+      subscription('2026-02', 5),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.active).toBe(false);
+  });
+
+  it('treats descriptions as case-insensitive', () => {
+    const bills = [
+      { id: '1', vendor: 'Chase', month: '2026-04', items: [
+        { description: 'netflix', amount: 15.99, date: '2026-04-05', category: 'Subscriptions' },
+      ]},
+      { id: '2', vendor: 'Chase', month: '2026-05', items: [
+        { description: 'NETFLIX', amount: 15.99, date: '2026-05-05', category: 'Subscriptions' },
+      ]},
+    ];
+    const result = findRecurringCharges(bills, '2026-05');
+    expect(result).toHaveLength(1);
+    expect(result[0].monthCount).toBe(2);
+  });
+
+  it('sorts active charges before inactive ones', () => {
+    const bills = [
+      subscription('2026-01', 5, 5, 'OLDSUB'),
+      subscription('2026-02', 5, 5, 'OLDSUB'),
+      subscription('2026-04', 5, 10, 'NEWSUB'),
+      subscription('2026-05', 5, 10, 'NEWSUB'),
+    ];
+    const result = findRecurringCharges(bills, '2026-05');
+    expect(result[0].description).toBe('NEWSUB');
+    expect(result[1].description).toBe('OLDSUB');
+  });
+
+  it('returns lastDate as the most recent transaction date', () => {
+    const bills = [
+      subscription('2026-04', 5),
+      subscription('2026-05', 12),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.lastDate).toBe('2026-05-12');
+  });
+
+  it('reports the vendor most commonly associated with the charge', () => {
+    const bills = [
+      subscription('2026-03', 5, 15.99, 'NETFLIX', 'Chase'),
+      subscription('2026-04', 5, 15.99, 'NETFLIX', 'Chase'),
+      subscription('2026-05', 5, 15.99, 'NETFLIX', 'Amex'),
+    ];
+    const [r] = findRecurringCharges(bills, '2026-05');
+    expect(r.vendor).toBe('Chase');
+  });
+});
+
+describe('aggregateByKeyword', () => {
+  const billWithItems = (month, items) => ({
+    id: month, vendor: 'Chase', month,
+    items: items.map((it, i) => ({ id: `${month}-${i}`, ...it })),
+  });
+
+  it('returns null/empty summary when keyword is blank', () => {
+    const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', category: 'Other' }])];
+    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 });
+  });
+
+  it('matches items by case-insensitive substring on description', () => {
+    const bills = [
+      billWithItems('2026-04', [
+        { description: 'Church of Saint Mary', amount: 400, date: '2026-04-01', category: 'Donations' },
+      ]),
+      billWithItems('2026-05', [
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'BURGER KING', amount: 12, date: '2026-05-04', category: 'Dining' },
+      ]),
+    ];
+    const result = aggregateByKeyword(bills, 'church');
+    expect(result.total).toBe(1000);
+    expect(result.occurrences).toBe(2);
+  });
+
+  it('breaks down totals by month', () => {
+    const bills = [
+      billWithItems('2026-04', [{ description: 'McDonald', amount: 8, date: '2026-04-03', category: 'Dining' }]),
+      billWithItems('2026-05', [
+        { description: 'McDonalds Drive Thru', amount: 12, date: '2026-05-02', category: 'Dining' },
+        { description: 'McDONALD\'S', amount: 9, date: '2026-05-15', category: 'Dining' },
+      ]),
+    ];
+    const result = aggregateByKeyword(bills, 'mcdonald');
+    expect(result.byMonth['2026-04']).toBe(8);
+    expect(result.byMonth['2026-05']).toBe(21);
+  });
+
+  it('returns the last (most recent) matching date', () => {
+    const bills = [
+      billWithItems('2026-03', [{ description: 'CHURCH', amount: 400, date: '2026-03-01', category: 'Donations' }]),
+      billWithItems('2026-05', [{ description: 'CHURCH', amount: 600, date: '2026-05-15', category: 'Donations' }]),
+    ];
+    expect(aggregateByKeyword(bills, 'CHURCH').lastDate).toBe('2026-05-15');
+  });
+
+  it('returns the most common category among matching items', () => {
+    const bills = [
+      billWithItems('2026-04', [{ description: 'AMAZON', amount: 30, date: '2026-04-01', category: 'Shopping' }]),
+      billWithItems('2026-05', [
+        { description: 'AMAZON', amount: 12, date: '2026-05-01', category: 'Shopping' },
+        { description: 'AMAZON PRIME', amount: 14.99, date: '2026-05-05', category: 'Subscriptions' },
+      ]),
+    ];
+    expect(aggregateByKeyword(bills, 'AMAZON').category).toBe('Shopping');
+  });
+
+  it('ignores items with non-positive amounts', () => {
+    const bills = [
+      billWithItems('2026-05', [
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH REFUND', amount: -50, date: '2026-05-15', category: 'Donations' },
+      ]),
+    ];
+    expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(600);
   });
 });
