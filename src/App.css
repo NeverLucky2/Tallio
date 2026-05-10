@@ -1233,3 +1233,143 @@
 .phone-error h1 {
   color: #ef4444;
 }
+
+.pair-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 14, 0.78);
+  backdrop-filter: blur(8px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.pair-modal {
+  width: 100%;
+  max-width: 380px;
+  background: #15151c;
+  border: 1px solid rgba(212, 168, 83, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.pair-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(212, 168, 83, 0.12);
+}
+
+.pair-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  color: #d4a853;
+  margin: 0;
+}
+
+.pair-close {
+  background: none;
+  border: 0;
+  color: rgba(240, 230, 210, 0.5);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+.pair-close:hover { color: #f0e6d2; }
+
+.pair-body {
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.pair-qr-card {
+  background: #f0e6d2;
+  padding: 14px;
+  border-radius: 10px;
+  line-height: 0;
+}
+
+.pair-instructions {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(240, 230, 210, 0.7);
+  margin: 0;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+.pair-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(240, 230, 210, 0.06);
+  color: rgba(240, 230, 210, 0.75);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(240, 230, 210, 0.08);
+}
+.pair-status-pill.pair-status-good {
+  color: #86e0a8;
+  background: rgba(134, 224, 168, 0.08);
+  border-color: rgba(134, 224, 168, 0.25);
+}
+.pair-status-pill.pair-status-bad {
+  color: #f08c8c;
+  background: rgba(240, 140, 140, 0.08);
+  border-color: rgba(240, 140, 140, 0.25);
+}
+
+.pair-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.pair-progress {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+  margin-left: 4px;
+}
+
+.pair-countdown {
+  font-size: 12px;
+  color: rgba(240, 230, 210, 0.55);
+  margin: 0;
+}
+.pair-countdown-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+  color: #d4a853;
+}
+
+.pair-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(240, 230, 210, 0.8);
+}
+
+.pair-footer {
+  padding: 14px 20px 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
