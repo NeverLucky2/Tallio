@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Tesseract from 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js';
+import PhoneCapture from './PhoneCapture.jsx';
 import './App.css';
 
 const performOCR = async (imageSource, onProgress) => {
@@ -436,7 +437,7 @@ const CategoryBreakdown = ({ bills }) => {
 
 // ---- Main App ----
 
-export default function BillTracker() {
+function BillTracker() {
   const [bills, setBills] = useState([]);
   const [history, setHistory] = useState([]);
   const [undoToast, setUndoToast] = useState(false);
@@ -838,4 +839,11 @@ export default function BillTracker() {
       </div>
     </div>
   );
+}
+
+export default function App() {
+  if (typeof window !== 'undefined' && window.location.pathname === '/pair') {
+    return <PhoneCapture />;
+  }
+  return <BillTracker />;
 }

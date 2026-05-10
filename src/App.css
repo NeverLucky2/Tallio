@@ -1200,3 +1200,36 @@
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+.phone-root {
+  min-height: 100dvh;
+  background: #0a0a0f;
+  color: #f0e6d2;
+  font-family: 'Outfit', system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.phone-root h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 32px;
+  font-weight: 500;
+  margin: 0 0 16px;
+  color: #d4a853;
+}
+
+.phone-root code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #d4a853;
+  letter-spacing: -0.01em;
+}
+
+.phone-error h1 {
+  color: #ef4444;
+}
