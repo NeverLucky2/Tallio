@@ -301,8 +301,8 @@ const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const BillCard = ({ bill, onUpdate, onDelete, isMobile, highlighted = false, cardRef = null }) => {
+  const [isExpanded, setIsExpanded] = useState(highlighted);
   const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
 
   const addItem = () => {
@@ -324,7 +324,10 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
   const initial = (bill.vendor || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="bill-card">
+    <div
+      ref={cardRef}
+      className={`bill-card${highlighted ? ' bill-card-highlighted' : ''}`}
+    >
       <div className="bill-header" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="bill-icon">
           <span className="bill-icon-char">{initial}</span>
