@@ -52,7 +52,7 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-const _formatDate = (dateString) => {
+const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
