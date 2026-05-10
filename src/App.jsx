@@ -424,14 +424,18 @@ function BillTracker() {
 
   useEffect(() => {
     if (!desktopPeer.lastImage) return;
-    // Intentionally NOT depending on handleCapture or desktopPeer.consumeImage —
-    // we only want to react to a NEW image arriving, not to settings changes
-    // that recreate handleCapture's identity. handleCapture reads `settings`
-    // at call time, which gives us the fresh values anyway.
-    handleCapture(desktopPeer.lastImage.dataUrl, 'phone');
-    desktopPeer.consumeImage();
+    let cancelled = false;
+    (async () => {
+      const processed = await handleCapture(desktopPeer.lastImage.dataUrl, 'phone');
+      if (cancelled) return;
+      // Only drain the queued image when handleCapture actually attempted processing.
+      // If it intercepted (no API key), leave the image queued so a save re-triggers
+      // this effect via the settings.hasKey dep.
+      if (processed) desktopPeer.consumeImage();
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [desktopPeer.lastImage]);
+  }, [desktopPeer.lastImage, settings.hasKey]);
 
   const fileInputRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -498,8 +502,11 @@ function BillTracker() {
     setShowCamera(false);
 
     if (!settings.hasKey) {
-      openSettings('Add an Anthropic API key to scan bills.');
-      return;
+      const banner = source === 'phone'
+        ? 'Phone captured a bill — add an Anthropic API key to process it.'
+        : 'Add an Anthropic API key to scan bills.';
+      openSettings(banner);
+      return false;
     }
 
     setIsProcessing(true);
@@ -548,6 +555,8 @@ function BillTracker() {
       setIsProcessing(false);
       setProcessingStatus('');
     }
+
+    return true;
   };
 
   const handleFileUpload = async (e) => {
@@ -705,9 +714,6 @@ function BillTracker() {
                 {desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}
               </button>
 
-              {!isMobile && (
-                <div className="format-badge">PDF · OCR</div>
-              )}
             </div>
 
             {/* Bills List */}
