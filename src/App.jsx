@@ -52,10 +52,19 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-const formatDate = (dateString) => {
+const _formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+const formatMonth = (monthString) => {
+  if (!monthString || !/^\d{4}-\d{2}$/.test(monthString)) return '';
+  const [y, m] = monthString.split('-').map(n => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {
+    month: 'long',
     year: 'numeric'
   });
 };
@@ -266,7 +275,7 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
         <div className="bill-info">
           <h3 className="bill-vendor">{bill.vendor || "Untitled Bill"}</h3>
           <div className="bill-meta">
-            {formatDate(bill.date)}
+            {formatMonth(bill.month)}
             <div className="bill-meta-dot" />
             {bill.items.length} item{bill.items.length !== 1 ? 's' : ''}
           </div>
@@ -289,9 +298,9 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
               style={{ flex: 1 }}
             />
             <input
-              type="date"
-              value={bill.date}
-              onChange={(e) => onUpdate({ ...bill, date: e.target.value })}
+              type="month"
+              value={bill.month}
+              onChange={(e) => onUpdate({ ...bill, month: e.target.value })}
               className="input"
               style={{ width: isMobile ? '100%' : '160px', flex: isMobile ? '1 1 auto' : '0 0 auto' }}
             />
@@ -490,9 +499,9 @@ function BillTracker() {
   );
 
   const thisMonthBills = bills.filter(bill => {
-    const billDate = new Date(bill.date);
     const now = new Date();
-    return billDate.getMonth() === now.getMonth() && billDate.getFullYear() === now.getFullYear();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return bill.month === currentMonth;
   });
 
   const thisMonthTotal = thisMonthBills.reduce((sum, bill) =>
@@ -514,7 +523,7 @@ function BillTracker() {
     setProcessingStatus('Reading bill…');
 
     try {
-      const { vendor, date, items } = await extractBillFromImage(imageData, {
+      const { vendor, month, items } = await extractBillFromImage(imageData, {
         apiKey: settings.apiKey,
         model: settings.model,
       });
@@ -523,18 +532,20 @@ function BillTracker() {
         id: crypto.randomUUID(),
         description: it.description,
         amount: it.amount,
+        date: it.date || null,
         category: autoCategorizeTx(it.description),
       }));
 
       const newBill = {
         id: crypto.randomUUID(),
         vendor: vendor || 'Scanned Bill',
-        date: date || new Date().toISOString().split('T')[0],
+        month: month || new Date().toISOString().slice(0, 7),
         items: mappedItems.length > 0 ? mappedItems : [{
           id: crypto.randomUUID(),
           description: 'No items detected — add manually',
           amount: 0,
           category: 'Other',
+          date: null,
         }],
       };
 
@@ -543,12 +554,13 @@ function BillTracker() {
       const newBill = {
         id: crypto.randomUUID(),
         vendor: 'Scanned Bill',
-        date: new Date().toISOString().split('T')[0],
+        month: new Date().toISOString().slice(0, 7),
         items: [{
           id: crypto.randomUUID(),
           description: `${(err.message || 'Extraction failed').replace(/\.$/, '')} — add items manually`,
           amount: 0,
           category: 'Other',
+          date: null,
         }],
       };
       setBills(prev => { pushHistory(prev); return [newBill, ...prev]; });
@@ -578,8 +590,8 @@ function BillTracker() {
     const newBill = {
       id: Date.now(),
       vendor: "",
-      date: new Date().toISOString().split('T')[0],
-      items: [{ id: Date.now(), description: "", amount: 0, category: "Other" }]
+      month: new Date().toISOString().slice(0, 7),
+      items: [{ id: Date.now(), description: "", amount: 0, category: "Other", date: null }]
     };
     setBills(prev => [newBill, ...prev]);
   };
