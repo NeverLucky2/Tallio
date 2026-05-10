@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -503,5 +503,54 @@ describe('aggregateByKeyword', () => {
       ]),
     ];
     expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(600);
+  });
+});
+
+describe('getMonthItems', () => {
+  it('attributes items to their item.date month, not the bill.month', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        { id: 'a', description: 'Coffee', amount: 5, category: 'Dining', date: '2026-02-28' },
+        { id: 'b', description: 'Gas', amount: 40, category: 'Transportation', date: '2026-03-02' },
+      ]},
+    ];
+    const febItems = getMonthItems(bills, '2026-02');
+    const marItems = getMonthItems(bills, '2026-03');
+    expect(febItems.map(i => i.id)).toEqual(['a']);
+    expect(marItems.map(i => i.id)).toEqual(['b']);
+  });
+
+  it('falls back to bill.month when item.date is missing', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        { id: 'a', description: 'X', amount: 10, category: 'Other' },
+      ]},
+    ];
+    expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['a']);
+    expect(getMonthItems(bills, '2026-02')).toEqual([]);
+  });
+
+  it('returns [] for empty bills array', () => {
+    expect(getMonthItems([], '2026-03')).toEqual([]);
+  });
+
+  it('returns [] for null/undefined bills', () => {
+    expect(getMonthItems(null, '2026-03')).toEqual([]);
+    expect(getMonthItems(undefined, '2026-03')).toEqual([]);
+  });
+
+  it('handles bills with missing items array', () => {
+    const bills = [{ id: '1', vendor: 'AmEx', month: '2026-03' }];
+    expect(getMonthItems(bills, '2026-03')).toEqual([]);
+  });
+
+  it('skips null items without crashing', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        null,
+        { id: 'b', description: 'Y', amount: 7, category: 'Other', date: '2026-03-15' },
+      ]},
+    ];
+    expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['b']);
   });
 });
