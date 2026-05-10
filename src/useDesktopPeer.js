@@ -4,6 +4,17 @@ import { PEER_CONFIG, peerIdFor, createReassembler } from './peerProtocol.js';
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
+const FATAL_PEER_ERRORS = new Set([
+  'browser-incompatible',
+  'invalid-id',
+  'invalid-key',
+  'ssl-unavailable',
+  'server-error',
+  'socket-error',
+  'socket-closed',
+  'unavailable-id',
+]);
+
 export default function useDesktopPeer() {
   const [active, setActive] = useState(false);
   const [sessionId, setSessionId] = useState(null);
@@ -17,11 +28,16 @@ export default function useDesktopPeer() {
   const connRef = useRef(null);
   const reassemblerRef = useRef(null);
   const expiryTimerRef = useRef(null);
+  const readerRef = useRef(null);
 
   const cleanup = useCallback(() => {
     if (expiryTimerRef.current) {
       clearTimeout(expiryTimerRef.current);
       expiryTimerRef.current = null;
+    }
+    if (readerRef.current) {
+      try { readerRef.current.abort(); } catch (e) { /* ignore */ }
+      readerRef.current = null;
     }
     if (connRef.current) {
       try { connRef.current.close(); } catch (e) { /* ignore */ }
@@ -67,9 +83,18 @@ export default function useDesktopPeer() {
       if (buffer) {
         const blob = new Blob([buffer], { type: 'image/jpeg' });
         const reader = new FileReader();
+        readerRef.current = reader;
         reader.onload = () => {
+          if (readerRef.current !== reader) return;
+          readerRef.current = null;
           setLastImage({ dataUrl: reader.result, receivedAt: Date.now() });
           setStatus('paired');
+          setReceiveProgress(0);
+        };
+        reader.onerror = () => {
+          if (readerRef.current !== reader) return;
+          readerRef.current = null;
+          setStatus(connRef.current && connRef.current.open ? 'paired' : 'disconnected');
           setReceiveProgress(0);
         };
         reader.readAsDataURL(blob);
@@ -80,11 +105,16 @@ export default function useDesktopPeer() {
   const wireConnection = useCallback((conn) => {
     connRef.current = conn;
     conn.on('open', () => {
+      if (connRef.current !== conn) return;
       disarmExpiry();
       setStatus('paired');
     });
-    conn.on('data', handleData);
+    conn.on('data', (msg) => {
+      if (connRef.current !== conn) return;
+      handleData(msg);
+    });
     conn.on('close', () => {
+      if (connRef.current !== conn) return;
       connRef.current = null;
       reassemblerRef.current = null;
       setStatus('disconnected');
@@ -92,8 +122,11 @@ export default function useDesktopPeer() {
       armExpiry();
     });
     conn.on('error', () => {
+      if (connRef.current !== conn) return;
       connRef.current = null;
+      reassemblerRef.current = null;
       setStatus('disconnected');
+      setReceiveProgress(0);
       armExpiry();
     });
   }, [armExpiry, disarmExpiry, handleData]);
@@ -112,11 +145,13 @@ export default function useDesktopPeer() {
     peerRef.current = peer;
 
     peer.on('open', () => {
+      if (peerRef.current !== peer) return;
       setStatus('waiting');
       armExpiry();
     });
 
     peer.on('connection', (conn) => {
+      if (peerRef.current !== peer) return;
       if (connRef.current && connRef.current.open) {
         try { conn.close(); } catch (e) { /* ignore */ }
         return;
@@ -125,15 +160,23 @@ export default function useDesktopPeer() {
     });
 
     peer.on('error', (err) => {
-      const msg = err && err.type === 'network'
+      if (peerRef.current !== peer) return;
+      const type = err && err.type;
+      if (!FATAL_PEER_ERRORS.has(type)) {
+        console.warn('[useDesktopPeer] non-fatal PeerJS error:', type, err);
+        return;
+      }
+      const friendlyType = (type === 'socket-error' || type === 'socket-closed') ? 'network' : type;
+      const msg = friendlyType === 'network'
         ? 'Pairing service unreachable. Check your connection.'
-        : `Pairing error: ${err && err.type ? err.type : 'unknown'}`;
+        : `Pairing error: ${friendlyType || 'unknown'}`;
       setErrorMessage(msg);
       setStatus('error');
       cleanup();
     });
 
     peer.on('disconnected', () => {
+      if (peerRef.current !== peer) return;
       try { peer.reconnect(); } catch (e) { /* ignore */ }
     });
   }, [armExpiry, cleanup, wireConnection]);
