@@ -5,6 +5,25 @@ function getSessionId() {
   return window.location.hash.replace(/^#s=/, '');
 }
 
+async function captureToBlob(video) {
+  const maxEdge = 1600;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  const longest = Math.max(vw, vh);
+  const scale = longest > maxEdge ? maxEdge / longest : 1;
+  const cw = Math.round(vw * scale);
+  const ch = Math.round(vh * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, cw, ch);
+  return new Promise((resolve) => {
+    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.85);
+  });
+}
+
 export default function PhoneCapture() {
   const sessionId = getSessionId();
   const peer = usePhonePeer(sessionId);
@@ -15,6 +34,20 @@ export default function PhoneCapture() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [cameraAttempt, setCameraAttempt] = useState(0);
+  const [captured, setCaptured] = useState(null); // { blob, previewUrl }
+
+  const onShutter = async () => {
+    if (!videoRef.current || !cameraReady) return;
+    const blob = await captureToBlob(videoRef.current);
+    if (!blob) return;
+    const previewUrl = URL.createObjectURL(blob);
+    setCaptured({ blob, previewUrl });
+  };
+
+  const onRetake = () => {
+    if (captured?.previewUrl) URL.revokeObjectURL(captured.previewUrl);
+    setCaptured(null);
+  };
 
   const retryCamera = () => {
     // Releasing the stream isn't needed (acquire effect early-returns if streamRef.current exists),
@@ -160,6 +193,25 @@ export default function PhoneCapture() {
     );
   }
 
+  if (captured) {
+    return (
+      <div className="phone-camera">
+        <div className="phone-camera-topbar">
+          <span className="phone-camera-title">Looks good?</span>
+        </div>
+
+        <div className="phone-camera-viewport">
+          <img src={captured.previewUrl} alt="Captured bill" className="phone-preview-img" />
+        </div>
+
+        <div className="phone-preview-actions">
+          <button className="phone-btn" onClick={onRetake}>Retake</button>
+          <button className="phone-btn phone-btn-primary">Send to desktop</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="phone-camera">
       <div className="phone-camera-topbar">
@@ -185,6 +237,7 @@ export default function PhoneCapture() {
           className="phone-shutter"
           disabled={!cameraReady}
           aria-label="Capture"
+          onClick={onShutter}
         >
           <span className="phone-shutter-inner" />
         </button>
