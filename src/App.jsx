@@ -4,6 +4,7 @@ import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
+import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import { migrateBills, getItemDate } from './spendingMath.js';
 import './App.css';
@@ -705,6 +706,9 @@ function BillTracker() {
           <SummaryCard title="This Month"     amount={thisMonthTotal} colorKey="green" />
           <SummaryCard title="Total Bills"    amount={bills.length} isCount={true} colorKey="purple" />
         </div>
+
+        {/* Spending Hero */}
+        <SpendingChart bills={bills} />
 
         {/* Main Grid */}
         <div className="main-grid">
