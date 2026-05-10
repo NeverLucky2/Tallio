@@ -928,9 +928,35 @@ function BillTracker() {
     }
   };
 
+  const maybeShowUndoTip = () => {
+    if (!undoTipSeen) setShowUndoTip(true);
+  };
+
+  const dismissUndoTip = () => {
+    setShowUndoTip(false);
+    setUndoTipSeen(true);
+  };
+
   const deleteBill = (billId) => {
+    setPendingDeleteBillId(billId);
+  };
+
+  const confirmDeleteBill = () => {
+    if (!pendingDeleteBillId) return;
     pushHistory(bills);
-    setBills(prev => prev.filter(bill => bill.id !== billId));
+    setBills(prev => prev.filter(bill => bill.id !== pendingDeleteBillId));
+    setPendingDeleteBillId(null);
+    maybeShowUndoTip();
+  };
+
+  const cancelDeleteBill = () => setPendingDeleteBillId(null);
+
+  const handleDeleteItem = (billId, itemId) => {
+    pushHistory(bills);
+    setBills(prev =>
+      prev.map(b => b.id === billId ? { ...b, items: b.items.filter(i => i.id !== itemId) } : b)
+    );
+    maybeShowUndoTip();
   };
 
   const exportData = () => {
