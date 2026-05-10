@@ -1005,6 +1005,26 @@ function BillTracker() {
         />
       )}
 
+      {pendingDeleteBillId && (
+        <ConfirmDialog
+          title="Delete this bill?"
+          message="All items in this bill will be removed. You can undo this from the top toolbar."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={confirmDeleteBill}
+          onCancel={cancelDeleteBill}
+        />
+      )}
+
+      {showUndoTip && (
+        <ConfirmDialog
+          title="Tip: you can undo deletes"
+          message="If you accidentally delete a bill or an item, click the ↩ Undo button in the top toolbar to restore it."
+          confirmLabel="OK, got it"
+          onConfirm={dismissUndoTip}
+        />
+      )}
+
       {/* Undo Toast */}
       {undoToast && (
         <div className="toast">
