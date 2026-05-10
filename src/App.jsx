@@ -883,7 +883,11 @@ function BillTracker() {
 
   const updateBill = (updatedBill) => {
     pushHistory(bills);
+    const previous = bills.find(b => b.id === updatedBill.id);
     setBills(prev => prev.map(bill => bill.id === updatedBill.id ? updatedBill : bill));
+    if (previous && previous.month !== updatedBill.month) {
+      setSelectedMonth(updatedBill.month);
+    }
   };
 
   const deleteBill = (billId) => {
