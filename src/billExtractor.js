@@ -23,19 +23,23 @@ Rules:
 - vendor should be the store/merchant name, null if unclear.
 - If you cannot read the image at all, return {"vendor": null, "date": null, "items": []}.`;
 
-const FENCE_RE = /^\s*```(?:json)?\s*\n?|\n?```\s*$/g;
-
 export function parseDataUrl(dataUrl) {
-  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
-    throw new Error('Not a data URL');
-  }
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (typeof dataUrl !== 'string') throw new Error('Not a data URL');
+  const trimmed = dataUrl.trim();
+  if (!trimmed.startsWith('data:')) throw new Error('Not a data URL');
+  // Accept the bare mime type optionally followed by parameters (e.g. ;charset=utf-8) before ;base64,
+  const match = trimmed.match(/^data:([^;,]+)(?:;[^,]*)?;base64,([\s\S]+?)\s*$/);
   if (!match) throw new Error('Data URL must be base64-encoded');
   return { mimeType: match[1], base64: match[2] };
 }
 
 export function stripMarkdownFences(text) {
-  return text.replace(FENCE_RE, '').trim();
+  // Strip code fences anywhere in the text (preamble/postamble prose is common when
+  // Claude returns "Here's the extracted data: ```json {...} ```").
+  const defenced = text.replace(/```(?:json)?\s*\n?/g, '').replace(/\n?```/g, '').trim();
+  // If there's still surrounding prose, extract the first {...} block.
+  const objMatch = defenced.match(/\{[\s\S]*\}/);
+  return objMatch ? objMatch[0] : defenced;
 }
 
 export function validateResponse(parsed) {
@@ -57,8 +61,8 @@ export function validateResponse(parsed) {
     .map(it => ({ description: it.description.trim(), amount: it.amount }));
 
   return {
-    vendor: typeof parsed.vendor === 'string' ? parsed.vendor : null,
-    date: typeof parsed.date === 'string' ? parsed.date : null,
+    vendor: (typeof parsed.vendor === 'string' && parsed.vendor.trim()) ? parsed.vendor.trim() : null,
+    date: (typeof parsed.date === 'string' && parsed.date.trim()) ? parsed.date.trim() : null,
     items,
   };
 }
@@ -106,7 +110,7 @@ export async function extractBillFromImage(imageDataUrl, { apiKey, model }) {
       ],
     });
   } catch (err) {
-    throw new Error(mapError(err));
+    throw new Error(mapError(err), { cause: err });
   }
 
   const text = (message.content || [])
@@ -119,8 +123,8 @@ export async function extractBillFromImage(imageDataUrl, { apiKey, model }) {
   let parsed;
   try {
     parsed = JSON.parse(stripped);
-  } catch {
-    throw new Error("Couldn't read the receipt. Try a clearer photo.");
+  } catch (parseErr) {
+    throw new Error("Couldn't read the receipt. Try a clearer photo.", { cause: parseErr });
   }
 
   return validateResponse(parsed);

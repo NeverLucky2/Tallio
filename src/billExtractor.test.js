@@ -32,6 +32,18 @@ describe('parseDataUrl', () => {
   it('throws on data URL missing base64 marker', () => {
     expect(() => parseDataUrl('data:image/jpeg,raw-bytes')).toThrow();
   });
+
+  it('accepts data URLs with charset parameters', () => {
+    const result = parseDataUrl('data:image/jpeg;charset=utf-8;base64,abc');
+    expect(result.mimeType).toBe('image/jpeg');
+    expect(result.base64).toBe('abc');
+  });
+
+  it('trims surrounding whitespace and trailing newlines', () => {
+    const result = parseDataUrl('  data:image/jpeg;base64,abc\n  ');
+    expect(result.mimeType).toBe('image/jpeg');
+    expect(result.base64).toBe('abc');
+  });
 });
 
 describe('stripMarkdownFences', () => {
@@ -53,6 +65,21 @@ describe('stripMarkdownFences', () => {
   it('handles surrounding whitespace', () => {
     const input = '  \n```json\n{"x":1}\n```\n  ';
     expect(stripMarkdownFences(input)).toBe('{"x":1}');
+  });
+
+  it('strips fences when wrapped by prose preamble', () => {
+    const input = "Here's the extracted data:\n```json\n{\"vendor\":\"Acme\"}\n```";
+    expect(stripMarkdownFences(input)).toBe('{"vendor":"Acme"}');
+  });
+
+  it('strips fences when wrapped by prose postamble', () => {
+    const input = '```json\n{"vendor":"Acme"}\n```\n\nThanks!';
+    expect(stripMarkdownFences(input)).toBe('{"vendor":"Acme"}');
+  });
+
+  it('extracts first JSON object from unfenced prose', () => {
+    const input = 'Sure, here it is: {"vendor":"Acme"} hope this helps!';
+    expect(stripMarkdownFences(input)).toBe('{"vendor":"Acme"}');
   });
 });
 
@@ -131,6 +158,16 @@ describe('validateResponse', () => {
     expect(() => validateResponse(null)).toThrow();
     expect(() => validateResponse('string')).toThrow();
     expect(() => validateResponse(42)).toThrow();
+  });
+
+  it('coerces empty/whitespace vendor and date to null', () => {
+    const result = validateResponse({
+      vendor: '',
+      date: '   ',
+      items: [],
+    });
+    expect(result.vendor).toBeNull();
+    expect(result.date).toBeNull();
   });
 });
 
