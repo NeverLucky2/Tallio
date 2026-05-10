@@ -325,7 +325,7 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, onUpdate, onDelete, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
   const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
 
@@ -341,9 +341,7 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile, highlighted = false, car
     });
   };
 
-  const deleteItem = (itemId) => {
-    onUpdate({ ...bill, items: bill.items.filter(item => item.id !== itemId) });
-  };
+  const deleteItem = (itemId) => onDeleteItem(bill.id, itemId);
 
   const initial = (bill.vendor || "?").charAt(0).toUpperCase();
 
@@ -1172,6 +1170,7 @@ function BillTracker() {
                   bill={bill}
                   onUpdate={updateBill}
                   onDelete={deleteBill}
+                  onDeleteItem={handleDeleteItem}
                   isMobile={isMobile}
                   highlighted={bill.id === newlyAddedBillId}
                   cardRef={bill.id === newlyAddedBillId ? newBillRef : null}
