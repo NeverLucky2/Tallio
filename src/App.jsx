@@ -435,13 +435,11 @@ const SummaryCard = ({ title, amount, isCount, colorKey, delta }) => (
 
 // ---- Category Breakdown ----
 
-const CategoryBreakdown = ({ bills, selectedMonth }) => {
+const CategoryBreakdown = ({ items, selectedMonth }) => {
   const categoryTotals = {};
-  bills.forEach(bill => {
-    bill.items.forEach(item => {
-      if (!categoryTotals[item.category]) categoryTotals[item.category] = 0;
-      categoryTotals[item.category] += item.amount;
-    });
+  items.forEach(item => {
+    if (!categoryTotals[item.category]) categoryTotals[item.category] = 0;
+    categoryTotals[item.category] += item.amount;
   });
 
   const sortedCategories = Object.entries(categoryTotals)
@@ -1177,7 +1175,7 @@ function BillTracker() {
 
           {/* Sidebar */}
           <div className="sidebar">
-            <CategoryBreakdown bills={searchActive ? visibleBills : monthBills} selectedMonth={searchActive ? null : selectedMonth} />
+            <CategoryBreakdown items={searchActive ? visibleBills.flatMap(b => b.items) : selectedMonthItems} selectedMonth={searchActive ? null : selectedMonth} />
             <TrackedPanel
               bills={bills}
               keywords={trackedKeywords}
