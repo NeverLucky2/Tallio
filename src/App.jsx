@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
 import './App.css';
 
 const categories = [
@@ -779,19 +779,15 @@ function BillTracker() {
 
   const todayMonth = currentMonthKey();
   const monthBills = bills.filter(bill => bill.month === selectedMonth);
-  const selectedMonthTotal = monthBills.reduce((sum, bill) =>
-    sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
-  );
+  const selectedMonthItems = getMonthItems(bills, selectedMonth);
+  const selectedMonthTotal = selectedMonthItems.reduce((sum, item) => sum + item.amount, 0);
   const monthCardTitle = selectedMonth === todayMonth
     ? 'This Month'
     : formatMonthCompact(selectedMonth);
 
   const previousMonth = shiftMonth(selectedMonth, -1);
-  const previousMonthTotal = bills
-    .filter(bill => bill.month === previousMonth)
-    .reduce((sum, bill) =>
-      sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
-    );
+  const previousMonthTotal = getMonthItems(bills, previousMonth)
+    .reduce((sum, item) => sum + item.amount, 0);
 
   let monthDelta = null;
   if (previousMonthTotal > 0) {
