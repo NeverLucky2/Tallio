@@ -1993,7 +1993,7 @@
   color: var(--text);
 }
 
-.item-date::-webkit-calendar-picker-indicator {
+.input[type="month"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 
