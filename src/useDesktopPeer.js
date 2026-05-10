@@ -3,6 +3,7 @@ import Peer from 'peerjs';
 import { PEER_CONFIG, peerIdFor, createReassembler, FATAL_PEER_ERRORS } from './peerProtocol.js';
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+const RECEIVE_TIMEOUT_MS = 30 * 1000;
 
 export default function useDesktopPeer() {
   const [active, setActive] = useState(false);
@@ -17,12 +18,17 @@ export default function useDesktopPeer() {
   const connRef = useRef(null);
   const reassemblerRef = useRef(null);
   const expiryTimerRef = useRef(null);
+  const receiveTimerRef = useRef(null);
   const readerRef = useRef(null);
 
   const cleanup = useCallback(() => {
     if (expiryTimerRef.current) {
       clearTimeout(expiryTimerRef.current);
       expiryTimerRef.current = null;
+    }
+    if (receiveTimerRef.current) {
+      clearTimeout(receiveTimerRef.current);
+      receiveTimerRef.current = null;
     }
     if (readerRef.current) {
       try { readerRef.current.abort(); } catch (e) { /* ignore */ }
@@ -57,6 +63,23 @@ export default function useDesktopPeer() {
     setExpiresAt(null);
   }, []);
 
+  const armReceiveTimer = useCallback((id) => {
+    if (receiveTimerRef.current) clearTimeout(receiveTimerRef.current);
+    receiveTimerRef.current = setTimeout(() => {
+      if (reassemblerRef.current) reassemblerRef.current.drop(id);
+      setStatus(connRef.current && connRef.current.open ? 'paired' : 'disconnected');
+      setReceiveProgress(0);
+      receiveTimerRef.current = null;
+    }, RECEIVE_TIMEOUT_MS);
+  }, []);
+
+  const disarmReceiveTimer = useCallback(() => {
+    if (receiveTimerRef.current) {
+      clearTimeout(receiveTimerRef.current);
+      receiveTimerRef.current = null;
+    }
+  }, []);
+
   const handleData = useCallback((msg) => {
     if (!reassemblerRef.current) reassemblerRef.current = createReassembler();
     const r = reassemblerRef.current;
@@ -64,10 +87,15 @@ export default function useDesktopPeer() {
       r.onStart(msg);
       setStatus('receiving');
       setReceiveProgress(0);
+      armReceiveTimer(msg.id);
     } else if (msg.t === 'img-chunk') {
       const update = r.onChunk(msg);
-      if (update) setReceiveProgress(update.progress);
+      if (update) {
+        setReceiveProgress(update.progress);
+        armReceiveTimer(msg.id);
+      }
     } else if (msg.t === 'img-end') {
+      disarmReceiveTimer();
       const buffer = r.onEnd(msg);
       if (buffer) {
         const blob = new Blob([buffer], { type: 'image/jpeg' });
@@ -89,7 +117,7 @@ export default function useDesktopPeer() {
         reader.readAsDataURL(blob);
       }
     }
-  }, []);
+  }, [armReceiveTimer, disarmReceiveTimer]);
 
   const wireConnection = useCallback((conn) => {
     connRef.current = conn;
