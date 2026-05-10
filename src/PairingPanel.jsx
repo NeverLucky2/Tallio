@@ -30,7 +30,8 @@ function statusToneClass(status) {
 
 export default function PairingPanel({ peer, onClose }) {
   const { sessionId, status, errorMessage, expiresAt, receiveProgress, start, unpair } = peer;
-  const [now, setNow] = useState(Date.now());
+  const dismissable = status !== 'receiving' && status !== 'paired';
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!expiresAt) return;
@@ -47,12 +48,30 @@ export default function PairingPanel({ peer, onClose }) {
     onClose();
   };
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && dismissable) handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissable]);
+
   return (
-    <div className="pair-overlay" onClick={handleClose}>
-      <div className="pair-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="pair-overlay"
+      onClick={dismissable ? handleClose : undefined}
+    >
+      <div
+        className="pair-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pair-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="pair-header">
-          <h2 className="pair-title">Pair Phone</h2>
-          <button className="pair-close" onClick={handleClose}>×</button>
+          <h2 id="pair-title" className="pair-title">Pair Phone</h2>
+          <button className="pair-close" aria-label="Close pairing" onClick={handleClose}>×</button>
         </div>
 
         <div className="pair-body">
