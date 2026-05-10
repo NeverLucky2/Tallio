@@ -874,10 +874,11 @@ function BillTracker() {
     const newBill = {
       id: Date.now(),
       vendor: "",
-      month: new Date().toISOString().slice(0, 7),
+      month: selectedMonth,
       items: [{ id: Date.now(), description: "", amount: 0, category: "Other", date: null }]
     };
     setBills(prev => [newBill, ...prev]);
+    setNewlyAddedBillId(newBill.id);
   };
 
   const updateBill = (updatedBill) => {
