@@ -2273,3 +2273,53 @@
 .bill-card-highlighted {
   animation: bill-card-highlight-pulse 1.5s ease-out;
 }
+
+/* Modal dialogs (ConfirmDialog component). Used for the bill-delete confirmation
+   and the one-shot first-delete undo tip. */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.dialog-card {
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(240, 230, 210, 0.12);
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+.dialog-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dialog-body {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.dialog-btn-cancel,
+.dialog-btn-confirm {
+  min-width: 96px;
+}
