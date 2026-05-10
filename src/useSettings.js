@@ -22,8 +22,8 @@ export default function useSettings() {
   const save = useCallback(({ apiKey, model } = {}) => {
     setState((prev) => {
       const next = {
-        apiKey: apiKey !== undefined ? apiKey : prev.apiKey,
-        model: model !== undefined ? model : prev.model,
+        apiKey: apiKey !== undefined ? apiKey.trim() : prev.apiKey,
+        model: model !== undefined ? (model || DEFAULT_MODEL) : prev.model,
       };
       try {
         if (apiKey !== undefined) window.localStorage.setItem(KEY_STORAGE, next.apiKey);
