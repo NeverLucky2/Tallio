@@ -1338,7 +1338,12 @@
 .pair-footer {
   padding: 14px 20px 20px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+}
+
+.btn-paired {
+  border-color: rgba(134, 224, 168, 0.5) !important;
+  color: #86e0a8 !important;
 }
 
 .phone-spinner {

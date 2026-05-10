@@ -63,10 +63,11 @@ export default function useDesktopPeer() {
     setExpiresAt(null);
   }, []);
 
-  const armReceiveTimer = useCallback((id) => {
+  const armReceiveTimer = useCallback(() => {
     if (receiveTimerRef.current) clearTimeout(receiveTimerRef.current);
     receiveTimerRef.current = setTimeout(() => {
-      if (reassemblerRef.current) reassemblerRef.current.drop(id);
+      // Drop all in-flight reassembler state — don't leave half-buffers around.
+      reassemblerRef.current = null;
       setStatus(connRef.current && connRef.current.open ? 'paired' : 'disconnected');
       setReceiveProgress(0);
       receiveTimerRef.current = null;
@@ -87,12 +88,12 @@ export default function useDesktopPeer() {
       r.onStart(msg);
       setStatus('receiving');
       setReceiveProgress(0);
-      armReceiveTimer(msg.id);
+      armReceiveTimer();
     } else if (msg.t === 'img-chunk') {
       const update = r.onChunk(msg);
       if (update) {
         setReceiveProgress(update.progress);
-        armReceiveTimer(msg.id);
+        armReceiveTimer();
       }
     } else if (msg.t === 'img-end') {
       disarmReceiveTimer();

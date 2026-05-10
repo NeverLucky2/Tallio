@@ -804,8 +804,8 @@ function BillTracker() {
                 + Manual
               </button>
 
-              <button onClick={openPairing} className="btn btn-action">
-                ⌘ Pair Phone
+              <button onClick={openPairing} className={`btn btn-action${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>
+                {desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}
               </button>
 
               {!isMobile && (

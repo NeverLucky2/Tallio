@@ -69,8 +69,11 @@ export default function PhoneCapture() {
   const onRetake = () => setCaptured(null);
 
   const retryCamera = () => {
-    // Releasing the stream isn't needed (acquire effect early-returns if streamRef.current exists),
-    // but if the previous failure left no stream, the effect needs a dep change to re-fire.
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setCameraReady(false);
     setCameraError(null);
     setCameraAttempt(n => n + 1);
   };

@@ -43,7 +43,11 @@ export default function PairingPanel({ peer, onClose }) {
     ? `${window.location.origin}/pair#s=${sessionId}`
     : null;
 
-  const handleClose = () => {
+  // Closes the modal but KEEPS the pairing active.
+  const handleClose = onClose;
+
+  // Explicitly tears down the pairing.
+  const handleUnpair = () => {
     unpair();
     onClose();
   };
@@ -122,6 +126,7 @@ export default function PairingPanel({ peer, onClose }) {
         </div>
 
         <div className="pair-footer">
+          <button className="btn btn-danger" onClick={handleUnpair}>Unpair</button>
           <button className="btn" onClick={handleClose}>Done</button>
         </div>
       </div>
