@@ -455,6 +455,14 @@ function BillTracker() {
     if (!desktopPeer.active) desktopPeer.start();
     setShowPairing(true);
   };
+
+  useEffect(() => {
+    if (!desktopPeer.lastImage) return;
+    handleCapture(desktopPeer.lastImage.dataUrl, 'phone');
+    desktopPeer.consumeImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desktopPeer.lastImage]);
+
   const fileInputRef = useRef(null);
   const toastTimerRef = useRef(null);
   const hasLoaded = useRef(false);
