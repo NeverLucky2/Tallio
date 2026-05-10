@@ -31,6 +31,19 @@ export function getItemDate(bill, item) {
   return `${month}-01`;
 }
 
+export function getMonthItems(bills, month) {
+  const out = [];
+  for (const bill of bills || []) {
+    for (const item of (bill && bill.items) || []) {
+      if (!item) continue;
+      if (getItemDate(bill, item).slice(0, 7) === month) {
+        out.push(item);
+      }
+    }
+  }
+  return out;
+}
+
 export const VENDOR_PALETTE = [
   '#5b8dff', // blue
   '#3ddba0', // green
