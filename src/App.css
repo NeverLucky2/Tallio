@@ -1107,31 +1107,6 @@
   margin: 0;
 }
 
-.processing-hint {
-  color: var(--text-dim);
-  font-size: 12px;
-  text-align: center;
-  max-width: 280px;
-  line-height: 1.55;
-  font-family: var(--font-ui);
-  margin: 0;
-}
-
-.progress-track {
-  width: 200px;
-  height: 2px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--accent) 0%, #e8c97a 100%);
-  transition: width 0.3s ease;
-}
-
 /* ---- Toast ---- */
 
 .toast {
