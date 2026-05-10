@@ -20,3 +20,13 @@ export function migrateBills(bills) {
     return { ...rest, month };
   });
 }
+
+export function getItemDate(bill, item) {
+  if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+    return item.date;
+  }
+  const month = (bill && typeof bill.month === 'string' && MONTH_RE.test(bill.month))
+    ? bill.month
+    : currentMonth();
+  return `${month}-01`;
+}

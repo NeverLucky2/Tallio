@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills } from './spendingMath.js';
+import { migrateBills, getItemDate } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -44,5 +44,37 @@ describe('migrateBills', () => {
     const snapshot = JSON.parse(JSON.stringify(input));
     migrateBills(input);
     expect(input).toEqual(snapshot);
+  });
+});
+
+describe('getItemDate', () => {
+  it('returns item.date when it is a valid YYYY-MM-DD', () => {
+    const bill = { month: '2026-05' };
+    const item = { date: '2026-05-15' };
+    expect(getItemDate(bill, item)).toBe('2026-05-15');
+  });
+
+  it('falls back to bill.month + "-01" when item.date is missing', () => {
+    const bill = { month: '2026-05' };
+    const item = { description: 'Coffee', amount: 4.5 };
+    expect(getItemDate(bill, item)).toBe('2026-05-01');
+  });
+
+  it('falls back when item.date is null', () => {
+    const bill = { month: '2026-05' };
+    const item = { date: null };
+    expect(getItemDate(bill, item)).toBe('2026-05-01');
+  });
+
+  it('falls back when item.date is malformed', () => {
+    const bill = { month: '2026-05' };
+    const item = { date: 'May 9' };
+    expect(getItemDate(bill, item)).toBe('2026-05-01');
+  });
+
+  it('honors item dates outside bill month (cycles can span months)', () => {
+    const bill = { month: '2026-05' };
+    const item = { date: '2026-04-28' };
+    expect(getItemDate(bill, item)).toBe('2026-04-28');
   });
 });
