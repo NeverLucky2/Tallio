@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -76,5 +76,28 @@ describe('getItemDate', () => {
     const bill = { month: '2026-05' };
     const item = { date: '2026-04-28' };
     expect(getItemDate(bill, item)).toBe('2026-04-28');
+  });
+});
+
+describe('getVendorColor', () => {
+  it('returns the same color for the same vendor across calls', () => {
+    expect(getVendorColor('Chase Sapphire')).toBe(getVendorColor('Chase Sapphire'));
+  });
+
+  it('returns a color from the palette', () => {
+    expect(VENDOR_PALETTE).toContain(getVendorColor('Chase Sapphire'));
+  });
+
+  it('returns the same color for case-equivalent names (case-insensitive)', () => {
+    expect(getVendorColor('chase')).toBe(getVendorColor('CHASE'));
+  });
+
+  it('returns the same color for names differing only in surrounding whitespace', () => {
+    expect(getVendorColor('  Amex  ')).toBe(getVendorColor('Amex'));
+  });
+
+  it('returns a fallback color for null/empty vendor', () => {
+    expect(VENDOR_PALETTE).toContain(getVendorColor(null));
+    expect(VENDOR_PALETTE).toContain(getVendorColor(''));
   });
 });

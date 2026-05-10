@@ -30,3 +30,29 @@ export function getItemDate(bill, item) {
     : currentMonth();
   return `${month}-01`;
 }
+
+export const VENDOR_PALETTE = [
+  '#5b8dff', // blue
+  '#3ddba0', // green
+  '#d4a853', // accent gold
+  '#a47dea', // purple
+  '#e06c6c', // red
+  '#46c2c8', // teal
+  '#e89a4f', // orange
+  '#c97ac8', // magenta
+];
+
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+export function getVendorColor(vendor) {
+  const key = (typeof vendor === 'string' ? vendor : '').trim().toLowerCase();
+  const idx = hashString(key) % VENDOR_PALETTE.length;
+  return VENDOR_PALETTE[idx];
+}
