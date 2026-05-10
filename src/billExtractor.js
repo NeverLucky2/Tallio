@@ -5,11 +5,12 @@ const PROMPT = `You are extracting structured data from a bill, receipt, or cred
 Return ONLY a JSON object matching this schema, with no surrounding prose:
 {
   "vendor": string | null,
-  "date": string | null,
+  "month": string | null,
   "items": [
     {
       "description": string,
-      "amount": number
+      "amount": number,
+      "date": string | null
     }
   ]
 }
@@ -19,9 +20,10 @@ Rules:
 - Skip subtotals, totals, tax-only lines, payment/balance lines, and headers.
 - For credit-card statements: each transaction is one item. Skip "PAYMENT - THANK YOU" and similar.
 - If amount appears as "$12.99", "12.99", or "12,99" — normalize to 12.99.
-- date should be YYYY-MM-DD if you can read one, else null.
-- vendor should be the store/merchant name, null if unclear.
-- If you cannot read the image at all, return {"vendor": null, "date": null, "items": []}.`;
+- "month" is the statement month for credit-card statements, or the receipt month for single-purchase receipts. Format YYYY-MM. Use null if you cannot read it.
+- Each item's "date" is the transaction's posting/purchase date in YYYY-MM-DD. If the printed date omits the year, infer it from the statement period (transactions in Dec on a Jan statement use the previous year). Use null if you cannot read a date for an item.
+- "vendor" should be the store/merchant name (or card name for statements), null if unclear.
+- If you cannot read the image at all, return {"vendor": null, "month": null, "items": []}.`;
 
 export function parseDataUrl(dataUrl) {
   if (typeof dataUrl !== 'string') throw new Error('Not a data URL');
@@ -42,6 +44,9 @@ export function stripMarkdownFences(text) {
   return objMatch ? objMatch[0] : defenced;
 }
 
+const MONTH_RE = /^\d{4}-\d{2}$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function validateResponse(parsed) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Response is not an object');
@@ -58,11 +63,22 @@ export function validateResponse(parsed) {
       isFinite(it.amount) &&
       it.amount > 0
     )
-    .map(it => ({ description: it.description.trim(), amount: it.amount }));
+    .map(it => ({
+      description: it.description.trim(),
+      amount: it.amount,
+      date: (typeof it.date === 'string' && DATE_RE.test(it.date.trim())) ? it.date.trim() : null,
+    }));
+
+  let month = null;
+  if (typeof parsed.month === 'string') {
+    const trimmed = parsed.month.trim();
+    if (MONTH_RE.test(trimmed)) month = trimmed;
+    else if (DATE_RE.test(trimmed)) month = trimmed.slice(0, 7);
+  }
 
   return {
     vendor: (typeof parsed.vendor === 'string' && parsed.vendor.trim()) ? parsed.vendor.trim() : null,
-    date: (typeof parsed.date === 'string' && parsed.date.trim()) ? parsed.date.trim() : null,
+    month,
     items,
   };
 }

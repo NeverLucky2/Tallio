@@ -87,38 +87,39 @@ describe('validateResponse', () => {
   it('accepts a complete valid object', () => {
     const result = validateResponse({
       vendor: 'Costco',
-      date: '2026-05-09',
-      items: [{ description: 'Eggs', amount: 4.99 }],
+      month: '2026-05',
+      items: [{ description: 'Eggs', amount: 4.99, date: '2026-05-09' }],
     });
     expect(result.vendor).toBe('Costco');
-    expect(result.date).toBe('2026-05-09');
+    expect(result.month).toBe('2026-05');
     expect(result.items).toHaveLength(1);
     expect(result.items[0].amount).toBe(4.99);
+    expect(result.items[0].date).toBe('2026-05-09');
   });
 
-  it('accepts null vendor and date', () => {
+  it('accepts null vendor and month', () => {
     const result = validateResponse({
       vendor: null,
-      date: null,
+      month: null,
       items: [],
     });
     expect(result.vendor).toBeNull();
-    expect(result.date).toBeNull();
+    expect(result.month).toBeNull();
     expect(result.items).toEqual([]);
   });
 
   it('throws when items is missing', () => {
-    expect(() => validateResponse({ vendor: 'X', date: null })).toThrow();
+    expect(() => validateResponse({ vendor: 'X', month: null })).toThrow();
   });
 
   it('throws when items is not an array', () => {
-    expect(() => validateResponse({ vendor: 'X', date: null, items: 'oops' })).toThrow();
+    expect(() => validateResponse({ vendor: 'X', month: null, items: 'oops' })).toThrow();
   });
 
   it('drops items with non-numeric amount', () => {
     const result = validateResponse({
       vendor: 'X',
-      date: null,
+      month: null,
       items: [
         { description: 'Good', amount: 5.99 },
         { description: 'Bad', amount: 'NaN' },
@@ -131,7 +132,7 @@ describe('validateResponse', () => {
   it('drops items with negative or zero amount', () => {
     const result = validateResponse({
       vendor: 'X',
-      date: null,
+      month: null,
       items: [
         { description: 'Free sample', amount: 0 },
         { description: 'Refund', amount: -2.50 },
@@ -145,7 +146,7 @@ describe('validateResponse', () => {
   it('drops items with empty description', () => {
     const result = validateResponse({
       vendor: 'X',
-      date: null,
+      month: null,
       items: [
         { description: '', amount: 5.99 },
         { description: 'Real', amount: 5.99 },
@@ -160,14 +161,68 @@ describe('validateResponse', () => {
     expect(() => validateResponse(42)).toThrow();
   });
 
-  it('coerces empty/whitespace vendor and date to null', () => {
+  it('coerces empty/whitespace vendor and month to null', () => {
     const result = validateResponse({
       vendor: '',
-      date: '   ',
+      month: '   ',
       items: [],
     });
     expect(result.vendor).toBeNull();
-    expect(result.date).toBeNull();
+    expect(result.month).toBeNull();
+  });
+
+  it('truncates a YYYY-MM-DD month value to YYYY-MM', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: '2026-05-09',
+      items: [],
+    });
+    expect(result.month).toBe('2026-05');
+  });
+
+  it('passes through a YYYY-MM month value', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: '2026-05',
+      items: [],
+    });
+    expect(result.month).toBe('2026-05');
+  });
+
+  it('rejects a malformed month string', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: 'May 2026',
+      items: [],
+    });
+    expect(result.month).toBeNull();
+  });
+
+  it('keeps item.date when it is a valid YYYY-MM-DD', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: '2026-05',
+      items: [{ description: 'Coffee', amount: 5, date: '2026-05-09' }],
+    });
+    expect(result.items[0].date).toBe('2026-05-09');
+  });
+
+  it('drops item.date when it is malformed', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: '2026-05',
+      items: [{ description: 'Coffee', amount: 5, date: 'May 9' }],
+    });
+    expect(result.items[0].date).toBeNull();
+  });
+
+  it('sets item.date to null when missing', () => {
+    const result = validateResponse({
+      vendor: 'X',
+      month: '2026-05',
+      items: [{ description: 'Coffee', amount: 5 }],
+    });
+    expect(result.items[0].date).toBeNull();
   });
 });
 
