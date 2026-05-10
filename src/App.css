@@ -1993,6 +1993,10 @@
   color: var(--text);
 }
 
+.item-date::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 .btn-icon {
   background: rgba(240, 230, 210, 0.04);
   border: 1px solid rgba(240, 230, 210, 0.12);
