@@ -878,6 +878,7 @@ function BillTracker() {
       items: [{ id: Date.now(), description: "", amount: 0, category: "Other", date: null }]
     };
     setBills(prev => [newBill, ...prev]);
+    setSearchTerm('');
     setNewlyAddedBillId(newBill.id);
   };
 
