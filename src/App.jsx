@@ -299,6 +299,30 @@ const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
 };
 
 
+// ---- Confirm Dialog ----
+
+const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default", onConfirm, onCancel }) => (
+  <div className="dialog-overlay" onClick={onCancel ?? onConfirm}>
+    <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
+      <h2 className="dialog-title">{title}</h2>
+      <p className="dialog-body">{message}</p>
+      <div className="dialog-actions">
+        {onCancel && (
+          <button className="btn dialog-btn-cancel" onClick={onCancel}>Cancel</button>
+        )}
+        <button
+          className={`btn ${variant === 'danger' ? 'btn-danger' : 'btn-primary'} dialog-btn-confirm`}
+          onClick={onConfirm}
+          autoFocus
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+
 // ---- Bill Card ----
 
 const BillCard = ({ bill, onUpdate, onDelete, isMobile, highlighted = false, cardRef = null }) => {
