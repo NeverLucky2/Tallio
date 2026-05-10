@@ -5,6 +5,7 @@ import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import { extractBillFromImage } from './billExtractor.js';
+import { migrateBills } from './spendingMath.js';
 import './App.css';
 
 const categories = [
@@ -447,7 +448,7 @@ function BillTracker() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('billtracker-bills');
-      if (saved) setBills(JSON.parse(saved));
+      if (saved) setBills(migrateBills(JSON.parse(saved)));
     } catch (e) {
       // No saved bills yet
     } finally {
