@@ -1089,6 +1089,8 @@ function BillTracker() {
                   onUpdate={updateBill}
                   onDelete={deleteBill}
                   isMobile={isMobile}
+                  highlighted={bill.id === newlyAddedBillId}
+                  cardRef={bill.id === newlyAddedBillId ? newBillRef : null}
                 />
               ))
             )}
