@@ -380,7 +380,7 @@ const CategoryBreakdown = ({ bills }) => {
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3 className="panel-title">Spending</h3>
+        <h3 className="panel-title">Categories</h3>
       </div>
 
       {sortedCategories.length === 0 ? (
