@@ -256,7 +256,7 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
   const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
 
   const addItem = () => {
-    const newItem = { id: Date.now(), description: "", amount: 0, category: "Other" };
+    const newItem = { id: Date.now(), description: "", amount: 0, category: "Other", date: null };
     onUpdate({ ...bill, items: [...bill.items, newItem] });
   };
 

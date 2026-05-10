@@ -30,19 +30,22 @@ export default function SpendingChart({ bills }) {
     return Array.from(set).sort();
   }, [bills]);
 
+  // If the selected vendor was deleted, treat as "All" without a setState call.
+  const effectiveFilter = vendorFilter !== null && vendors.includes(vendorFilter) ? vendorFilter : null;
+
   const currentMonthKey = new Date().toISOString().slice(0, 7);
 
   const monthly = useMemo(
-    () => aggregateByMonth(bills, currentMonthKey, vendorFilter),
-    [bills, currentMonthKey, vendorFilter]
+    () => aggregateByMonth(bills, currentMonthKey, effectiveFilter),
+    [bills, currentMonthKey, effectiveFilter]
   );
 
   const daily = useMemo(() => {
     if (!drillMonth) return null;
-    return aggregateByDay(bills, drillMonth, vendorFilter);
-  }, [bills, drillMonth, vendorFilter]);
+    return aggregateByDay(bills, drillMonth, effectiveFilter);
+  }, [bills, drillMonth, effectiveFilter]);
 
-  const isAll = vendorFilter === null;
+  const isAll = effectiveFilter === null;
 
   if (bills.length === 0) {
     return (
@@ -63,9 +66,9 @@ export default function SpendingChart({ bills }) {
       {vendors.map(v => (
         <button
           key={v}
-          className={`spending-chip${vendorFilter === v ? ' active' : ''}`}
+          className={`spending-chip${effectiveFilter === v ? ' active' : ''}`}
           onClick={() => setVendorFilter(v)}
-          style={vendorFilter === v ? { background: getVendorColor(v), color: '#0b0e16' } : null}
+          style={effectiveFilter === v ? { background: getVendorColor(v), color: '#0b0e16' } : null}
         >
           {v}
         </button>
@@ -88,6 +91,9 @@ export default function SpendingChart({ bills }) {
   };
 
   const renderMonthlyBars = () => {
+    if (effectiveFilter && monthly.every(m => m.total === 0)) {
+      return <div className="spending-empty">No spending recorded for {effectiveFilter}.</div>;
+    }
     const max = Math.max(...monthly.map(m => m.total), 1);
     return (
       <div className="spending-bars">
@@ -106,8 +112,8 @@ export default function SpendingChart({ bills }) {
                   <div
                     className="spending-bar-segment"
                     style={{
-                      background: vendorFilter
-                        ? getVendorColor(vendorFilter)
+                      background: effectiveFilter
+                        ? getVendorColor(effectiveFilter)
                         : '#5b8dff',
                       height: '100%',
                     }}
@@ -161,8 +167,8 @@ export default function SpendingChart({ bills }) {
                   <div
                     className="spending-bar-segment"
                     style={{
-                      background: vendorFilter
-                        ? getVendorColor(vendorFilter)
+                      background: effectiveFilter
+                        ? getVendorColor(effectiveFilter)
                         : '#5b8dff',
                       height: '100%',
                     }}
