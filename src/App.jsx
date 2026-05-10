@@ -1,59 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import Tesseract from 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js';
 import PhoneCapture from './PhoneCapture.jsx';
 import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
+import { extractBillFromImage } from './billExtractor.js';
 import './App.css';
-
-const performOCR = async (imageSource, onProgress) => {
-  try {
-    const result = await Tesseract.recognize(
-      imageSource,
-      'eng',
-      {
-        logger: m => {
-          if (m.status === 'recognizing text' && onProgress) {
-            onProgress(Math.round(m.progress * 100));
-          }
-        }
-      }
-    );
-    return result.data.text;
-  } catch (error) {
-    console.error('OCR Error:', error);
-    return '';
-  }
-};
-
-const parseTransactions = (text) => {
-  const lines = text.split('\n').filter(l => l.trim());
-  const items = [];
-
-  for (const line of lines) {
-    const amountMatch = line.match(/(.+?)\s+\$?([\d,]+\.\d{2})\s*$/);
-    if (amountMatch) {
-      const description = amountMatch[1].trim();
-      const amount = parseFloat(amountMatch[2].replace(',', ''));
-
-      if (description.length > 3 && !isNaN(amount) && amount > 0 && amount < 100000) {
-        const skipWords = ['total', 'balance', 'payment', 'credit', 'amount', 'date', 'description', 'trans'];
-        const lowerDesc = description.toLowerCase();
-        if (!skipWords.some(w => lowerDesc.includes(w) && description.length < 30)) {
-          items.push({
-            id: Date.now() + Math.random(),
-            description: description,
-            amount: amount,
-            category: autoCategorizeTx(description)
-          });
-        }
-      }
-    }
-  }
-
-  return items;
-};
 
 const categories = [
   { name: "Utilities",      icon: "⚡", color: "#F59E0B" },
@@ -448,7 +400,6 @@ function BillTracker() {
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
-  const [ocrProgress, setOcrProgress] = useState(0);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const desktopPeer = useDesktopPeer();
   const [showPairing, setShowPairing] = useState(false);
@@ -539,73 +490,59 @@ function BillTracker() {
     sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
   );
 
-  const parseBillText = (text) => {
-    const lines = text.split('\n').filter(l => l.trim());
-    const items = [];
-    const txPattern = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s+(.+?)\s+\$?([\d,]+\.?\d*)\s*$/i;
-    for (const line of lines) {
-      const match = line.match(txPattern);
-      if (match) {
-        const description = match[5].trim();
-        const amount = parseFloat(match[6].replace(',', ''));
-        if (!isNaN(amount) && amount > 0) {
-          items.push({
-            id: Date.now() + Math.random(),
-            description,
-            amount,
-            category: autoCategorizeTx(description),
-            transDate: `${match[1]} ${match[2]}`,
-            postDate: `${match[3]} ${match[4]}`
-          });
-        }
-      }
-    }
-    return items;
-  };
-
-  const handleCapture = async (imageData, type) => {
+  const handleCapture = async (imageData, source) => {
     setShowCamera(false);
+
+    if (!settings.hasKey) {
+      openSettings('Add an Anthropic API key to scan bills.');
+      return;
+    }
+
     setIsProcessing(true);
-    setOcrProgress(0);
-    setProcessingStatus('Initializing OCR...');
+    setProcessingStatus('Reading bill…');
 
     try {
-      setProcessingStatus('Extracting text...');
-      const extractedText = await performOCR(imageData, (progress) => {
-        setOcrProgress(progress);
-        setProcessingStatus(`Extracting text... ${progress}%`);
+      const { vendor, date, items } = await extractBillFromImage(imageData, {
+        apiKey: settings.apiKey,
+        model: settings.model,
       });
 
-      setProcessingStatus('Parsing transactions...');
-      const items = parseTransactions(extractedText);
+      const mappedItems = items.map(it => ({
+        id: crypto.randomUUID(),
+        description: it.description,
+        amount: it.amount,
+        category: autoCategorizeTx(it.description),
+      }));
 
       const newBill = {
-        id: Date.now(),
-        vendor: items.length > 0 ? "Scanned Bill" : "New Bill",
-        date: new Date().toISOString().split('T')[0],
-        items: items.length > 0 ? items : [{
-          id: Date.now(),
-          description: "No transactions detected — add manually",
+        id: crypto.randomUUID(),
+        vendor: vendor || 'Scanned Bill',
+        date: date || new Date().toISOString().split('T')[0],
+        items: mappedItems.length > 0 ? mappedItems : [{
+          id: crypto.randomUUID(),
+          description: 'No items detected — add manually',
           amount: 0,
-          category: "Other"
+          category: 'Other',
         }],
-        rawText: extractedText
       };
 
       setBills(prev => { pushHistory(prev); return [newBill, ...prev]; });
-    } catch (error) {
-      console.error('Processing Error:', error);
+    } catch (err) {
       const newBill = {
-        id: Date.now(),
-        vendor: "Scanned Bill",
+        id: crypto.randomUUID(),
+        vendor: 'Scanned Bill',
         date: new Date().toISOString().split('T')[0],
-        items: [{ id: Date.now(), description: "OCR failed — add items manually", amount: 0, category: "Other" }]
+        items: [{
+          id: crypto.randomUUID(),
+          description: `${err.message || 'Extraction failed'} — add items manually`,
+          amount: 0,
+          category: 'Other',
+        }],
       };
       setBills(prev => { pushHistory(prev); return [newBill, ...prev]; });
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
-      setOcrProgress(0);
     }
   };
 
@@ -613,75 +550,11 @@ function BillTracker() {
     const file = e.target.files[0];
     if (!file) return;
 
-    setIsProcessing(true);
-    setOcrProgress(0);
-
-    if (file.type === 'application/pdf') {
-      setProcessingStatus('Converting PDF to image...');
-      try {
-        const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.mjs';
-
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const allItems = [];
-        const pageCount = Math.min(pdf.numPages, 5);
-
-        for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-          setProcessingStatus(`Processing page ${pageNum} of ${pageCount}...`);
-          const page = await pdf.getPage(pageNum);
-          const scale = 2;
-          const viewport = page.getViewport({ scale });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          await page.render({ canvasContext: context, viewport }).promise;
-          const imageData = canvas.toDataURL('image/png');
-          setProcessingStatus(`OCR on page ${pageNum}...`);
-          const text = await performOCR(imageData, (progress) => {
-            const overallProgress = Math.round(((pageNum - 1) / pageCount * 100) + (progress / pageCount));
-            setOcrProgress(overallProgress);
-          });
-          const pageItems = parseTransactions(text);
-          allItems.push(...pageItems);
-        }
-
-        const newBill = {
-          id: Date.now(),
-          vendor: file.name.replace('.pdf', ''),
-          date: new Date().toISOString().split('T')[0],
-          items: allItems.length > 0 ? allItems : [{
-            id: Date.now(),
-            description: "No transactions detected — add manually",
-            amount: 0,
-            category: "Other"
-          }]
-        };
-        setBills(prev => [newBill, ...prev]);
-      } catch (error) {
-        console.error('PDF processing error:', error);
-        setProcessingStatus('Error processing PDF');
-        const newBill = {
-          id: Date.now(),
-          vendor: file.name.replace('.pdf', ''),
-          date: new Date().toISOString().split('T')[0],
-          items: [{ id: Date.now(), description: "PDF processing failed — add manually", amount: 0, category: "Other" }]
-        };
-        setBills(prev => [newBill, ...prev]);
-      } finally {
-        setIsProcessing(false);
-        setProcessingStatus('');
-        setOcrProgress(0);
-      }
-    } else {
-      setProcessingStatus('Loading image...');
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        await handleCapture(event.target.result, 'image');
-      };
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      await handleCapture(event.target.result, 'upload');
+    };
+    reader.readAsDataURL(file);
 
     e.target.value = '';
   };
@@ -735,12 +608,6 @@ function BillTracker() {
         <div className="processing-overlay">
           <div className="processing-spinner" />
           <p className="processing-label">{processingStatus || 'Processing...'}</p>
-          {ocrProgress > 0 && (
-            <div className="progress-track">
-              <div className="progress-fill" style={{ width: `${ocrProgress}%` }} />
-            </div>
-          )}
-          <p className="processing-hint">Powered by Tesseract.js free OCR</p>
         </div>
       )}
 
