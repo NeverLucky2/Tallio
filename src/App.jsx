@@ -5,7 +5,7 @@ import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills } from './spendingMath.js';
+import { migrateBills, getItemDate } from './spendingMath.js';
 import './App.css';
 
 const categories = [
@@ -151,8 +151,9 @@ const CameraCapture = ({ onCapture, onClose }) => {
 
 // ---- Bill Item Row ----
 
-const BillItem = ({ item, onUpdate, onDelete, isMobile }) => {
+const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
   const category = categories.find(c => c.name === item.category) || categories[10];
+  const itemDate = item.date || getItemDate(bill, item);
 
   if (isMobile) {
     return (
@@ -176,6 +177,13 @@ const BillItem = ({ item, onUpdate, onDelete, isMobile }) => {
           <button className="btn-delete" onClick={onDelete}>×</button>
         </div>
         <div className="item-row-mobile-bottom">
+          <input
+            type="date"
+            value={itemDate}
+            onChange={(e) => onUpdate({ ...item, date: e.target.value })}
+            className="input item-date"
+            style={{ width: '140px', flexShrink: 0 }}
+          />
           <select
             value={item.category}
             onChange={(e) => onUpdate({ ...item, category: e.target.value })}
@@ -215,6 +223,12 @@ const BillItem = ({ item, onUpdate, onDelete, isMobile }) => {
         onChange={(e) => onUpdate({ ...item, description: e.target.value })}
         className="input-transparent"
         placeholder="Description"
+      />
+      <input
+        type="date"
+        value={itemDate}
+        onChange={(e) => onUpdate({ ...item, date: e.target.value })}
+        className="input item-date"
       />
       <select
         value={item.category}
@@ -311,6 +325,7 @@ const BillCard = ({ bill, onUpdate, onDelete, isMobile }) => {
               <BillItem
                 key={item.id}
                 item={item}
+                bill={bill}
                 onUpdate={updateItem}
                 onDelete={() => deleteItem(item.id)}
                 isMobile={isMobile}

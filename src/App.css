@@ -1542,6 +1542,20 @@
   text-align: center;
 }
 
+/* ---- Item Date Input ---- */
+
+.item-date {
+  width: 140px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.item-date:focus {
+  color: var(--text);
+}
+
 .btn-icon {
   background: rgba(240, 230, 210, 0.04);
   border: 1px solid rgba(240, 230, 210, 0.12);
