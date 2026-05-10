@@ -2257,3 +2257,15 @@
   gap: 2px;
   height: 200px;
 }
+
+/* Highlight ring for newly-added bills. Triggered by .bill-card-highlighted
+   class applied for ~1.5s after a bill is created via upload, scan, or manual add. */
+@keyframes bill-card-highlight-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  60%  { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.bill-card-highlighted {
+  animation: bill-card-highlight-pulse 1.5s ease-out;
+}
