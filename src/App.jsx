@@ -665,6 +665,11 @@ function BillTracker() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
+  const [pendingDeleteBillId, setPendingDeleteBillId] = useState(null);
+  const [showUndoTip, setShowUndoTip] = useState(false);
+  const [undoTipSeen, setUndoTipSeen] = useState(() => {
+    try { return localStorage.getItem('billtracker-undo-tip-seen') === 'true'; } catch { return false; }
+  });
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const desktopPeer = useDesktopPeer();
   const [showPairing, setShowPairing] = useState(false);
@@ -724,6 +729,14 @@ function BillTracker() {
       console.error('Failed to save tracked keywords:', e);
     }
   }, [trackedKeywords]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('billtracker-undo-tip-seen', undoTipSeen ? 'true' : 'false');
+    } catch (e) {
+      console.error('Failed to save undo tip flag:', e);
+    }
+  }, [undoTipSeen]);
 
   const addKeyword = (raw) => {
     const k = raw.trim().toUpperCase();
