@@ -11,8 +11,17 @@ export default function PhoneCapture() {
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const acquiringRef = useRef(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  const [cameraAttempt, setCameraAttempt] = useState(0);
+
+  const retryCamera = () => {
+    // Releasing the stream isn't needed (acquire effect early-returns if streamRef.current exists),
+    // but if the previous failure left no stream, the effect needs a dep change to re-fire.
+    setCameraError(null);
+    setCameraAttempt(n => n + 1);
+  };
 
   // Acquire camera once when the peer becomes camera-eligible.
   // Survives ready ↔ sending transitions so the camera doesn't flicker
@@ -21,7 +30,10 @@ export default function PhoneCapture() {
     const needsCam = peer.status === 'ready' || peer.status === 'sending';
     if (!needsCam) return;
     if (streamRef.current) return;
+    if (acquiringRef.current) return;
 
+    setCameraError(null);
+    acquiringRef.current = true;
     let cancelled = false;
     (async () => {
       try {
@@ -42,16 +54,30 @@ export default function PhoneCapture() {
         // Otherwise the callback ref (setVideoRef below) attaches when it mounts.
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => { /* autoplay policy; muted=true should let it play */ });
-          setCameraReady(true);
+          videoRef.current.play()
+            .then(() => setCameraReady(true))
+            .catch(() => setCameraError('Tap the screen to start the camera.'));
         }
       } catch (err) {
-        setCameraError('Camera access denied. Enable camera permissions and reload.');
+        const name = err && err.name;
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setCameraError('Camera access denied. Enable camera permissions in your browser settings.');
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          setCameraError('No camera was found on this device.');
+        } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+          setCameraError('Camera is in use by another app. Close it and retry.');
+        } else if (name === 'OverconstrainedError') {
+          setCameraError("This camera doesn't support the requested resolution.");
+        } else {
+          setCameraError(`Couldn't start camera: ${name || 'unknown error'}.`);
+        }
+      } finally {
+        acquiringRef.current = false;
       }
     })();
 
     return () => { cancelled = true; };
-  }, [peer.status]);
+  }, [peer.status, cameraAttempt]);
 
   // Release the stream when the peer leaves camera-eligible states.
   useEffect(() => {
@@ -79,8 +105,9 @@ export default function PhoneCapture() {
     videoRef.current = node;
     if (node && streamRef.current && node.srcObject !== streamRef.current) {
       node.srcObject = streamRef.current;
-      node.play().catch(() => { /* autoplay policy */ });
-      setCameraReady(true);
+      node.play()
+        .then(() => setCameraReady(true))
+        .catch(() => setCameraError('Tap the screen to start the camera.'));
     }
   }, []);
 
@@ -128,6 +155,7 @@ export default function PhoneCapture() {
       <div className="phone-root phone-error">
         <h1>Camera blocked</h1>
         <p>{cameraError}</p>
+        <button className="phone-btn phone-btn-primary" onClick={retryCamera}>Retry</button>
       </div>
     );
   }
