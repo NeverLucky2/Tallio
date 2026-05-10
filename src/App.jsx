@@ -828,6 +828,9 @@ function BillTracker() {
       };
 
       setBills(prev => { pushHistory(prev); return [newBill, ...prev]; });
+      setSelectedMonth(newBill.month);
+      setSearchTerm('');
+      setNewlyAddedBillId(newBill.id);
     } catch (err) {
       const newBill = {
         id: crypto.randomUUID(),
@@ -842,6 +845,9 @@ function BillTracker() {
         }],
       };
       setBills(prev => { pushHistory(prev); return [newBill, ...prev]; });
+      setSelectedMonth(newBill.month);
+      setSearchTerm('');
+      setNewlyAddedBillId(newBill.id);
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
