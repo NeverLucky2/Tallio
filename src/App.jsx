@@ -513,15 +513,13 @@ function BillTracker() {
     sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
   );
 
-  const thisMonthBills = bills.filter(bill => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    return bill.month === currentMonth;
-  });
-
-  const thisMonthTotal = thisMonthBills.reduce((sum, bill) =>
-    sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
-  );
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const thisMonthTotal = bills.reduce((sum, bill) => {
+    return sum + bill.items.reduce((itemSum, item) => {
+      const itemMonth = getItemDate(bill, item).slice(0, 7);
+      return itemMonth === currentMonthKey ? itemSum + item.amount : itemSum;
+    }, 0);
+  }, 0);
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
