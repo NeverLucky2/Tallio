@@ -1714,3 +1714,52 @@
 .spending-bar.current .spending-bar-label {
   color: var(--text);
 }
+
+/* ---- Spending Drill ---- */
+
+.spending-drill-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.spending-drill-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.spending-drill-month {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--text);
+}
+
+.spending-back {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.spending-back:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.spending-back:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.spending-bars-daily {
+  gap: 2px;
+  height: 200px;
+}

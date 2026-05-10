@@ -3,6 +3,7 @@ import {
   aggregateByMonth,
   aggregateByDay,
   getVendorColor,
+  getMonthWindow,
 } from './spendingMath.js';
 
 const formatMonthShort = (month) => {
@@ -36,7 +37,6 @@ export default function SpendingChart({ bills }) {
     [bills, currentMonthKey, vendorFilter]
   );
 
-  // eslint-disable-next-line no-unused-vars
   const daily = useMemo(() => {
     if (!drillMonth) return null;
     return aggregateByDay(bills, drillMonth, vendorFilter);
@@ -136,6 +136,77 @@ export default function SpendingChart({ bills }) {
     });
   };
 
+  const months = getMonthWindow(currentMonthKey);
+  const drillIdx = drillMonth ? months.indexOf(drillMonth) : -1;
+  const canPrev = drillIdx > 0;
+  const canNext = drillIdx >= 0 && drillIdx < months.length - 1;
+
+  const renderDailyBars = () => {
+    const max = Math.max(...daily.map(d => d.total), 1);
+    if (daily.every(d => d.total === 0)) {
+      return <div className="spending-empty">No spending recorded for {formatMonthLong(drillMonth)}.</div>;
+    }
+    return (
+      <div className="spending-bars spending-bars-daily">
+        {daily.map(d => {
+          const pct = (d.total / max) * 100;
+          return (
+            <div
+              key={d.day}
+              className="spending-bar"
+              title={`${formatMonthLong(drillMonth)} ${d.day} — ${formatCurrency(d.total)}`}
+            >
+              <div className="spending-bar-stack" style={{ height: `${pct}%` }}>
+                {isAll ? renderStack(d) : (
+                  <div
+                    className="spending-bar-segment"
+                    style={{
+                      background: vendorFilter
+                        ? getVendorColor(vendorFilter)
+                        : '#5b8dff',
+                      height: '100%',
+                    }}
+                  />
+                )}
+              </div>
+              {(d.day === 1 || d.day % 7 === 0 || d.day === daily.length) && (
+                <span className="spending-bar-label">{d.day}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderDailyHeader = () => (
+    <div className="spending-drill-header">
+      <button className="spending-back" onClick={() => setDrillMonth(null)} aria-label="Back to monthly">
+        ← Back
+      </button>
+      <div className="spending-drill-nav">
+        <button
+          className="spending-back"
+          onClick={() => canPrev && setDrillMonth(months[drillIdx - 1])}
+          disabled={!canPrev}
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <span className="spending-drill-month">{formatMonthLong(drillMonth)}</span>
+        <button
+          className="spending-back"
+          onClick={() => canNext && setDrillMonth(months[drillIdx + 1])}
+          disabled={!canNext}
+          aria-label="Next month"
+        >
+          ›
+        </button>
+      </div>
+      <span /> {/* spacer for alignment */}
+    </div>
+  );
+
   return (
     <div className="spending-panel">
       <div className="spending-header">
@@ -143,7 +214,14 @@ export default function SpendingChart({ bills }) {
       </div>
       {renderChips()}
       {renderLegend()}
-      {renderMonthlyBars()}
+      {drillMonth ? (
+        <>
+          {renderDailyHeader()}
+          {renderDailyBars()}
+        </>
+      ) : (
+        renderMonthlyBars()
+      )}
     </div>
   );
 }
