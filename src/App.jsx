@@ -53,14 +53,6 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
 const formatMonth = (monthString) => {
   if (!monthString || !/^\d{4}-\d{2}$/.test(monthString)) return '';
   const [y, m] = monthString.split('-').map(n => parseInt(n, 10));
