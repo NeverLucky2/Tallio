@@ -44,10 +44,7 @@ export default function PhoneCapture() {
     setCaptured({ blob, previewUrl });
   };
 
-  const onRetake = () => {
-    if (captured?.previewUrl) URL.revokeObjectURL(captured.previewUrl);
-    setCaptured(null);
-  };
+  const onRetake = () => setCaptured(null);
 
   const retryCamera = () => {
     // Releasing the stream isn't needed (acquire effect early-returns if streamRef.current exists),
@@ -131,6 +128,14 @@ export default function PhoneCapture() {
     }
   }, []);
 
+  // Owns previewUrl lifetime: revokes on unmount and whenever the previewUrl
+  // changes (covers double-shutter and unmount-mid-preview leaks).
+  useEffect(() => {
+    const url = captured?.previewUrl;
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [captured?.previewUrl]);
+
   // Callback ref: attaches whichever <video> element is currently mounted
   // to the existing stream. This is what makes ready → preview → ready
   // round-trips work without re-acquiring the camera.
@@ -193,6 +198,9 @@ export default function PhoneCapture() {
     );
   }
 
+  // TODO: a transient peer disconnect/error during preview currently tears
+  // the captured image away because those branches render before this one.
+  // For v1 we accept the loss; revisit if it becomes annoying.
   if (captured) {
     return (
       <div className="phone-camera">
