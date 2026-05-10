@@ -424,6 +424,10 @@ function BillTracker() {
 
   useEffect(() => {
     if (!desktopPeer.lastImage) return;
+    // Intentionally NOT depending on handleCapture or desktopPeer.consumeImage —
+    // we only want to react to a NEW image arriving, not to settings changes
+    // that recreate handleCapture's identity. handleCapture reads `settings`
+    // at call time, which gives us the fresh values anyway.
     handleCapture(desktopPeer.lastImage.dataUrl, 'phone');
     desktopPeer.consumeImage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -534,7 +538,7 @@ function BillTracker() {
         date: new Date().toISOString().split('T')[0],
         items: [{
           id: crypto.randomUUID(),
-          description: `${err.message || 'Extraction failed'} — add items manually`,
+          description: `${(err.message || 'Extraction failed').replace(/\.$/, '')} — add items manually`,
           amount: 0,
           category: 'Other',
         }],
