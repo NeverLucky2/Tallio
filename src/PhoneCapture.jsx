@@ -39,10 +39,17 @@ export default function PhoneCapture() {
 
   const onSend = async () => {
     if (!captured) return;
-    const arrayBuffer = await captured.blob.arrayBuffer();
-    await peer.sendImage(new Uint8Array(arrayBuffer));
-    setCaptured(null);            // useEffect handles previewUrl revocation
-    setJustSent(true);
+    try {
+      const arrayBuffer = await captured.blob.arrayBuffer();
+      await peer.sendImage(new Uint8Array(arrayBuffer));
+      setCaptured(null);            // useEffect handles previewUrl revocation
+      setJustSent(true);
+    } catch (err) {
+      // sendImage failed (connection lost mid-send, or buffer error).
+      // Hook has already restored peer.status. Leave preview in place
+      // so the user can retry or retake.
+      console.warn('[PhoneCapture] send failed:', err);
+    }
   };
 
   useEffect(() => {
