@@ -640,6 +640,7 @@ function BillTracker() {
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const desktopPeer = useDesktopPeer();
   const [showPairing, setShowPairing] = useState(false);
@@ -679,6 +680,7 @@ function BillTracker() {
 
   const fileInputRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const newBillRef = useRef(null);
 
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1024;
@@ -714,6 +716,13 @@ function BillTracker() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!newlyAddedBillId) return;
+    newBillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const timer = setTimeout(() => setNewlyAddedBillId(null), 1500);
+    return () => clearTimeout(timer);
+  }, [newlyAddedBillId]);
 
   const pushHistory = (currentBills) => {
     setHistory(prev => [...prev.slice(-19), currentBills]);
