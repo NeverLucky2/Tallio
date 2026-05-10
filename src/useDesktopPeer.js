@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Peer from 'peerjs';
-import { PEER_CONFIG, peerIdFor, createReassembler } from './peerProtocol.js';
+import { PEER_CONFIG, peerIdFor, createReassembler, FATAL_PEER_ERRORS } from './peerProtocol.js';
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
-
-const FATAL_PEER_ERRORS = new Set([
-  'browser-incompatible',
-  'invalid-id',
-  'invalid-key',
-  'ssl-unavailable',
-  'server-error',
-  'socket-error',
-  'socket-closed',
-  'unavailable-id',
-]);
 
 export default function useDesktopPeer() {
   const [active, setActive] = useState(false);
