@@ -12,11 +12,11 @@ export default function usePhonePeer(sessionId) {
 
   const cleanup = useCallback(() => {
     if (connRef.current) {
-      try { connRef.current.close(); } catch (e) { /* ignore */ }
+      try { connRef.current.close(); } catch { /* ignore */ }
       connRef.current = null;
     }
     if (peerRef.current) {
-      try { peerRef.current.destroy(); } catch (e) { /* ignore */ }
+      try { peerRef.current.destroy(); } catch { /* ignore */ }
       peerRef.current = null;
     }
   }, []);

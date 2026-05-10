@@ -903,38 +903,6 @@
   transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ---- Info Panels ---- */
-
-.info-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--purple-border);
-  border-radius: var(--r-lg);
-  padding: 22px;
-  text-align: center;
-}
-
-.info-panel-icon {
-  font-size: 26px;
-  margin-bottom: 10px;
-  display: block;
-  line-height: 1;
-}
-
-.info-panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0 0 7px 0;
-  letter-spacing: -0.1px;
-}
-
-.info-panel-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.65;
-}
-
 /* ---- Format Tags ---- */
 
 .formats-panel {

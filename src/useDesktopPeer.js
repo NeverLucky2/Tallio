@@ -31,15 +31,15 @@ export default function useDesktopPeer() {
       receiveTimerRef.current = null;
     }
     if (readerRef.current) {
-      try { readerRef.current.abort(); } catch (e) { /* ignore */ }
+      try { readerRef.current.abort(); } catch { /* ignore */ }
       readerRef.current = null;
     }
     if (connRef.current) {
-      try { connRef.current.close(); } catch (e) { /* ignore */ }
+      try { connRef.current.close(); } catch { /* ignore */ }
       connRef.current = null;
     }
     if (peerRef.current) {
-      try { peerRef.current.destroy(); } catch (e) { /* ignore */ }
+      try { peerRef.current.destroy(); } catch { /* ignore */ }
       peerRef.current = null;
     }
     reassemblerRef.current = null;
@@ -170,7 +170,7 @@ export default function useDesktopPeer() {
     peer.on('connection', (conn) => {
       if (peerRef.current !== peer) return;
       if (connRef.current && connRef.current.open) {
-        try { conn.close(); } catch (e) { /* ignore */ }
+        try { conn.close(); } catch { /* ignore */ }
         return;
       }
       wireConnection(conn);
@@ -194,7 +194,7 @@ export default function useDesktopPeer() {
 
     peer.on('disconnected', () => {
       if (peerRef.current !== peer) return;
-      try { peer.reconnect(); } catch (e) { /* ignore */ }
+      try { peer.reconnect(); } catch { /* ignore */ }
     });
   }, [armExpiry, cleanup, wireConnection]);
 
