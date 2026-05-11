@@ -6,51 +6,13 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV2 } from './spendingMath.js';
+import useCategories from './useCategories.js';
+import BillItem from './BillItem.jsx';
+import CategoryBreakdown from './CategoryBreakdown.jsx';
+import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import { DEFAULT_CATEGORIES } from './categoriesDefaults.js';
 import './App.css';
-
-const categories = [
-  { name: "Utilities",      icon: "⚡", color: "#F59E0B" },
-  { name: "Groceries",      icon: "🛒", color: "#10B981" },
-  { name: "Healthcare",     icon: "💊", color: "#EF4444" },
-  { name: "Fitness",        icon: "🧗", color: "#84CC16" },
-  { name: "Insurance",      icon: "🛡️", color: "#6366F1" },
-  { name: "Entertainment",  icon: "🎬", color: "#EC4899" },
-  { name: "Transportation", icon: "🚗", color: "#8B5CF6" },
-  { name: "Dining",         icon: "🍽️", color: "#F97316" },
-  { name: "Shopping",       icon: "🛍️", color: "#14B8A6" },
-  { name: "Subscriptions",  icon: "📱", color: "#3B82F6" },
-  { name: "Parking",        icon: "🅿️", color: "#64748B" },
-  { name: "Donations",      icon: "🙏", color: "#e879a0" },
-  { name: "Other",          icon: "📋", color: "#6B7280" }
-];
-
-const FALLBACK_CATEGORY = categories.find(c => c.name === 'Other');
-
-const autoCategorizeTx = (description) => {
-  const desc = description.toUpperCase();
-  if (desc.includes('MCDONALD') || desc.includes('KFC') || desc.includes('POPEYES') ||
-      desc.includes('KRISPY') || desc.includes('RESTAURANT') || desc.includes('CHINESE') ||
-      desc.includes('SHARK\'S FISH') || desc.includes('HOY\'S')) return "Dining";
-  if (desc.includes('WAL-MART') || desc.includes('WALMART') || desc.includes('TARGET')) return "Shopping";
-  if (desc.includes('EBAY') || desc.includes('TEMU') || desc.includes('AMAZON')) return "Shopping";
-  if (desc.includes('LOT A') || desc.includes('PARKING') || desc.includes('PAY ON FOOT')) return "Parking";
-  if (desc.includes('HOME DEPOT') || desc.includes('LOWES')) return "Shopping";
-  if (desc.includes('BOWLERO') || desc.includes('WHITE CASTLE') || desc.includes('ENTERTAINMENT')) return "Entertainment";
-  if (desc.includes('CLAUDE.AI') || desc.includes('SUBSCRIPTION') || desc.includes('NETFLIX')) return "Subscriptions";
-  if (desc.includes('GAS') || desc.includes('SHELL') || desc.includes('BP') || desc.includes('EXXON')) return "Transportation";
-  if (desc.includes('CHURCH') || desc.includes('CHRISTIAN') || desc.includes('CHAPEL') ||
-      desc.includes('MINISTRY') || desc.includes('MINISTRIES') || desc.includes('MISSION') ||
-      desc.includes('SALVATION ARMY') || desc.includes('GOODWILL') || desc.includes('HABITAT') ||
-      desc.includes('RED CROSS') || desc.includes('DONATION') || desc.includes('TITHE') ||
-      desc.includes('PARISH') || desc.includes('DIOCESE') || desc.includes('SYNAGOGUE') ||
-      desc.includes('MOSQUE') || desc.includes('TEMPLE') || desc.includes('CHARITY') ||
-      desc.includes('FOUNDATION') || desc.includes('NONPROFIT') || desc.includes('NON-PROFIT')) return "Donations";
-  if (desc.includes('FIRST ASCENT') || desc.includes('GYM') || desc.includes('FITNESS') ||
-      desc.includes('CLIMBING') || desc.includes('CROSSFIT') || desc.includes('YOGA') ||
-      desc.includes('PILATES')) return "Fitness";
-  return "Other";
-};
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-US', {
@@ -192,113 +154,6 @@ const CameraCapture = ({ onCapture, onClose }) => {
 };
 
 
-// ---- Bill Item Row ----
-
-const BillItem = ({ item, bill, onUpdate, onDelete, isMobile }) => {
-  const category = categories.find(c => c.name === item.category) || FALLBACK_CATEGORY;
-  const itemDate = item.date || getItemDate(bill, item);
-
-  if (isMobile) {
-    return (
-      <div className="item-row-mobile">
-        <div className="item-row-mobile-top">
-          <div className="item-row-mobile-top-left">
-            <div
-              className="item-icon"
-              style={{ background: `${category.color}18`, border: `1px solid ${category.color}28` }}
-            >
-              {category.icon}
-            </div>
-            <input
-              type="text"
-              value={item.description}
-              onChange={(e) => onUpdate({ ...item, description: e.target.value })}
-              className="input-transparent"
-              placeholder="Description"
-            />
-          </div>
-          <button className="btn-delete" onClick={onDelete}>×</button>
-        </div>
-        <div className="item-row-mobile-bottom">
-          <input
-            type="date"
-            value={itemDate}
-            onChange={(e) => onUpdate({ ...item, date: e.target.value })}
-            className="input item-date"
-            style={{ width: '140px', flexShrink: 0 }}
-          />
-          <select
-            value={item.category}
-            onChange={(e) => onUpdate({ ...item, category: e.target.value })}
-            className="select"
-          >
-            {categories.map(cat => (
-              <option key={cat.name} value={cat.name}>{cat.icon} {cat.name}</option>
-            ))}
-          </select>
-          <div className="input-amount-wrap" style={{ width: '110px', flexShrink: 0 }}>
-            <span className="input-amount-prefix">$</span>
-            <input
-              type="number"
-              value={item.amount}
-              onChange={(e) => onUpdate({ ...item, amount: parseFloat(e.target.value) || 0 })}
-              className="input-amount"
-              step="0.01"
-              min="0"
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="item-row">
-      <div
-        className="item-icon"
-        style={{ background: `${category.color}18`, border: `1px solid ${category.color}28` }}
-      >
-        {category.icon}
-      </div>
-      <input
-        type="date"
-        value={itemDate}
-        onChange={(e) => onUpdate({ ...item, date: e.target.value })}
-        className="input item-date"
-      />
-      <select
-        value={item.category}
-        onChange={(e) => onUpdate({ ...item, category: e.target.value })}
-        className="select"
-      >
-        {categories.map(cat => (
-          <option key={cat.name} value={cat.name}>{cat.icon} {cat.name}</option>
-        ))}
-      </select>
-      <input
-        type="text"
-        value={item.description}
-        onChange={(e) => onUpdate({ ...item, description: e.target.value })}
-        className="input-transparent"
-        placeholder="Description"
-      />
-      <div className="input-amount-wrap">
-        <span className="input-amount-prefix">$</span>
-        <input
-          type="number"
-          value={item.amount}
-          onChange={(e) => onUpdate({ ...item, amount: parseFloat(e.target.value) || 0 })}
-          className="input-amount"
-          step="0.01"
-          min="0"
-        />
-      </div>
-      <button className="btn-delete" onClick={onDelete}>×</button>
-    </div>
-  );
-};
-
-
 // ---- Confirm Dialog ----
 
 const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default", onConfirm, onCancel }) => (
@@ -325,12 +180,12 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
   const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
 
   const addItem = () => {
-    const newItem = { id: Date.now(), description: "", amount: 0, category: "Other", date: null };
+    const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date: null };
     onUpdate({ ...bill, items: [...bill.items, newItem] });
   };
 
@@ -394,6 +249,8 @@ const BillCard = ({ bill, onUpdate, onDelete, onDeleteItem, isMobile, highlighte
                 key={item.id}
                 item={item}
                 bill={bill}
+                categories={categories}
+                otherCategoryId={otherCategoryId}
                 onUpdate={updateItem}
                 onDelete={() => deleteItem(item.id)}
                 isMobile={isMobile}
@@ -433,67 +290,9 @@ const SummaryCard = ({ title, amount, isCount, colorKey, delta }) => (
 );
 
 
-// ---- Category Breakdown ----
-
-const CategoryBreakdown = ({ items, selectedMonth }) => {
-  const categoryTotals = {};
-  items.forEach(item => {
-    if (!categoryTotals[item.category]) categoryTotals[item.category] = 0;
-    categoryTotals[item.category] += item.amount;
-  });
-
-  const sortedCategories = Object.entries(categoryTotals)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 6);
-
-  const maxAmount = Math.max(...sortedCategories.map(([, amount]) => amount), 1);
-
-  return (
-    <div className="panel">
-      <div className="panel-header">
-        <h3 className="panel-title">Categories</h3>
-        {selectedMonth && (
-          <span className="panel-sub">{formatMonthCompact(selectedMonth)}</span>
-        )}
-      </div>
-
-      {sortedCategories.length === 0 ? (
-        <p className="panel-empty">No expenses for {selectedMonth ? formatMonth(selectedMonth) : 'this period'}</p>
-      ) : (
-        <div className="cat-list">
-          {sortedCategories.map(([categoryName, amount]) => {
-            const category = categories.find(c => c.name === categoryName) || FALLBACK_CATEGORY;
-            const percentage = (amount / maxAmount) * 100;
-            return (
-              <div key={categoryName}>
-                <div className="cat-meta">
-                  <div className="cat-name">
-                    <span className="cat-icon">{category.icon}</span>
-                    {categoryName}
-                  </div>
-                  <span className="cat-amount" style={{ color: category.color }}>
-                    {formatCurrency(amount)}
-                  </span>
-                </div>
-                <div className="cat-track">
-                  <div
-                    className="cat-fill"
-                    style={{ width: `${percentage}%`, background: category.color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
-
 // ---- Tracked Keywords Panel ----
 
-const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth }) => {
+const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categoriesById, fallbackCategory }) => {
   const [draft, setDraft] = useState('');
 
   const submit = () => {
@@ -539,7 +338,7 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth }) => {
                 direction: change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat',
               };
             }
-            const cat = categories.find(c => c.name === summary.category) || FALLBACK_CATEGORY;
+            const cat = categoriesById.get(summary.categoryId) || fallbackCategory;
             return (
               <div key={kw} className="track-row">
                 <div className="track-row-main">
@@ -583,7 +382,7 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth }) => {
 
 // ---- Subscriptions Panel ----
 
-const Subscriptions = ({ bills, today, trackedKeywords = [] }) => {
+const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
   const all = findRecurringCharges(bills, today);
   const charges = all.filter(c => !trackedKeywords.some(kw =>
     c.description.toUpperCase().includes(kw.toUpperCase())
@@ -602,7 +401,7 @@ const Subscriptions = ({ bills, today, trackedKeywords = [] }) => {
       </div>
       <div className="sub-list">
         {charges.map(c => {
-          const cat = categories.find(k => k.name === c.category) || FALLBACK_CATEGORY;
+          const cat = categoriesById.get(c.categoryId) || fallbackCategory;
           return (
             <div key={`${c.vendor}-${c.description}`} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
               <div className="sub-row-main">
@@ -637,14 +436,48 @@ const Subscriptions = ({ bills, today, trackedKeywords = [] }) => {
 // ---- Main App ----
 
 function BillTracker() {
-  const [bills, setBills] = useState(() => {
+  // One-time schema-v1 → v2 migration: items.category (string) → items.categoryId (id ref).
+  // Backup is written before transformation so the user can recover if anything goes wrong.
+  const [{ bills: initialBills }] = useState(() => {
     try {
-      const saved = localStorage.getItem('billtracker-bills');
-      return saved ? migrateBills(JSON.parse(saved)) : [];
-    } catch {
-      return [];
+      const rawBills = localStorage.getItem('billtracker-bills');
+      const rawCats  = localStorage.getItem('billtracker-categories');
+      const ver      = parseInt(localStorage.getItem('billtracker-schema-version') || '1', 10);
+
+      const v1Bills = rawBills ? migrateBills(JSON.parse(rawBills)) : [];
+      const existingCats = rawCats ? JSON.parse(rawCats) : null;
+
+      if (ver < 2 && rawBills && !localStorage.getItem('billtracker-pre-categories-backup')) {
+        localStorage.setItem('billtracker-pre-categories-backup', JSON.stringify({
+          ts: new Date().toISOString(),
+          bills: v1Bills,
+        }));
+      }
+
+      const { bills: v2Bills, categories: v2Cats } = migrateToV2(v1Bills, existingCats, DEFAULT_CATEGORIES);
+
+      if (ver < 2) {
+        localStorage.setItem('billtracker-bills', JSON.stringify(v2Bills));
+        localStorage.setItem('billtracker-categories', JSON.stringify(v2Cats));
+        localStorage.setItem('billtracker-schema-version', '2');
+      }
+
+      return { bills: v2Bills };
+    } catch (e) {
+      console.error('Migration failed:', e);
+      return { bills: [] };
     }
   });
+
+  const [bills, setBills] = useState(initialBills);
+
+  const cats = useCategories();
+  const [screen, setScreen] = useState('main');
+
+  // Confirm-and-apply state for keyword adds.
+  const [pendingKeywordApply, setPendingKeywordApply] = useState(null);
+  // Shape: { catId, keyword, matchingItems: [...] }
+
   const [selectedMonth, setSelectedMonth] = useState(() => currentMonthKey());
   const [searchTerm, setSearchTerm] = useState('');
   const [trackedKeywords, setTrackedKeywords] = useState(() => {
@@ -805,7 +638,8 @@ function BillTracker() {
     const num = parseFloat(t);
     for (const item of bill.items || []) {
       if ((item.description || '').toLowerCase().includes(t)) return true;
-      if ((item.category || '').toLowerCase().includes(t)) return true;
+      const cat = cats.getById(item.categoryId);
+      if (cat && cat.name.toLowerCase().includes(t)) return true;
       if (Number.isFinite(num) && Math.abs(item.amount - num) < 0.01) return true;
     }
     return false;
@@ -840,7 +674,7 @@ function BillTracker() {
         description: it.description,
         amount: it.amount,
         date: it.date || null,
-        category: autoCategorizeTx(it.description),
+        categoryId: cats.autoCategorize(it.description),
       }));
 
       const newBill = {
@@ -851,7 +685,7 @@ function BillTracker() {
           id: crypto.randomUUID(),
           description: 'No items detected — add manually',
           amount: 0,
-          category: 'Other',
+          categoryId: cats.otherId(),
           date: null,
         }],
       };
@@ -869,7 +703,7 @@ function BillTracker() {
           id: crypto.randomUUID(),
           description: `${(err.message || 'Extraction failed').replace(/\.$/, '')} — add items manually`,
           amount: 0,
-          category: 'Other',
+          categoryId: cats.otherId(),
           date: null,
         }],
       };
@@ -904,7 +738,7 @@ function BillTracker() {
       id: Date.now(),
       vendor: "",
       month: selectedMonth,
-      items: [{ id: Date.now(), description: "", amount: 0, category: "Other", date: null }]
+      items: [{ id: Date.now(), description: "", amount: 0, categoryId: cats.otherId(), date: null }]
     };
     setBills(prev => [newBill, ...prev]);
     setSearchTerm('');
@@ -962,9 +796,33 @@ function BillTracker() {
     URL.revokeObjectURL(url);
   };
 
+  const categoriesById = new Map(cats.categories.map(c => [c.id, c]));
+  const fallbackCategory = cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' };
+
   return (
     <div className="app-root">
       <div className="app-bg-gradient" />
+
+      {screen === 'manage-categories' && (
+        <ManageCategoriesScreen
+          categories={cats.categories}
+          bills={bills}
+          onClose={() => setScreen('main')}
+          onAddCategory={(payload) => cats.addCategory(payload)}
+          onUpdateCategory={(id, patch) => cats.updateCategory(id, patch)}
+          onDeleteCategory={(id) => cats.deleteCategory(id, bills)}
+          onAddKeyword={(catId, kw) => {
+            const result = cats.addKeyword(catId, kw, bills);
+            if (result.added && result.matchingItems.length > 0) {
+              setPendingKeywordApply({ catId, keyword: kw.toUpperCase(), matchingItems: result.matchingItems });
+            }
+            return result;
+          }}
+          onRemoveKeyword={(catId, kw) => cats.removeKeyword(catId, kw)}
+          onAddTemplate={(catId, t) => cats.addTemplate(catId, t)}
+          onRemoveTemplate={(catId, t) => cats.removeTemplate(catId, t)}
+        />
+      )}
 
       {/* Camera Modal */}
       {showCamera && (
@@ -1017,6 +875,22 @@ function BillTracker() {
         />
       )}
 
+      {pendingKeywordApply && (
+        <ConfirmDialog
+          title={`Apply "${pendingKeywordApply.keyword}" to existing items?`}
+          message={`${pendingKeywordApply.matchingItems.length} existing item${
+            pendingKeywordApply.matchingItems.length === 1 ? '' : 's'
+          } would change category under this rule.`}
+          confirmLabel="Apply"
+          onConfirm={() => {
+            pushHistory(bills);
+            setBills(prev => cats.applyCategoryToItems(prev, pendingKeywordApply.matchingItems, pendingKeywordApply.catId));
+            setPendingKeywordApply(null);
+          }}
+          onCancel={() => setPendingKeywordApply(null)}
+        />
+      )}
+
       {/* Undo Toast */}
       {undoToast && (
         <div className="toast">
@@ -1040,6 +914,14 @@ function BillTracker() {
           <div className="header-actions">
             <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">
               ⚙
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen('manage-categories')}
+              className="btn"
+              aria-label="Manage Categories"
+            >
+              ☰ Categories
             </button>
             <button
               onClick={undo}
@@ -1162,6 +1044,9 @@ function BillTracker() {
                 <BillCard
                   key={bill.id}
                   bill={bill}
+                  defaultCategoryId={cats.otherId()}
+                  categories={cats.categories}
+                  otherCategoryId={cats.otherId()}
                   onUpdate={updateBill}
                   onDelete={deleteBill}
                   onDeleteItem={handleDeleteItem}
@@ -1175,15 +1060,28 @@ function BillTracker() {
 
           {/* Sidebar */}
           <div className="sidebar">
-            <CategoryBreakdown items={searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems} selectedMonth={searchActive ? null : selectedMonth} />
+            <CategoryBreakdown
+              items={searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems}
+              categories={cats.categories}
+              otherCategoryId={cats.otherId()}
+              selectedMonth={searchActive ? null : selectedMonth}
+            />
             <TrackedPanel
               bills={bills}
               keywords={trackedKeywords}
               onAdd={addKeyword}
               onRemove={removeKeyword}
               selectedMonth={selectedMonth}
+              categoriesById={categoriesById}
+              fallbackCategory={fallbackCategory}
             />
-            <Subscriptions bills={bills} today={todayMonth} trackedKeywords={trackedKeywords} />
+            <Subscriptions
+              bills={bills}
+              today={todayMonth}
+              trackedKeywords={trackedKeywords}
+              categoriesById={categoriesById}
+              fallbackCategory={fallbackCategory}
+            />
 
             <div className="formats-panel">
               <p className="formats-label">Supported Formats</p>
