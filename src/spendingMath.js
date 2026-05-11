@@ -262,23 +262,26 @@ export function aggregateByKeyword(bills, keyword, categoriesById = null) {
   return { total, byMonth, lastDate, categoryId, flow, occurrences };
 }
 
-export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
+export function aggregateByDay(bills, targetMonth, categoriesById = null, vendorFilter = null) {
   const days = daysInMonth(targetMonth);
   const buckets = [];
   for (let d = 1; d <= days; d++) {
-    buckets.push({ day: d, total: 0, byVendor: {} });
+    buckets.push({ day: d, spent: 0, byVendor: {} });
   }
 
   for (const bill of bills || []) {
     if (vendorFilter && bill.vendor !== vendorFilter) continue;
     for (const item of bill.items || []) {
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
+      const cat = categoriesById && categoriesById.get(item.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow !== 'expense') continue;
       const date = getItemDate(bill, item);
       if (date.slice(0, 7) !== targetMonth) continue;
       const day = parseInt(date.slice(8, 10), 10);
       if (day < 1 || day > days) continue;
       const bucket = buckets[day - 1];
-      bucket.total += item.amount;
+      bucket.spent += item.amount;
       const vendor = bill.vendor || 'Unknown';
       bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
     }

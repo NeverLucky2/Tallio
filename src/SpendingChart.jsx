@@ -105,8 +105,8 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
 
   const daily = useMemo(() => {
     if (!drillMonth) return null;
-    return aggregateByDay(bills, drillMonth, effectiveFilter);
-  }, [bills, drillMonth, effectiveFilter]);
+    return aggregateByDay(bills, drillMonth, categoriesById, effectiveFilter);
+  }, [bills, drillMonth, categoriesById, effectiveFilter]);
 
   const isAll = effectiveFilter === null;
 

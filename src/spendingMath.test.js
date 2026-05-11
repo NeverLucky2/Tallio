@@ -282,7 +282,7 @@ describe('aggregateByDay', () => {
 
   it('sums multiple items on the same day', () => {
     const result = aggregateByDay(bills, '2026-05');
-    expect(result[2].total).toBe(9); // day 3
+    expect(result[2].spent).toBe(9); // day 3
   });
 
   it('includes per-vendor breakdown', () => {
@@ -298,8 +298,8 @@ describe('aggregateByDay', () => {
         items: [{ description: 'X', amount: 50, date: '2026-05-15' }],
       },
     ];
-    const result = aggregateByDay(more, '2026-05', 'Chase');
-    expect(result[14].total).toBe(12); // day 15, only Chase
+    const result = aggregateByDay(more, '2026-05', new Map(), 'Chase');
+    expect(result[14].spent).toBe(12); // day 15, only Chase
   });
 
   it('ignores items outside the target month', () => {
@@ -308,7 +308,30 @@ describe('aggregateByDay', () => {
       items: [{ description: 'X', amount: 999, date: '2026-04-30' }],
     }];
     const result = aggregateByDay(cross, '2026-05');
-    expect(result.every(d => d.total === 0)).toBe(true);
+    expect(result.every(d => d.spent === 0)).toBe(true);
+  });
+});
+
+describe('aggregateByDay (expense-only)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+  ]);
+
+  it('sums spent (expense-flow only), ignoring income and savings', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme',  month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck',  date: '2026-05-15' },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i2', amount: 84,   categoryId: 'c_groceries', date: '2026-05-15' },
+      ]},
+    ];
+    const out = aggregateByDay(bills, '2026-05', catsById);
+    const d15 = out[14];
+    expect(d15.day).toBe(15);
+    expect(d15.spent).toBe(84);
+    expect(d15.byVendor).toEqual({ Chase: 84 });
   });
 });
 
