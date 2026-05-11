@@ -379,3 +379,19 @@ export function getBillNet(bill, categoriesById) {
   }
   return { income, expense, savings, net: income - expense - savings };
 }
+
+// Shift a YYYY-MM-DD date string to a target YYYY-MM month, preserving
+// day-of-month with last-day clamping. Null / invalid / empty → null.
+// Same-month target → identical string. Used by computeCatchUp (auto-spawn)
+// and the cross-month bill-level duplicate.
+export function shiftItemDate(date, targetMonth) {
+  if (!date || typeof date !== 'string' || !DATE_RE.test(date)) return null;
+  if (typeof targetMonth !== 'string' || !MONTH_RE.test(targetMonth)) return null;
+  const day = parseInt(date.slice(8, 10), 10);
+  const [yStr, mStr] = targetMonth.split('-');
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+  const lastDay = new Date(year, month, 0).getDate();
+  const clampedDay = Math.min(day, lastDay);
+  return `${targetMonth}-${String(clampedDay).padStart(2, '0')}`;
+}

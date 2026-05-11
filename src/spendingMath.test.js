@@ -733,6 +733,42 @@ describe('aggregateByKeyword (sign-aware)', () => {
   });
 });
 
+import { shiftItemDate } from './spendingMath.js';
+
+describe('shiftItemDate', () => {
+  it('preserves day-of-month when target month has enough days', () => {
+    expect(shiftItemDate('2026-05-15', '2026-06')).toBe('2026-06-15');
+  });
+
+  it('clamps Jan 31 → Feb 28 in a non-leap year', () => {
+    expect(shiftItemDate('2026-01-31', '2026-02')).toBe('2026-02-28');
+  });
+
+  it('clamps Jan 31 → Feb 29 in a leap year', () => {
+    expect(shiftItemDate('2024-01-31', '2024-02')).toBe('2024-02-29');
+  });
+
+  it('clamps Aug 31 → Sep 30', () => {
+    expect(shiftItemDate('2026-08-31', '2026-09')).toBe('2026-09-30');
+  });
+
+  it('returns null for null / undefined / malformed input', () => {
+    expect(shiftItemDate(null,        '2026-05')).toBeNull();
+    expect(shiftItemDate(undefined,   '2026-05')).toBeNull();
+    expect(shiftItemDate('not-a-date','2026-05')).toBeNull();
+    expect(shiftItemDate('',          '2026-05')).toBeNull();
+  });
+
+  it('same-month target is a no-op', () => {
+    expect(shiftItemDate('2026-05-15', '2026-05')).toBe('2026-05-15');
+  });
+
+  it('works across year boundaries', () => {
+    expect(shiftItemDate('2026-12-31', '2027-01')).toBe('2027-01-31');
+    expect(shiftItemDate('2026-12-31', '2027-02')).toBe('2027-02-28');
+  });
+});
+
 import { migrateToV2 } from './spendingMath.js';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
 
