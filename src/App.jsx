@@ -474,9 +474,10 @@ function BillTracker() {
   // One-time schema-v1 → v2 migration: items.category (string) → items.categoryId (id ref).
   // Extracted to initializeFromStorage.js for testability. Writes a backup before transforming
   // so the user can recover if migration throws.
-  const [{ bills: initialBills, migrationError }] = useState(() => initializeFromStorage(window.localStorage));
+  const [{ bills: initialBills, migrationError, conflicts: initialConflicts }] = useState(() => initializeFromStorage(window.localStorage));
   const [bills, setBills] = useState(initialBills);
   const [migrationBanner, setMigrationBanner] = useState(migrationError);
+  const [pendingConflictQueue, setPendingConflictQueue] = useState(initialConflicts || []);
 
   const cats = useCategories();
   const [screen, setScreen] = useState('main');

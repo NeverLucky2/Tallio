@@ -1,4 +1,4 @@
-import { migrateBills, migrateToV2, migrateToV3 } from './spendingMath.js';
+import { migrateBills, migrateToV2, migrateToV3, computeCatchUp } from './spendingMath.js';
 import { DEFAULT_CATEGORIES, V3_SEED_CATEGORIES } from './categoriesDefaults.js';
 
 const BILLS_KEY        = 'billtracker-bills';
@@ -7,11 +7,15 @@ const VERSION_KEY      = 'billtracker-schema-version';
 const V1_BACKUP_KEY    = 'billtracker-pre-categories-backup';
 const V2_CATS_BACKUP_KEY = 'billtracker-categories-v2-backup';
 
+function defaultTodayMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
 // Returns:
-//   { bills, migrationError: null }                  on success
-//   { bills, migrationError: { message, recovered }} on failure
+//   { bills, migrationError: null, conflicts }                  on success
+//   { bills, migrationError: { message, recovered }, conflicts } on failure
 //   `recovered` is true when bills came from the backup; false when no backup existed.
-export function initializeFromStorage(storage) {
+export function initializeFromStorage(storage, todayMonth = defaultTodayMonth()) {
   try {
     const rawBills = storage.getItem(BILLS_KEY);
     const rawCats  = storage.getItem(CATS_KEY);
@@ -53,7 +57,13 @@ export function initializeFromStorage(storage) {
       storage.setItem(VERSION_KEY, '3');
     }
 
-    return { bills: v3Bills, migrationError: null };
+    // C: catch-up auto-spawn (additive — no schema bump).
+    const { bills: caughtUpBills, conflicts } = computeCatchUp(v3Bills, todayMonth);
+    if (caughtUpBills !== v3Bills) {
+      storage.setItem(BILLS_KEY, JSON.stringify(caughtUpBills));
+    }
+
+    return { bills: caughtUpBills, migrationError: null, conflicts };
   } catch (e) {
     console.error('Migration failed:', e);
     try {
@@ -66,6 +76,7 @@ export function initializeFromStorage(storage) {
             message: 'Migration failed — your data was restored from backup. Please use Export to save a copy.',
             recovered: true,
           },
+          conflicts: [],
         };
       }
     } catch (recoveryErr) {
@@ -77,6 +88,7 @@ export function initializeFromStorage(storage) {
         message: 'Migration failed and no backup was available. Please reload — if this persists, contact support.',
         recovered: false,
       },
+      conflicts: [],
     };
   }
 }
