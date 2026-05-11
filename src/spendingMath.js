@@ -87,22 +87,32 @@ export function getMonthWindow(endMonth) {
   return out;
 }
 
-export function aggregateByMonth(bills, endMonth, vendorFilter = null) {
+export function aggregateByMonth(bills, endMonth, categoriesById, vendorFilter = null) {
   const window = getMonthWindow(endMonth);
   const windowSet = new Set(window);
   const buckets = {};
-  for (const m of window) buckets[m] = { month: m, total: 0, byVendor: {} };
+  for (const m of window) {
+    buckets[m] = { month: m, income: 0, spent: 0, saved: 0, byVendor: {} };
+  }
 
   for (const bill of bills || []) {
     if (vendorFilter && bill.vendor !== vendorFilter) continue;
     for (const item of bill.items || []) {
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       const itemMonth = getItemDate(bill, item).slice(0, 7);
       if (!windowSet.has(itemMonth)) continue;
       const bucket = buckets[itemMonth];
-      bucket.total += item.amount;
-      const vendor = bill.vendor || 'Unknown';
-      bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
+      const cat = categoriesById && categoriesById.get(item.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow === 'income') {
+        bucket.income += item.amount;
+      } else if (flow === 'savings') {
+        bucket.saved += item.amount;
+      } else {
+        bucket.spent += item.amount;
+        const vendor = bill.vendor || 'Unknown';
+        bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
+      }
     }
   }
 

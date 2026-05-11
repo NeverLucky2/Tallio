@@ -148,28 +148,28 @@ describe('aggregateByMonth', () => {
   ];
 
   it('returns one entry per month in the window with totals and per-vendor breakdown', () => {
-    const result = aggregateByMonth(bills, '2026-05');
+    const result = aggregateByMonth(bills, '2026-05', new Map());
     expect(result).toHaveLength(12);
     const may = result.find(m => m.month === '2026-05');
-    expect(may.total).toBe(47);
+    expect(may.spent).toBe(47);
     expect(may.byVendor.Chase).toBe(17);
     expect(may.byVendor.Amex).toBe(30);
     const apr = result.find(m => m.month === '2026-04');
-    expect(apr.total).toBe(80);
+    expect(apr.spent).toBe(80);
     expect(apr.byVendor.Chase).toBe(80);
   });
 
   it('returns zero totals for months with no spending', () => {
-    const result = aggregateByMonth(bills, '2026-05');
+    const result = aggregateByMonth(bills, '2026-05', new Map());
     const jan = result.find(m => m.month === '2026-01');
-    expect(jan.total).toBe(0);
+    expect(jan.spent).toBe(0);
     expect(jan.byVendor).toEqual({});
   });
 
   it('respects vendor filter (single vendor)', () => {
-    const result = aggregateByMonth(bills, '2026-05', 'Chase');
+    const result = aggregateByMonth(bills, '2026-05', new Map(), 'Chase');
     const may = result.find(m => m.month === '2026-05');
-    expect(may.total).toBe(17);
+    expect(may.spent).toBe(17);
     expect(may.byVendor).toEqual({ Chase: 17 });
   });
 
@@ -178,9 +178,9 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2026-05',
       items: [{ description: 'Late Apr', amount: 10, date: '2026-04-29' }],
     }];
-    const result = aggregateByMonth(cross, '2026-05');
-    expect(result.find(m => m.month === '2026-04').total).toBe(10);
-    expect(result.find(m => m.month === '2026-05').total).toBe(0);
+    const result = aggregateByMonth(cross, '2026-05', new Map());
+    expect(result.find(m => m.month === '2026-04').spent).toBe(10);
+    expect(result.find(m => m.month === '2026-05').spent).toBe(0);
   });
 
   it('uses bill-month fallback for items without dates', () => {
@@ -188,8 +188,8 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2026-05',
       items: [{ description: 'X', amount: 7 }],
     }];
-    const result = aggregateByMonth(noDates, '2026-05');
-    expect(result.find(m => m.month === '2026-05').total).toBe(7);
+    const result = aggregateByMonth(noDates, '2026-05', new Map());
+    expect(result.find(m => m.month === '2026-05').spent).toBe(7);
   });
 
   it('excludes items outside the 12-month window', () => {
@@ -197,8 +197,57 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2024-01',
       items: [{ description: 'Old', amount: 999, date: '2024-01-15' }],
     }];
-    const result = aggregateByMonth(old, '2026-05');
-    expect(result.every(m => m.total === 0)).toBe(true);
+    const result = aggregateByMonth(old, '2026-05', new Map());
+    expect(result.every(m => m.spent === 0)).toBe(true);
+  });
+});
+
+describe('aggregateByMonth (flow-aware)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('returns separate income/spent/saved per month bucket', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme',  month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck' },
+        { id: 'i2', amount:  260, categoryId: 'c_401k'     },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i3', amount:   84, categoryId: 'c_groceries' },
+        { id: 'i4', amount:  -40, categoryId: 'c_groceries' }, // refund
+      ]},
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById);
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.income).toBe(5200);
+    expect(may.spent).toBe(44);  // 84 - 40
+    expect(may.saved).toBe(260);
+  });
+
+  it('byVendor only accumulates expense-flow items', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck'  },
+        { id: 'i2', amount:   84, categoryId: 'c_groceries' },
+      ]},
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById);
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.byVendor).toEqual({ Acme: 84 });
+  });
+
+  it('vendorFilter still works for expense breakdowns', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase',  month: '2026-05', items: [{ id: 'i1', amount: 50, categoryId: 'c_groceries' }] },
+      { id: 'b2', vendor: 'Capital', month: '2026-05', items: [{ id: 'i2', amount: 30, categoryId: 'c_groceries' }] },
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById, 'Chase');
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.spent).toBe(50);
+    expect(may.byVendor).toEqual({ Chase: 50 });
   });
 });
 
