@@ -91,4 +91,65 @@ describe('end-to-end: migration + flow-aware math', () => {
     expect(paycheck.flow).toBe('income');
     expect(paycheck.active).toBe(true);
   });
+
+  it('catch-up materializes missed months when an active chain has lapsed', () => {
+    const cats = [
+      { id: 'c_auto', name: 'Auto Loan', icon: '🚗', color: '#F59E0B', flow: 'expense', keywords: [], templates: [], builtin: true },
+      { id: 'c_other', name: 'Other',    icon: '📋', color: '#6B7280', flow: 'expense', keywords: [], templates: [], builtin: true },
+    ];
+    const aprBill = {
+      id: 'b_apr', vendor: 'Honda Finance', month: '2026-04',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it_apr', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-04-15' }],
+    };
+    const comed = {
+      id: 'b_comed', vendor: 'ComEd', month: '2026-06',
+      items: [{ id: 'it_comed', description: 'Electric', amount: 87.20, categoryId: 'c_other', date: '2026-06-08' }],
+    };
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([aprBill, comed]),
+      'billtracker-categories':      JSON.stringify(cats),
+      'billtracker-schema-version':  '3',
+    });
+    const out = initializeFromStorage(storage, '2026-07');
+    expect(out.migrationError).toBeNull();
+    expect(out.conflicts).toEqual([]);
+
+    const billsAfter = JSON.parse(storage.getItem('billtracker-bills'));
+    const hondaMonths = billsAfter.filter(b => b.recurringChainId === 'rec_h').map(b => b.month).sort();
+    expect(hondaMonths).toEqual(['2026-04', '2026-05', '2026-06', '2026-07']);
+    // ComEd untouched.
+    expect(billsAfter.find(b => b.id === 'b_comed').vendor).toBe('ComEd');
+    // Each spawned Honda bill has recurring=true and the same chain id.
+    for (const b of billsAfter.filter(b => b.recurringChainId === 'rec_h')) {
+      expect(b.recurring).toBe(true);
+      expect(b.recurringChainId).toBe('rec_h');
+    }
+  });
+
+  it('catch-up surfaces conflicts: same-vendor non-chain May bill blocks the Honda chain spawn', () => {
+    const cats = [
+      { id: 'c_auto', name: 'Auto Loan', icon: '🚗', color: '#F59E0B', flow: 'expense', keywords: [], templates: [], builtin: true },
+    ];
+    const aprBill = {
+      id: 'b_apr', vendor: 'Honda Finance', month: '2026-04',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-04-15' }],
+    };
+    const manualMay = {
+      id: 'b_may_manual', vendor: 'Honda Finance', month: '2026-05',
+      items: [{ id: 'it2', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-05-15' }],
+    };
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([aprBill, manualMay]),
+      'billtracker-categories':      JSON.stringify(cats),
+      'billtracker-schema-version':  '3',
+    });
+    const out = initializeFromStorage(storage, '2026-05');
+    expect(out.conflicts).toHaveLength(1);
+    expect(out.conflicts[0].targetMonth).toBe('2026-05');
+    expect(out.conflicts[0].chainId).toBe('rec_h');
+    // No spawn occurred — only the original two bills.
+    expect(out.bills).toHaveLength(2);
+  });
 });
