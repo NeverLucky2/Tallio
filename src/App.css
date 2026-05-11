@@ -1389,6 +1389,27 @@
   border-color: var(--border);
 }
 
+.bill-badge-recurring {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4a853;
+  background: rgba(212, 168, 83, 0.10);
+  border: 1px solid rgba(212, 168, 83, 0.40);
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: 'Outfit', sans-serif;
+  white-space: nowrap;
+}
+
+.bill-badge-glyph {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
 /* ---- Format Tags ---- */
 
 .formats-panel {

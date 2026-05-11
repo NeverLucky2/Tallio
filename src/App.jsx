@@ -220,6 +220,11 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
           </div>
         </div>
         <div className="bill-right">
+          {bill.recurring && (
+            <span className="bill-badge-recurring" aria-label="Recurring bill">
+              <span className="bill-badge-glyph">↻</span> RECURRING
+            </span>
+          )}
           <span className={`bill-total bill-total-${direction}`}>
             {direction === 'in' ? '↑' : direction === 'out' ? '↓' : ''}
             {formatCurrency(displayAmount)}
