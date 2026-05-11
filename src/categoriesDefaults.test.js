@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
 
 describe('DEFAULT_CATEGORIES', () => {
-  it('exports 13 seed categories', () => {
-    expect(DEFAULT_CATEGORIES).toHaveLength(13);
+  it('exports 14 seed categories', () => {
+    expect(DEFAULT_CATEGORIES).toHaveLength(14);
   });
 
   it('every category has the required shape', () => {
