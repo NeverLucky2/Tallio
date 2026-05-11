@@ -2935,3 +2935,45 @@
 .dialog-tip .dialog-body p:last-child {
   margin-bottom: 0;
 }
+
+/* ---- Duplicate Bill button ---- */
+
+.btn-duplicate-bill {
+  background: transparent;
+  border: 1px solid rgba(212, 168, 83, 0.40);
+  color: rgba(212, 168, 83, 0.95);
+}
+
+.btn-duplicate-bill:hover {
+  background: rgba(212, 168, 83, 0.10);
+}
+
+/* ---- Secondary button (used in dialogs) ---- */
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(176, 178, 195, 0.30);
+  color: rgba(184, 186, 195, 0.90);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(176, 178, 195, 0.55);
+  color: rgba(220, 222, 230, 1);
+}
+
+/* ---- DuplicateBillDialog label ---- */
+
+.dialog-duplicate .dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #8a8c98);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dialog-duplicate .dialog-label .input {
+  margin-top: 0.2rem;
+}

@@ -6,13 +6,14 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import RecurringTipDialog from './RecurringTipDialog.jsx';
+import DuplicateBillDialog from './DuplicateBillDialog.jsx';
 import { nanoid } from 'nanoid';
 import './App.css';
 
@@ -182,7 +183,7 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
   const billNet = getBillNet(bill, categoriesById);
   const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
@@ -283,6 +284,13 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
           <div className="bill-footer">
             <button className="btn btn-add" onClick={addItem}>+ Add Item</button>
+            <button
+              type="button"
+              className="btn btn-duplicate-bill"
+              onClick={() => onDuplicateBill(bill)}
+            >
+              ⧉ Duplicate Bill
+            </button>
             <button
               type="button"
               className={`btn btn-recurring${bill.recurring ? ' btn-recurring-on' : ''}`}
@@ -529,6 +537,7 @@ function BillTracker() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
   const [pendingDeleteBillId, setPendingDeleteBillId] = useState(null);
+  const [pendingDuplicateBillId, setPendingDuplicateBillId] = useState(null);
   const [pendingRecurringTip, setPendingRecurringTip] = useState(false);
   const [showUndoTip, setShowUndoTip] = useState(false);
   const [undoTipSeen, setUndoTipSeen] = useState(() => {
@@ -863,6 +872,28 @@ function BillTracker() {
 
   const cancelDeleteBill = () => setPendingDeleteBillId(null);
 
+  const duplicateBill = (sourceBill, targetMonth) => {
+    pushHistory(bills);
+    const copy = {
+      ...sourceBill,
+      id: crypto.randomUUID(),
+      month: targetMonth,
+      items: (sourceBill.items || []).map(i => ({
+        ...i,
+        id: crypto.randomUUID(),
+        date: shiftItemDate(i.date, targetMonth),
+      })),
+      recurring: false,
+      recurringChainId: null,
+    };
+    setBills(prev => [copy, ...prev]);
+    setSelectedMonth(targetMonth);
+    setSearchTerm('');
+    setNewlyAddedBillId(copy.id);
+    setPendingDuplicateBillId(null);
+    maybeShowUndoTip();
+  };
+
   const handleDeleteItem = (billId, itemId) => {
     pushHistory(bills);
     setBills(prev =>
@@ -956,6 +987,18 @@ function BillTracker() {
       )}
 
       {pendingRecurringTip && <RecurringTipDialog onDismiss={dismissRecurringTip} />}
+
+      {pendingDuplicateBillId && (() => {
+        const source = bills.find(b => b.id === pendingDuplicateBillId);
+        if (!source) return null;
+        return (
+          <DuplicateBillDialog
+            sourceBill={source}
+            onConfirm={(targetMonth) => duplicateBill(source, targetMonth)}
+            onCancel={() => setPendingDuplicateBillId(null)}
+          />
+        );
+      })()}
 
       {showUndoTip && (
         <ConfirmDialog
@@ -1175,6 +1218,7 @@ function BillTracker() {
                   onDelete={deleteBill}
                   onDeleteItem={handleDeleteItem}
                   onMakeRecurring={(makeRecurring) => markRecurring(bill.id, makeRecurring)}
+                  onDuplicateBill={(b) => setPendingDuplicateBillId(b.id)}
                   isMobile={isMobile}
                   highlighted={bill.id === newlyAddedBillId}
                   cardRef={bill.id === newlyAddedBillId ? newBillRef : null}
