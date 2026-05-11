@@ -88,10 +88,8 @@ describe('useCategories', () => {
   it('addKeyword dedupes case-insensitive within the category', () => {
     const { result } = renderHook(() => useCategories());
     const util = result.current.categories.find(c => c.name === 'Utilities');
-    act(() => {
-      result.current.addKeyword(util.id, 'COMED', []);
-      result.current.addKeyword(util.id, 'comed', []);
-    });
+    act(() => { result.current.addKeyword(util.id, 'COMED', []); });
+    act(() => { result.current.addKeyword(util.id, 'comed', []); });
     const comedCount = result.current.getById(util.id).keywords.filter(k => k === 'COMED').length;
     expect(comedCount).toBe(1);
   });
@@ -150,5 +148,69 @@ describe('useCategories', () => {
     await new Promise(resolve => setTimeout(resolve, 300));
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
     expect(stored.some(c => c.name === 'Z')).toBe(true);
+  });
+
+  it('addKeyword returns added=false when category does not exist', () => {
+    const { result } = renderHook(() => useCategories());
+    let returned;
+    act(() => { returned = result.current.addKeyword('nonexistent-id', 'X', []); });
+    expect(returned.added).toBe(false);
+    expect(returned.matchingItems).toEqual([]);
+  });
+
+  it('addKeyword returns added=false when keyword already exists in that category', () => {
+    const { result } = renderHook(() => useCategories());
+    const dining = result.current.categories.find(c => c.name === 'Dining');
+    let returned;
+    act(() => { returned = result.current.addKeyword(dining.id, 'MCDONALD', []); });
+    expect(returned.added).toBe(false);
+    expect(returned.matchingItems).toEqual([]);
+  });
+
+  it('exposes storageError as null when persistence works', async () => {
+    const { result } = renderHook(() => useCategories());
+    act(() => { result.current.addCategory({ name: 'Z', icon: '🧪', color: '#000000' }); });
+    await new Promise(r => setTimeout(r, 300));
+    expect(result.current.storageError).toBeNull();
+  });
+
+  it('exposes storageError when localStorage.setItem throws', async () => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key) {
+      if (key === 'billtracker-categories') {
+        const err = new Error('Quota exceeded');
+        err.name = 'QuotaExceededError';
+        throw err;
+      }
+      return original.apply(this, arguments);
+    };
+    try {
+      const { result } = renderHook(() => useCategories());
+      act(() => { result.current.addCategory({ name: 'Z', icon: '🧪', color: '#000000' }); });
+      await new Promise(r => setTimeout(r, 300));
+      expect(result.current.storageError).not.toBeNull();
+      expect(result.current.storageError.message).toMatch(/storage full/i);
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+  });
+
+  it('clearStorageError resets storageError to null', async () => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key) {
+      if (key === 'billtracker-categories') throw new Error('Quota');
+      return original.apply(this, arguments);
+    };
+    try {
+      const { result } = renderHook(() => useCategories());
+      act(() => { result.current.addCategory({ name: 'Z', icon: '🧪', color: '#000000' }); });
+      await new Promise(r => setTimeout(r, 300));
+      expect(result.current.storageError).not.toBeNull();
+      Storage.prototype.setItem = original; // restore so next call succeeds
+      act(() => { result.current.clearStorageError(); });
+      expect(result.current.storageError).toBeNull();
+    } finally {
+      Storage.prototype.setItem = original;
+    }
   });
 });

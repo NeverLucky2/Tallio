@@ -24,6 +24,7 @@ function load() {
 
 export default function useCategories() {
   const [categories, setCategories] = useState(load);
+  const [storageError, setStorageError] = useState(null);
   const persistTimer = useRef(null);
 
   // Debounced persistence.
@@ -32,8 +33,10 @@ export default function useCategories() {
     persistTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+        if (storageError !== null) setStorageError(null);
       } catch (e) {
         console.error('Failed to save categories:', e);
+        setStorageError({ message: "Couldn't save categories — storage full." });
       }
     }, PERSIST_DEBOUNCE_MS);
     return () => {
@@ -84,19 +87,15 @@ export default function useCategories() {
   const addKeyword = useCallback((catId, raw, bills) => {
     const kw = (raw || '').trim().toUpperCase();
     if (!kw) return { added: false, matchingItems: [] };
-    let added = false;
-    setCategories(prev => prev.map(c => {
-      if (c.id !== catId) return c;
-      if (c.keywords.includes(kw)) return c;
-      added = true;
-      return { ...c, keywords: [...c.keywords, kw] };
-    }));
-    // Compute matchingItems against PRE-update categories — the dialog wants to
-    // know what would change if we apply this rule retroactively.
-    const matchingItems = added
-      ? findItemsMatchingKeyword(kw, catId, bills, categories)
-      : [];
-    return { added, matchingItems };
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return { added: false, matchingItems: [] };
+    if (cat.keywords.includes(kw)) return { added: false, matchingItems: [] };
+
+    setCategories(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, keywords: [...c.keywords, kw] }
+    ));
+    const matchingItems = findItemsMatchingKeyword(kw, catId, bills, categories);
+    return { added: true, matchingItems };
   }, [categories]);
 
   const removeKeyword = useCallback((catId, keyword) => {
@@ -122,6 +121,8 @@ export default function useCategories() {
       c.id === catId ? { ...c, templates: c.templates.filter(t => t !== template) } : c
     ));
   }, []);
+
+  const clearStorageError = useCallback(() => setStorageError(null), []);
 
   const autoCategorize = useCallback(
     (description) => ruleAutoCategorize(description, categories, otherId()),
@@ -153,5 +154,7 @@ export default function useCategories() {
     removeTemplate,
     autoCategorize,
     applyCategoryToItems,
+    storageError,
+    clearStorageError,
   };
 }
