@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3, getBillNet } from './spendingMath.js';
+import { computeCatchUp } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -987,8 +988,6 @@ describe('getBillNet', () => {
   });
 });
 
-import { computeCatchUp } from './spendingMath.js';
-
 function makeBill(over = {}) {
   return {
     id: over.id || 'bill_' + Math.random().toString(36).slice(2, 8),
@@ -1136,5 +1135,18 @@ describe('computeCatchUp', () => {
     expect(may.items.map(i => i.id)).not.toContain('orig2');
     expect(may.items[0].date).toBe('2026-05-05');
     expect(may.items[1].date).toBe('2026-05-15');
+  });
+
+  it('source bill with no items field still spawns cleanly (items: [])', () => {
+    const apr = {
+      id: 'b_apr', vendor: 'Honda', month: '2026-04',
+      recurring: true, recurringChainId: 'rec_h',
+      // items field intentionally absent
+    };
+    const out = computeCatchUp([apr], '2026-05');
+    expect(out.conflicts).toEqual([]);
+    expect(out.bills).toHaveLength(2);
+    const may = out.bills.find(b => b.month === '2026-05');
+    expect(may.items).toEqual([]);
   });
 });

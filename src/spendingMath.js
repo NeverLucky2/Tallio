@@ -446,18 +446,13 @@ export function computeCatchUp(bills, todayMonth) {
 
   for (const [chainId, chainBills] of byChain) {
     // Find the chronologically latest bill in the chain overall.
-    const sortedChain = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month));
+    const sortedChain = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
     const latestOverall = sortedChain[sortedChain.length - 1];
-    // If the latest bill has recurring=false, the chain is dormant — skip.
-    if (latestOverall.recurring !== true) continue;
-    // The source is the latest bill with recurring=true (which is latestOverall,
-    // since we just confirmed it; but guard for correctness).
-    const activeInstances = chainBills.filter(b => b.recurring === true);
-    if (activeInstances.length === 0) continue;
-    const source = activeInstances
-      .slice()
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .pop();
+    // If the latest bill has recurring=false (or chain is empty), the chain is dormant — skip.
+    if (!latestOverall || latestOverall.recurring !== true) continue;
+    // latestOverall IS the source: the guard above confirmed recurring===true,
+    // so there's no need for a separate activeInstances filter/sort/pop.
+    const source = latestOverall;
 
     // Iterate target months strictly after source.month, up to todayMonth.
     const targets = monthsBetweenExclusiveInclusive(source.month, todayMonth);
