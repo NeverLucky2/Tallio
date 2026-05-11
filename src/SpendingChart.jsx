@@ -31,6 +31,7 @@ const formatCurrencyShort = (amount) => {
 const STACK_HEADROOM_PCT = 88; // leave room above bars for the total label
 
 const VENDOR_COLOR_KEY = 'billtracker-vendor-colors';
+const COLLAPSE_KEY = 'billtracker-chart-collapsed';
 
 export default function SpendingChart({ bills, selectedMonth, onSelectMonth, categoriesById }) {
   const [vendorFilter, setVendorFilter] = useState(null); // null = all
@@ -52,6 +53,15 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
       console.error('Failed to persist vendor colors:', e);
     }
   }, [vendorColors]);
+
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === 'true'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSE_KEY, collapsed ? 'true' : 'false'); }
+    catch (e) { console.error('Failed to persist chart collapsed state:', e); }
+  }, [collapsed]);
 
   const resolveVendorColor = (vendor) => vendorColors[vendor] || getVendorColor(vendor);
 
@@ -300,20 +310,33 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     <div className="spending-panel">
       <div className="spending-header">
         <h2 className="spending-title">Spending</h2>
+        <button
+          type="button"
+          className="spending-collapse-btn"
+          onClick={() => setCollapsed(c => !c)}
+          aria-label={collapsed ? 'Expand chart' : 'Collapse chart'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? '▾' : '▴'}
+        </button>
         <div>
           <span className="spending-total-label">{totalLabel}</span>
           <span className="spending-total">{formatCurrency(filteredTotal)}</span>
         </div>
       </div>
-      {renderChips()}
-      {renderLegend()}
-      {drillMonth ? (
+      {!collapsed && (
         <>
-          {renderDailyHeader()}
-          {renderDailyBars()}
+          {renderChips()}
+          {renderLegend()}
+          {drillMonth ? (
+            <>
+              {renderDailyHeader()}
+              {renderDailyBars()}
+            </>
+          ) : (
+            renderMonthlyBars()
+          )}
         </>
-      ) : (
-        renderMonthlyBars()
       )}
     </div>
   );
