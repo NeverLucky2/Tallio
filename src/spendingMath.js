@@ -145,12 +145,12 @@ function mode(values) {
   return best;
 }
 
-export function findRecurringCharges(bills, today = currentMonth()) {
+export function findRecurringCharges(bills, today = currentMonth(), categoriesById = null) {
   const groups = new Map();
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
       if (!item || typeof item.description !== 'string') continue;
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       const key = normalizeDescription(item.description);
       if (!key) continue;
       const date = getItemDate(bill, item);
@@ -173,8 +173,8 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 
     const amounts = occurrences.map(o => o.amount);
     const avg = amounts.reduce((s, a) => s + a, 0) / amounts.length;
-    const maxDeviation = avg > 0
-      ? Math.max(...amounts.map(a => Math.abs(a - avg) / avg))
+    const maxDeviation = avg !== 0
+      ? Math.max(...amounts.map(a => Math.abs(a - avg) / Math.abs(avg)))
       : 0;
     const varies = maxDeviation > 0.15;
 
@@ -193,10 +193,15 @@ export function findRecurringCharges(bills, today = currentMonth()) {
     const monthsSinceLast = monthsBetween(lastDate.slice(0, 7), today);
     const active = monthsSinceLast >= 0 && monthsSinceLast <= 1;
 
+    const majorityCategoryId = mode(occurrences.map(o => o.categoryId));
+    const majorityCat = categoriesById && categoriesById.get(majorityCategoryId);
+    const flow = (majorityCat && majorityCat.flow) || 'expense';
+
     results.push({
       description: mode(occurrences.map(o => o.description)),
       vendor: mode(occurrences.map(o => o.vendor)),
-      categoryId: mode(occurrences.map(o => o.categoryId)),
+      categoryId: majorityCategoryId,
+      flow,
       avgAmount: avg,
       lastAmount,
       varies,
@@ -210,7 +215,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 
   results.sort((a, b) => {
     if (a.active !== b.active) return a.active ? -1 : 1;
-    return b.avgAmount - a.avgAmount;
+    return Math.abs(b.avgAmount) - Math.abs(a.avgAmount);
   });
 
   return results;

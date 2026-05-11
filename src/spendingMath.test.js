@@ -623,6 +623,49 @@ describe('findRecurringCharges (post-categoryId)', () => {
   });
 });
 
+describe('findRecurringCharges (flow-aware)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('annotates each recurring result with flow from majority category', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-04', items: [
+        { id: 'i1', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-04-15' },
+      ]},
+      { id: 'b2', vendor: 'Acme', month: '2026-04', items: [
+        { id: 'i2', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-04-29' },
+      ]},
+      { id: 'b3', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i3', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-05-13' },
+      ]},
+    ];
+    const results = findRecurringCharges(bills, '2026-05', catsById);
+    const paycheck = results.find(r => r.description === 'Bi-weekly paycheck');
+    expect(paycheck).toBeDefined();
+    expect(paycheck.flow).toBe('income');
+  });
+
+  it('accepts negative-amount items but groups by description (refunds do not pollute)', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-04', items: [
+        { id: 'i1', description: 'Netflix', amount:  15.99, categoryId: 'c_groceries', date: '2026-04-05' },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i2', description: 'Netflix', amount:  15.99, categoryId: 'c_groceries', date: '2026-05-05' },
+      ]},
+      { id: 'b3', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i3', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries', date: '2026-05-10' },
+      ]},
+    ];
+    const results = findRecurringCharges(bills, '2026-05', catsById);
+    expect(results.find(r => r.description === 'Netflix')).toBeDefined();
+    expect(results.find(r => r.description === 'Whole Foods refund')).toBeUndefined();
+  });
+});
+
 describe('aggregateByKeyword (post-categoryId)', () => {
   it('returns categoryId of the most-frequent matching item', () => {
     const bills = [
