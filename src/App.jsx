@@ -12,6 +12,8 @@ import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
+import RecurringTipDialog from './RecurringTipDialog.jsx';
+import { nanoid } from 'nanoid';
 import './App.css';
 
 const formatCurrency = (amount) => {
@@ -180,7 +182,7 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
   const billNet = getBillNet(bill, categoriesById);
   const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
@@ -270,6 +272,13 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
           <div className="bill-footer">
             <button className="btn btn-add" onClick={addItem}>+ Add Item</button>
+            <button
+              type="button"
+              className={`btn btn-recurring${bill.recurring ? ' btn-recurring-on' : ''}`}
+              onClick={() => onMakeRecurring(!bill.recurring)}
+            >
+              ↻ {bill.recurring ? 'Recurring · on' : 'Make Recurring'}
+            </button>
             <button className="btn btn-danger" onClick={() => onDelete(bill.id)}>Delete Bill</button>
           </div>
         </div>
@@ -509,6 +518,7 @@ function BillTracker() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
   const [pendingDeleteBillId, setPendingDeleteBillId] = useState(null);
+  const [pendingRecurringTip, setPendingRecurringTip] = useState(false);
   const [showUndoTip, setShowUndoTip] = useState(false);
   const [undoTipSeen, setUndoTipSeen] = useState(() => {
     try { return localStorage.getItem('billtracker-undo-tip-seen') === 'true'; } catch { return false; }
@@ -795,6 +805,30 @@ function BillTracker() {
     if (!undoTipSeen) setShowUndoTip(true);
   };
 
+  const markRecurring = (billId, makeRecurring) => {
+    pushHistory(bills);
+    setBills(prev => prev.map(b => {
+      if (b.id !== billId) return b;
+      if (makeRecurring) {
+        return {
+          ...b,
+          recurring: true,
+          recurringChainId: b.recurringChainId || nanoid(8),
+        };
+      }
+      return { ...b, recurring: false };  // keep recurringChainId for history
+    }));
+    if (makeRecurring && localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
+      setPendingRecurringTip(true);
+    }
+    maybeShowUndoTip();
+  };
+
+  const dismissRecurringTip = () => {
+    setPendingRecurringTip(false);
+    try { localStorage.setItem('billtracker-recurring-tip-seen', 'true'); } catch (e) { /* quota */ }
+  };
+
   const dismissUndoTip = () => {
     setShowUndoTip(false);
     setUndoTipSeen(true);
@@ -905,6 +939,8 @@ function BillTracker() {
           onCancel={cancelDeleteBill}
         />
       )}
+
+      {pendingRecurringTip && <RecurringTipDialog onDismiss={dismissRecurringTip} />}
 
       {showUndoTip && (
         <ConfirmDialog
@@ -1123,6 +1159,7 @@ function BillTracker() {
                   onUpdate={updateBill}
                   onDelete={deleteBill}
                   onDeleteItem={handleDeleteItem}
+                  onMakeRecurring={(makeRecurring) => markRecurring(bill.id, makeRecurring)}
                   isMobile={isMobile}
                   highlighted={bill.id === newlyAddedBillId}
                   cardRef={bill.id === newlyAddedBillId ? newBillRef : null}
