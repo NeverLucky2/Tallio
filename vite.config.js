@@ -14,6 +14,9 @@ export default defineConfig({
     allowedHosts: true,
   },
   test: {
+    // jsdom is global so .jsx component tests work. Existing pure-JS tests
+    // use no DOM APIs and pass safely here. (Vitest 4 dropped
+    // environmentMatchGlobs, so we can't split per-glob.)
     environment: 'jsdom',
     include: ['src/**/*.test.{js,jsx}'],
   },
