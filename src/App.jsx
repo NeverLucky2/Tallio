@@ -6,13 +6,14 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import RecurringTipDialog from './RecurringTipDialog.jsx';
+import RecurringConflictDialog from './RecurringConflictDialog.jsx';
 import DuplicateBillDialog from './DuplicateBillDialog.jsx';
 import { nanoid } from 'nanoid';
 import './App.css';
@@ -549,7 +550,6 @@ function BillTracker() {
   const [{ bills: initialBills, migrationError, conflicts: initialConflicts }] = useState(() => initializeFromStorage(window.localStorage));
   const [bills, setBills] = useState(initialBills);
   const [migrationBanner, setMigrationBanner] = useState(migrationError);
-  // eslint-disable-next-line no-unused-vars -- staged for Task 11 (RecurringConflictDialog)
   const [pendingConflictQueue, setPendingConflictQueue] = useState(initialConflicts || []);
 
   const cats = useCategories();
@@ -975,6 +975,57 @@ function BillTracker() {
     maybeShowUndoTip();
   };
 
+  const resolveConflictLink = (conflict) => {
+    pushHistory(bills);
+    setBills(prev => prev.map(b => b.id === conflict.existingBillId
+      ? { ...b, recurringChainId: conflict.chainId, recurring: true }
+      : b));
+    setPendingConflictQueue(q => q.slice(1));
+    setTimeout(() => {
+      setBills(prev => {
+        const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(prev, todayMonth);
+        setPendingConflictQueue(qPrev => [...qPrev.filter(c => c.chainId !== conflict.chainId), ...newConflicts]);
+        return caughtUp;
+      });
+    }, 0);
+  };
+
+  const resolveConflictDuplicate = (conflict) => {
+    pushHistory(bills);
+    const source = bills.find(b => b.id === conflict.chainSourceBillId);
+    if (!source) {
+      setPendingConflictQueue(q => q.slice(1));
+      return;
+    }
+    const spawn = {
+      ...source,
+      id: crypto.randomUUID(),
+      month: conflict.targetMonth,
+      items: (source.items || []).map(i => ({
+        ...i,
+        id: crypto.randomUUID(),
+        date: shiftItemDate(i.date, conflict.targetMonth),
+      })),
+      recurring: true,
+      recurringChainId: conflict.chainId,
+    };
+    setBills(prev => [...prev, spawn]);
+    setPendingConflictQueue(q => q.slice(1));
+    setTimeout(() => {
+      setBills(prev => {
+        const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(prev, todayMonth);
+        setPendingConflictQueue(qPrev => [...qPrev.filter(c => c.chainId !== conflict.chainId), ...newConflicts]);
+        return caughtUp;
+      });
+    }, 0);
+  };
+
+  const resolveConflictSkip = (conflict) => {
+    // No bill changes. Pop head; don't re-run catch-up. The skipped month
+    // re-prompts on next app load (intentional per spec).
+    setPendingConflictQueue(q => q.slice(1));
+  };
+
   const handleDeleteItem = (billId, itemId) => {
     pushHistory(bills);
     setBills(prev =>
@@ -1077,6 +1128,28 @@ function BillTracker() {
             sourceBill={source}
             onConfirm={(targetMonth) => duplicateBill(source, targetMonth)}
             onCancel={() => setPendingDuplicateBillId(null)}
+          />
+        );
+      })()}
+
+      {pendingConflictQueue && pendingConflictQueue.length > 0 && (() => {
+        const head = pendingConflictQueue[0];
+        const source = bills.find(b => b.id === head.chainSourceBillId);
+        const existing = bills.find(b => b.id === head.existingBillId);
+        if (!source || !existing) {
+          // Stale conflict (bills changed) — defer drop to a microtask via setTimeout
+          // so we don't setState during render.
+          setTimeout(() => setPendingConflictQueue(q => q.slice(1)), 0);
+          return null;
+        }
+        return (
+          <RecurringConflictDialog
+            conflict={head}
+            sourceBill={source}
+            existingBill={existing}
+            onLink={resolveConflictLink}
+            onDuplicate={resolveConflictDuplicate}
+            onSkip={resolveConflictSkip}
           />
         );
       })()}
