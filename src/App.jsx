@@ -818,8 +818,12 @@ function BillTracker() {
       }
       return { ...b, recurring: false };  // keep recurringChainId for history
     }));
-    if (makeRecurring && localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
-      setPendingRecurringTip(true);
+    try {
+      if (makeRecurring && localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
+        setPendingRecurringTip(true);
+      }
+    } catch (e) {
+      // storage unavailable — silently skip the tip
     }
     maybeShowUndoTip();
   };
