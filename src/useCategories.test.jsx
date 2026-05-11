@@ -195,6 +195,21 @@ describe('useCategories', () => {
     }
   });
 
+  it('findItemsInCategory returns refs for items with the given categoryId', () => {
+    const { result } = renderHook(() => useCategories());
+    const dining = result.current.categories.find(c => c.name === 'Dining');
+    const bills = [
+      { id: 'b1', items: [
+        { id: 'i1', categoryId: dining.id, description: 'A' },
+        { id: 'i2', categoryId: 'other-id', description: 'B' },
+        { id: 'i3', categoryId: dining.id, description: 'C' },
+      ]},
+    ];
+    const refs = result.current.findItemsInCategory(dining.id, bills);
+    expect(refs.map(r => r.item.id)).toEqual(['i1', 'i3']);
+    expect(refs[0].billId).toBe('b1');
+  });
+
   it('clearStorageError resets storageError to null', async () => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key) {

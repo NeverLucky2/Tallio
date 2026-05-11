@@ -22,10 +22,18 @@ export default function ManageCategoriesScreen({
   onRemoveKeyword,
   onAddTemplate,
   onRemoveTemplate,
+  onMoveAll,
 }) {
   const [selectedId, setSelectedId] = useState(categories[0]?.id);
 
   const itemCounts = useMemo(() => countItemsPerCategory(bills), [bills]);
+
+  const selected = categories.find(c => c.id === selectedId);
+
+  const otherCategories = useMemo(
+    () => selected ? categories.filter(c => c.id !== selected.id) : [],
+    [categories, selected]
+  );
 
   // Track most-recently-added id so we auto-select after add.
   const [recentlyAddedId, setRecentlyAddedId] = useState(null);
@@ -38,8 +46,6 @@ export default function ManageCategoriesScreen({
   if (selectedId && !categories.some(c => c.id === selectedId)) {
     setSelectedId(categories[0]?.id);
   }
-
-  const selected = categories.find(c => c.id === selectedId);
 
   const handleAdd = () => {
     const newId = onAddCategory({ name: 'New Category', icon: '📋', color: '#6B7280' });
@@ -85,6 +91,8 @@ export default function ManageCategoriesScreen({
               key={selected.id}
               category={selected}
               itemCount={itemCounts.get(selected.id) || 0}
+              otherCategories={otherCategories}
+              onMoveAll={(targetId) => onMoveAll(selected.id, targetId)}
               onUpdate={(patch) => onUpdateCategory(selected.id, patch)}
               onAddKeyword={(kw) => onAddKeyword(selected.id, kw)}
               onRemoveKeyword={(kw) => onRemoveKeyword(selected.id, kw)}

@@ -141,6 +141,17 @@ export default function useCategories() {
     }));
   }, []);
 
+  // Returns all items currently in the given category, as { billId, item } refs.
+  const findItemsInCategory = useCallback((catId, bills) => {
+    const out = [];
+    for (const b of bills || []) {
+      for (const i of (b.items || [])) {
+        if (i && i.categoryId === catId) out.push({ billId: b.id, item: i });
+      }
+    }
+    return out;
+  }, []);
+
   return {
     categories,
     getById,
@@ -154,6 +165,7 @@ export default function useCategories() {
     removeTemplate,
     autoCategorize,
     applyCategoryToItems,
+    findItemsInCategory,
     storageError,
     clearStorageError,
   };

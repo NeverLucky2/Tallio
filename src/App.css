@@ -2515,6 +2515,16 @@
   color: var(--text-muted);
 }
 
+.cat-editor-move-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cat-editor-move-all .cat-editor-input {
+  min-width: 180px;
+}
+
 /* ============================ ChipEditor ============================ */
 
 .chip-editor {

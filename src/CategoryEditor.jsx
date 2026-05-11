@@ -6,6 +6,8 @@ import ChipEditor from './ChipEditor.jsx';
 export default function CategoryEditor({
   category,
   itemCount,
+  otherCategories,
+  onMoveAll,
   onUpdate,
   onAddKeyword,
   onRemoveKeyword,
@@ -15,11 +17,13 @@ export default function CategoryEditor({
 }) {
   const [name, setName] = useState(category.name);
   const [nameError, setNameError] = useState('');
+  const [moveTarget, setMoveTarget] = useState('');
 
   // Reset local draft when the selected category changes.
   useEffect(() => {
     setName(category.name);
     setNameError('');
+    setMoveTarget('');
   }, [category.id, category.name]);
 
   const commitName = () => {
@@ -99,9 +103,32 @@ export default function CategoryEditor({
           Delete
         </button>
         {itemCount > 0 && (
-          <span className="cat-editor-delete-hint">
-            Move {itemCount} item{itemCount === 1 ? '' : 's'} to another category before deleting.
-          </span>
+          <div className="cat-editor-move-all">
+            <span className="cat-editor-delete-hint">
+              Move {itemCount} item{itemCount === 1 ? '' : 's'} to:
+            </span>
+            <select
+              className="cat-editor-input"
+              value={moveTarget}
+              onChange={(e) => setMoveTarget(e.target.value)}
+            >
+              <option value="">— pick a category —</option>
+              {(otherCategories || []).map(c => (
+                <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn"
+              disabled={!moveTarget}
+              onClick={() => {
+                onMoveAll(moveTarget);
+                setMoveTarget('');
+              }}
+            >
+              Move all
+            </button>
+          </div>
         )}
       </div>
     </div>

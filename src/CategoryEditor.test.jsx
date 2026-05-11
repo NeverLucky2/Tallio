@@ -15,6 +15,8 @@ describe('CategoryEditor', () => {
       <CategoryEditor
         category={cat}
         itemCount={0}
+        otherCategories={[]}
+        onMoveAll={() => {}}
         onUpdate={() => {}}
         onAddKeyword={() => {}}
         onRemoveKeyword={() => {}}
@@ -30,6 +32,7 @@ describe('CategoryEditor', () => {
     render(
       <CategoryEditor
         category={cat} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
         onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
         onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
       />
@@ -43,6 +46,7 @@ describe('CategoryEditor', () => {
     render(
       <CategoryEditor
         category={cat} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
         onUpdate={onUpdate} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
         onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
       />
@@ -59,6 +63,7 @@ describe('CategoryEditor', () => {
     render(
       <CategoryEditor
         category={cat} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
         onUpdate={onUpdate} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
         onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
       />
@@ -76,12 +81,13 @@ describe('CategoryEditor', () => {
     render(
       <CategoryEditor
         category={cat} itemCount={5}
+        otherCategories={[]} onMoveAll={() => {}}
         onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
         onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
       />
     );
     expect(screen.getByRole('button', { name: /delete/i }).disabled).toBe(true);
-    expect(screen.getByText(/move 5 items/i)).toBeTruthy();
+    expect(screen.getByText(/move 5 items to:/i)).toBeTruthy();
   });
 
   it('enables Delete button when itemCount === 0 and calls onDelete', async () => {
@@ -89,6 +95,7 @@ describe('CategoryEditor', () => {
     render(
       <CategoryEditor
         category={cat} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
         onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
         onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={onDelete}
       />
@@ -97,5 +104,44 @@ describe('CategoryEditor', () => {
     expect(btn.disabled).toBe(false);
     await userEvent.click(btn);
     expect(onDelete).toHaveBeenCalled();
+  });
+
+  it('shows move-all picker when itemCount > 0', () => {
+    const otherCategories = [
+      { id: 'c2', name: 'Other', icon: '📋', color: '#6B7280', keywords: [], templates: [], builtin: true },
+      { id: 'c3', name: 'Dining', icon: '🍽️', color: '#F97316', keywords: [], templates: [], builtin: true },
+    ];
+    render(
+      <CategoryEditor
+        category={cat} itemCount={3}
+        otherCategories={otherCategories}
+        onMoveAll={() => {}}
+        onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
+      />
+    );
+    expect(screen.getByText(/move 3 items to:/i)).toBeTruthy();
+    expect(screen.getByRole('combobox')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /move all/i })).toBeTruthy();
+  });
+
+  it('Move all button calls onMoveAll with selected target id', async () => {
+    const onMoveAll = vi.fn();
+    const otherCategories = [
+      { id: 'c2', name: 'Other', icon: '📋', color: '#6B7280', keywords: [], templates: [], builtin: true },
+      { id: 'c3', name: 'Dining', icon: '🍽️', color: '#F97316', keywords: [], templates: [], builtin: true },
+    ];
+    render(
+      <CategoryEditor
+        category={cat} itemCount={3}
+        otherCategories={otherCategories}
+        onMoveAll={onMoveAll}
+        onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
+      />
+    );
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'c3');
+    await userEvent.click(screen.getByRole('button', { name: /move all/i }));
+    expect(onMoveAll).toHaveBeenCalledWith('c3');
   });
 });

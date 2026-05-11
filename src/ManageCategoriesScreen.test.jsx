@@ -17,6 +17,7 @@ const noopProps = {
   onRemoveKeyword: () => {},
   onAddTemplate: () => {},
   onRemoveTemplate: () => {},
+  onMoveAll: () => {},
   bills: [],
 };
 

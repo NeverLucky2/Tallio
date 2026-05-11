@@ -793,6 +793,12 @@ function BillTracker() {
           onRemoveKeyword={(catId, kw) => cats.removeKeyword(catId, kw)}
           onAddTemplate={(catId, t) => cats.addTemplate(catId, t)}
           onRemoveTemplate={(catId, t) => cats.removeTemplate(catId, t)}
+          onMoveAll={(fromId, toId) => {
+            const itemRefs = cats.findItemsInCategory(fromId, bills);
+            if (itemRefs.length === 0) return;
+            pushHistory(bills);
+            setBills(prev => cats.applyCategoryToItems(prev, itemRefs, toId));
+          }}
         />
       )}
 
