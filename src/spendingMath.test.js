@@ -494,7 +494,7 @@ describe('aggregateByKeyword', () => {
 
   it('returns null/empty summary when keyword is blank', () => {
     const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', categoryId: 'c_other' }])];
-    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 });
+    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, flow: 'expense', occurrences: 0 });
   });
 
   it('matches items by case-insensitive substring on description', () => {
@@ -544,14 +544,15 @@ describe('aggregateByKeyword', () => {
     expect(aggregateByKeyword(bills, 'AMAZON').categoryId).toBe('c_shopping');
   });
 
-  it('ignores items with non-positive amounts', () => {
+  it('ignores items with zero amounts but sums negative amounts (refunds)', () => {
     const bills = [
       billWithItems('2026-05', [
         { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
         { description: 'CHURCH REFUND', amount: -50, date: '2026-05-15', category: 'Donations' },
+        { description: 'CHURCH NOOP', amount: 0, date: '2026-05-20', category: 'Donations' },
       ]),
     ];
-    expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(600);
+    expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(550);
   });
 });
 
@@ -678,6 +679,34 @@ describe('aggregateByKeyword (post-categoryId)', () => {
     const summary = aggregateByKeyword(bills, 'CHURCH');
     expect(summary.occurrences).toBe(3);
     expect(summary.categoryId).toBe('c_don');
+  });
+});
+
+describe('aggregateByKeyword (sign-aware)', () => {
+  const catsById = new Map([
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+  ]);
+
+  it('sums signed amounts (refunds reduce the total)', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i1', description: 'Whole Foods',        amount:  84, categoryId: 'c_groceries', date: '2026-05-02' },
+        { id: 'i2', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries', date: '2026-05-12' },
+      ]},
+    ];
+    const out = aggregateByKeyword(bills, 'WHOLE FOODS', catsById);
+    expect(out.total).toBe(44);
+    expect(out.occurrences).toBe(2);
+  });
+
+  it('returns flow from the majority category', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i1', description: 'Whole Foods', amount: 84, categoryId: 'c_groceries', date: '2026-05-02' },
+      ]},
+    ];
+    const out = aggregateByKeyword(bills, 'WHOLE FOODS', catsById);
+    expect(out.flow).toBe('expense');
   });
 });
 

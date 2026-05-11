@@ -221,8 +221,8 @@ export function findRecurringCharges(bills, today = currentMonth(), categoriesBy
   return results;
 }
 
-export function aggregateByKeyword(bills, keyword) {
-  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 };
+export function aggregateByKeyword(bills, keyword, categoriesById = null) {
+  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, flow: 'expense', occurrences: 0 };
   if (!keyword || typeof keyword !== 'string' || !keyword.trim()) return empty;
   const needle = keyword.trim().toLowerCase();
 
@@ -235,7 +235,7 @@ export function aggregateByKeyword(bills, keyword) {
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
       if (!item || typeof item.description !== 'string') continue;
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       if (!item.description.toLowerCase().includes(needle)) continue;
 
       const date = getItemDate(bill, item);
@@ -256,8 +256,10 @@ export function aggregateByKeyword(bills, keyword) {
   for (const [cid, count] of categoryIdCounts) {
     if (count > max) { categoryId = cid; max = count; }
   }
+  const cat = categoriesById && categoriesById.get(categoryId);
+  const flow = (cat && cat.flow) || 'expense';
 
-  return { total, byMonth, lastDate, categoryId, occurrences };
+  return { total, byMonth, lastDate, categoryId, flow, occurrences };
 }
 
 export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
