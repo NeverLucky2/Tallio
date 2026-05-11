@@ -521,3 +521,81 @@ function spawnId() {
     ? crypto.randomUUID()
     : 'spawn_' + Math.random().toString(36).slice(2, 10);
 }
+
+// Surface every active auto-managed recurring chain as one summary entry.
+// A chain is "active" when its chronologically latest bill has recurring === true.
+// Dormant chains (latest bill has recurring=false or missing) are NOT returned.
+//
+// Returns an array shaped to merge with findRecurringCharges results in the
+// Recurring panels. Each entry:
+//   { kind: 'auto', chainId, vendor, description, categoryId, flow,
+//     lastAmount, avgAmount, monthCount, occurrences, firstDate, lastDate,
+//     active: true }
+//
+// `lastAmount` and `avgAmount` are the bill's flow-aligned net via getBillNet
+// (income for income-flow chains, expense for expense, savings for savings).
+export function findAutoRecurringChains(bills, categoriesById = null) {
+  const byChain = new Map();
+  for (const b of bills || []) {
+    if (!b || typeof b.recurringChainId !== 'string' || !b.recurringChainId) continue;
+    if (!byChain.has(b.recurringChainId)) byChain.set(b.recurringChainId, []);
+    byChain.get(b.recurringChainId).push(b);
+  }
+
+  const results = [];
+  for (const [chainId, chainBills] of byChain) {
+    // Sort all chain bills chronologically (null-safe, mirrors computeCatchUp).
+    const sorted = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
+    const latest = sorted[sorted.length - 1];
+    // Chain is dormant if the latest (chronologically) bill is not recurring=true.
+    if (!latest || latest.recurring !== true) continue;
+
+    // The latest bill IS the active source for vendor/category derivation.
+    const latestActive = latest;
+
+    // Majority category among items in the latest active bill.
+    const counts = new Map();
+    for (const it of latestActive.items || []) {
+      if (!it) continue;
+      const cid = it.categoryId || null;
+      counts.set(cid, (counts.get(cid) || 0) + 1);
+    }
+    let majorityCategoryId = null;
+    let maxCount = 0;
+    for (const [cid, c] of counts) {
+      if (c > maxCount) { majorityCategoryId = cid; maxCount = c; }
+    }
+    const cat = categoriesById && categoriesById.get(majorityCategoryId);
+    const flow = (cat && cat.flow) || 'expense';
+
+    // Flow-aligned net via getBillNet.
+    const flowKey = flow === 'income' ? 'income'
+                  : flow === 'savings' ? 'savings'
+                  : 'expense';
+    const lastAmount = getBillNet(latestActive, categoriesById)[flowKey];
+    const totalAmount = sorted.reduce(
+      (s, b) => s + getBillNet(b, categoriesById)[flowKey], 0
+    );
+    const avgAmount = totalAmount / sorted.length;
+
+    const uniqueMonths = new Set(sorted.map(b => b.month));
+
+    results.push({
+      kind: 'auto',
+      chainId,
+      vendor: latestActive.vendor || '',
+      description: latestActive.vendor || '',
+      categoryId: majorityCategoryId,
+      flow,
+      lastAmount,
+      avgAmount,
+      monthCount: uniqueMonths.size,
+      occurrences: sorted.length,
+      firstDate: `${sorted[0].month}-01`,
+      lastDate: `${latestActive.month}-01`,
+      active: true,
+    });
+  }
+
+  return results;
+}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3, getBillNet } from './spendingMath.js';
 import { computeCatchUp } from './spendingMath.js';
+import { findAutoRecurringChains } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -1148,5 +1149,101 @@ describe('computeCatchUp', () => {
     expect(out.bills).toHaveLength(2);
     const may = out.bills.find(b => b.month === '2026-05');
     expect(may.items).toEqual([]);
+  });
+});
+
+describe('findAutoRecurringChains', () => {
+  const cats = [
+    { id: 'c_auto',  name: 'Auto Loan', flow: 'expense' },
+    { id: 'c_pay',   name: 'Paycheck',  flow: 'income'  },
+    { id: 'c_401k',  name: '401(k)',    flow: 'savings' },
+  ];
+  const catsById = new Map(cats.map(c => [c.id, c]));
+
+  function chainBill(month, chainId, recurring, amount = 452, categoryId = 'c_auto', vendor = 'Honda') {
+    return {
+      id: 'b_' + month, vendor, month,
+      recurring, recurringChainId: chainId,
+      items: [{ id: 'it_' + month, description: 'Auto loan', amount, categoryId, date: `${month}-15` }],
+    };
+  }
+
+  it('no recurringChainId anywhere → empty array', () => {
+    const bills = [{ id: 'b1', vendor: 'X', month: '2026-05', items: [] }];
+    expect(findAutoRecurringChains(bills, catsById)).toEqual([]);
+  });
+
+  it('single 3-month chain returns one entry with correct shape', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_h', true),
+      chainBill('2026-05', 'rec_h', true),
+      chainBill('2026-06', 'rec_h', true),
+    ];
+    const out = findAutoRecurringChains(bills, catsById);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      kind: 'auto',
+      chainId: 'rec_h',
+      vendor: 'Honda',
+      flow: 'expense',
+      monthCount: 3,
+      occurrences: 3,
+      firstDate: '2026-04-01',
+      lastDate: '2026-06-01',
+      active: true,
+    });
+    expect(out[0].lastAmount).toBe(452);
+    expect(out[0].avgAmount).toBe(452);
+  });
+
+  it('chain whose latest instance has recurring=false → not returned (dormant)', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_h', true),
+      chainBill('2026-05', 'rec_h', false),
+    ];
+    expect(findAutoRecurringChains(bills, catsById)).toEqual([]);
+  });
+
+  it('paycheck chain derives flow=income from category', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_p', true, 5200, 'c_pay', 'Acme'),
+      chainBill('2026-05', 'rec_p', true, 5200, 'c_pay', 'Acme'),
+    ];
+    const out = findAutoRecurringChains(bills, catsById);
+    expect(out[0].flow).toBe('income');
+    expect(out[0].vendor).toBe('Acme');
+  });
+
+  it('lastAmount uses flow-aligned net via getBillNet', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_k', true, 260, 'c_401k', 'Fidelity'),
+      chainBill('2026-05', 'rec_k', true, 270, 'c_401k', 'Fidelity'),
+    ];
+    const out = findAutoRecurringChains(bills, catsById);
+    expect(out[0].flow).toBe('savings');
+    expect(out[0].lastAmount).toBe(270);
+    expect(out[0].avgAmount).toBe(265);
+  });
+
+  it('two chains return two entries (active first behavior is the panel\'s job, not this fn)', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_h', true),
+      chainBill('2026-04', 'rec_v', true, 80, 'c_auto', 'Verizon'),
+    ];
+    const out = findAutoRecurringChains(bills, catsById);
+    expect(out).toHaveLength(2);
+    const ids = out.map(e => e.chainId).sort();
+    expect(ids).toEqual(['rec_h', 'rec_v']);
+  });
+
+  it('chain with both flagged + un-flagged history instances, latest flagged → returned', () => {
+    const bills = [
+      chainBill('2026-04', 'rec_h', false),
+      chainBill('2026-05', 'rec_h', true),
+    ];
+    const out = findAutoRecurringChains(bills, catsById);
+    expect(out).toHaveLength(1);
+    expect(out[0].monthCount).toBe(2);
+    expect(out[0].occurrences).toBe(2);
   });
 });
