@@ -1173,6 +1173,24 @@ describe('findAutoRecurringChains', () => {
     expect(findAutoRecurringChains(bills, catsById)).toEqual([]);
   });
 
+  it('returns empty array for null/undefined bills', () => {
+    expect(findAutoRecurringChains(null, catsById)).toEqual([]);
+    expect(findAutoRecurringChains(undefined, catsById)).toEqual([]);
+  });
+
+  it('falls back to expense flow when categoriesById is null', () => {
+    const bills = [
+      {
+        id: 'b1', vendor: 'Honda', month: '2026-05',
+        recurring: true, recurringChainId: 'rec_h',
+        items: [{ id: 'it1', description: 'Auto', amount: 100, categoryId: 'c_auto', date: '2026-05-15' }],
+      },
+    ];
+    const out = findAutoRecurringChains(bills, null);
+    expect(out).toHaveLength(1);
+    expect(out[0].flow).toBe('expense');
+  });
+
   it('single 3-month chain returns one entry with correct shape', () => {
     const bills = [
       chainBill('2026-04', 'rec_h', true),

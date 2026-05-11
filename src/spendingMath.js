@@ -532,6 +532,9 @@ function spawnId() {
 //     lastAmount, avgAmount, monthCount, occurrences, firstDate, lastDate,
 //     active: true }
 //
+// `description` mirrors `vendor` (bill-level entries have no item descriptions
+// to aggregate, unlike findRecurringCharges).
+//
 // `lastAmount` and `avgAmount` are the bill's flow-aligned net via getBillNet
 // (income for income-flow chains, expense for expense, savings for savings).
 export function findAutoRecurringChains(bills, categoriesById = null) {
@@ -550,12 +553,9 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
     // Chain is dormant if the latest (chronologically) bill is not recurring=true.
     if (!latest || latest.recurring !== true) continue;
 
-    // The latest bill IS the active source for vendor/category derivation.
-    const latestActive = latest;
-
-    // Majority category among items in the latest active bill.
+    // Majority category among items in the latest bill.
     const counts = new Map();
-    for (const it of latestActive.items || []) {
+    for (const it of latest.items || []) {
       if (!it) continue;
       const cid = it.categoryId || null;
       counts.set(cid, (counts.get(cid) || 0) + 1);
@@ -572,7 +572,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
     const flowKey = flow === 'income' ? 'income'
                   : flow === 'savings' ? 'savings'
                   : 'expense';
-    const lastAmount = getBillNet(latestActive, categoriesById)[flowKey];
+    const lastAmount = getBillNet(latest, categoriesById)[flowKey];
     const totalAmount = sorted.reduce(
       (s, b) => s + getBillNet(b, categoriesById)[flowKey], 0
     );
@@ -583,8 +583,8 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
     results.push({
       kind: 'auto',
       chainId,
-      vendor: latestActive.vendor || '',
-      description: latestActive.vendor || '',
+      vendor: latest.vendor || '',
+      description: latest.vendor || '',
       categoryId: majorityCategoryId,
       flow,
       lastAmount,
@@ -592,7 +592,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
       monthCount: uniqueMonths.size,
       occurrences: sorted.length,
       firstDate: `${sorted[0].month}-01`,
-      lastDate: `${latestActive.month}-01`,
+      lastDate: `${latest.month}-01`,
       active: true,
     });
   }
