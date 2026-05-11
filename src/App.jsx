@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
@@ -420,9 +420,9 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
 
 // ---- Recurring Panels (split by flow) ----
 
-const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallbackCategory }) => {
-  if (charges.length === 0) return null;
-  const total = charges.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
+const RecurringSection = ({ title, entries, totalLabel, categoriesById, fallbackCategory, onEndRecurring, onPromoteInferred }) => {
+  if (entries.length === 0) return null;
+  const total = entries.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
   return (
     <div className="panel">
       <div className="panel-header">
@@ -430,10 +430,12 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
         <span className="panel-sub">~{formatCurrency(total)}/mo {totalLabel}</span>
       </div>
       <div className="sub-list">
-        {charges.map(c => {
+        {entries.map(c => {
           const cat = categoriesById.get(c.categoryId) || fallbackCategory;
+          const key = c.kind === 'auto' ? `auto-${c.chainId}` : `${c.vendor}-${c.description}`;
+          const isAuto = c.kind === 'auto';
           return (
-            <div key={`${c.vendor}-${c.description}`} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
+            <div key={key} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
               <div className="sub-row-main">
                 <span className="sub-icon" style={{ background: `${cat.color}18`, border: `1px solid ${cat.color}28` }}>
                   {cat.icon}
@@ -441,7 +443,9 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
                 <div className="sub-row-text">
                   <div className="sub-row-desc">{c.description}</div>
                   <div className="sub-row-meta">
-                    {c.vendor} · {c.monthCount} mo · last {c.lastDate}
+                    {isAuto
+                      ? `${c.monthCount} mo · last ${c.lastDate.slice(0, 7)}`
+                      : `${c.vendor} · ${c.monthCount} mo · last ${c.lastDate}`}
                   </div>
                 </div>
               </div>
@@ -450,9 +454,33 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
                   {formatCurrency(Math.abs(c.lastAmount))}
                   {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(Math.abs(c.avgAmount))}`}>varies</span>}
                 </div>
-                <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
-                  {c.active ? 'ACTIVE' : 'INACTIVE'}
-                </span>
+                {isAuto ? (
+                  <>
+                    <span className="sub-badge sub-badge-auto">✓ AUTO</span>
+                    <button
+                      type="button"
+                      className="btn-end-recurring"
+                      onClick={() => onEndRecurring(c.chainId)}
+                      aria-label={`End recurring for ${c.vendor}`}
+                    >
+                      End
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
+                      {c.active ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-promote-recurring"
+                      onClick={() => onPromoteInferred(c)}
+                      aria-label={`Make ${c.description} recurring`}
+                    >
+                      ↻ Make recurring
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           );
@@ -462,39 +490,50 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
   );
 };
 
-const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
-  const all = findRecurringCharges(bills, today, categoriesById);
-  const filtered = all.filter(c => !trackedKeywords.some(kw =>
-    c.description.toUpperCase().includes(kw.toUpperCase())
-  ));
-  if (filtered.length === 0) return null;
+const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory, onEndRecurring, onPromoteInferred }) => {
+  const inferred = findRecurringCharges(bills, today, categoriesById).map(e => ({ ...e, kind: 'inferred' }));
+  const auto     = findAutoRecurringChains(bills, categoriesById);
 
-  const income   = filtered.filter(c => c.flow === 'income');
-  const expense  = filtered.filter(c => c.flow === 'expense');
-  const savings  = filtered.filter(c => c.flow === 'savings');
+  // Filter inferred: exclude tracked-keyword matches AND vendors covered by an auto chain.
+  const autoVendorsLower = new Set(auto.map(a => (a.vendor || '').toLowerCase()));
+  const filteredInferred = inferred.filter(c => {
+    if ((c.vendor || '').toLowerCase() && autoVendorsLower.has((c.vendor || '').toLowerCase())) return false;
+    return !trackedKeywords.some(kw => c.description.toUpperCase().includes(kw.toUpperCase()));
+  });
+
+  const allEntries = [...auto, ...filteredInferred];
+  if (allEntries.length === 0) return null;
+
+  const byFlow = (flow) => allEntries.filter(e => e.flow === flow);
 
   return (
     <>
       <RecurringSection
         title="Recurring · Income"
-        charges={income}
+        entries={byFlow('income')}
         totalLabel="in"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
       <RecurringSection
         title="Recurring · Expenses"
-        charges={expense}
+        entries={byFlow('expense')}
         totalLabel="out"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
       <RecurringSection
         title="Recurring · Savings"
-        charges={savings}
+        entries={byFlow('savings')}
         totalLabel="saved"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
     </>
   );
@@ -845,6 +884,17 @@ function BillTracker() {
     } catch (e) {
       // storage unavailable — silently skip the tip
     }
+    maybeShowUndoTip();
+  };
+
+  const endRecurringChain = (chainId) => {
+    pushHistory(bills);
+    setBills(prev => {
+      const chainBills = prev.filter(b => b.recurringChainId === chainId && b.recurring === true);
+      if (chainBills.length === 0) return prev;
+      const latest = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month)).pop();
+      return prev.map(b => b.id === latest.id ? { ...b, recurring: false } : b);
+    });
     maybeShowUndoTip();
   };
 
@@ -1251,6 +1301,8 @@ function BillTracker() {
               trackedKeywords={trackedKeywords}
               categoriesById={categoriesById}
               fallbackCategory={fallbackCategory}
+              onEndRecurring={endRecurringChain}
+              onPromoteInferred={() => { /* wired in Task 10 */ }}
             />
 
             <div className="formats-panel">
