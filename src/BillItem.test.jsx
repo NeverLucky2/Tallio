@@ -84,4 +84,53 @@ describe('BillItem', () => {
     // Mobile layout uses item-row-mobile class.
     expect(document.querySelector('.item-row-mobile')).toBeTruthy();
   });
+
+  it('renders Credit toggle button on each item row', () => {
+    renderItem();
+    expect(screen.getByRole('button', { name: /credit/i })).toBeTruthy();
+  });
+
+  it('clicking Credit toggle flips the sign of amount', async () => {
+    const { onUpdate, item } = renderItem({ item: { amount: 84.20 } });
+    await userEvent.click(screen.getByRole('button', { name: /credit/i }));
+    expect(onUpdate).toHaveBeenCalledWith({ ...item, amount: -84.20 });
+  });
+
+  it('row gets credit-active class when amount is negative', () => {
+    renderItem({ item: { amount: -40 } });
+    expect(document.querySelector('.item-row-credit, .item-row-mobile-credit')).toBeTruthy();
+  });
+
+  it('amount input accepts negative values (no min=0)', () => {
+    renderItem({ item: { amount: -40 } });
+    const inputs = document.querySelectorAll('input[type="number"]');
+    for (const i of inputs) {
+      expect(i.getAttribute('min')).not.toBe('0');
+    }
+  });
+
+  it('category dropdown renders <optgroup> sections by flow', () => {
+    const catsWithFlow = [
+      { id: 'c_pay',  name: 'Paycheck',  icon: '💼', color: '#fff', flow: 'income',  keywords: [], templates: [], builtin: true },
+      { id: 'c_food', name: 'Groceries', icon: '🛒', color: '#fff', flow: 'expense', keywords: [], templates: [], builtin: true },
+      { id: 'c_401k', name: '401(k)',    icon: '📊', color: '#fff', flow: 'savings', keywords: [], templates: [], builtin: true },
+      { id: 'c_other', name: 'Other',    icon: '📋', color: '#fff', flow: 'expense', keywords: [], templates: [], builtin: true },
+    ];
+    const item = { id: 'i1', description: '', amount: 10, categoryId: 'c_food', date: '2026-04-15' };
+    render(
+      <BillItem
+        item={item}
+        bill={bill}
+        categories={catsWithFlow}
+        otherCategoryId="c_other"
+        onUpdate={() => {}}
+        onDelete={() => {}}
+        isMobile={false}
+      />
+    );
+    const groups = document.querySelectorAll('optgroup');
+    expect(groups.length).toBe(3);
+    const labels = Array.from(groups).map(g => g.getAttribute('label'));
+    expect(labels).toEqual(['Income', 'Expense', 'Savings']);
+  });
 });

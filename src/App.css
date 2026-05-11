@@ -2768,3 +2768,29 @@
 .bill-total-in  { color: #6bd49a; }
 .bill-total-out { color: #e6e7ea; }
 .bill-total-flat { color: #8a8d94; }
+
+.credit-toggle {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-tertiary, #8a8d94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 600;
+}
+.credit-toggle:hover {
+  border-color: rgba(107, 212, 154, 0.4);
+  color: #6bd49a;
+}
+.credit-toggle-active {
+  background: rgba(107, 212, 154, 0.15);
+  color: #6bd49a;
+  border-color: rgba(107, 212, 154, 0.35);
+}
+.item-row-credit, .item-row-mobile-credit {
+  background: rgba(107, 212, 154, 0.04);
+}
