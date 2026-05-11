@@ -1175,7 +1175,7 @@ function BillTracker() {
 
           {/* Sidebar */}
           <div className="sidebar">
-            <CategoryBreakdown items={searchActive ? visibleBills.flatMap(b => b.items) : selectedMonthItems} selectedMonth={searchActive ? null : selectedMonth} />
+            <CategoryBreakdown items={searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems} selectedMonth={searchActive ? null : selectedMonth} />
             <TrackedPanel
               bills={bills}
               keywords={trackedKeywords}
