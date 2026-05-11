@@ -129,7 +129,7 @@ describe('validateResponse', () => {
     expect(result.items[0].description).toBe('Good');
   });
 
-  it('drops items with negative or zero amount', () => {
+  it('drops items with zero amount but keeps negatives (refunds)', () => {
     const result = validateResponse({
       vendor: 'X',
       month: null,
@@ -139,8 +139,8 @@ describe('validateResponse', () => {
         { description: 'Real item', amount: 1.99 },
       ],
     });
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0].description).toBe('Real item');
+    expect(result.items).toHaveLength(2);
+    expect(result.items.map(i => i.description)).toEqual(['Refund', 'Real item']);
   });
 
   it('drops items with empty description', () => {
@@ -223,6 +223,41 @@ describe('validateResponse', () => {
       items: [{ description: 'Coffee', amount: 5 }],
     });
     expect(result.items[0].date).toBeNull();
+  });
+});
+
+describe('validateResponse (negative amounts)', () => {
+  it('accepts negative amount (refund line)', () => {
+    const parsed = {
+      vendor: 'Chase',
+      month: '2026-05',
+      items: [{ description: 'Whole Foods refund', amount: -40, date: '2026-05-12' }],
+    };
+    const out = validateResponse(parsed);
+    expect(out.items).toHaveLength(1);
+    expect(out.items[0].amount).toBe(-40);
+  });
+
+  it('rejects amount === 0', () => {
+    const parsed = {
+      vendor: 'Chase',
+      month: '2026-05',
+      items: [
+        { description: 'Real line', amount: 10, date: '2026-05-01' },
+        { description: 'Zero',      amount:  0, date: '2026-05-02' },
+      ],
+    };
+    const out = validateResponse(parsed);
+    expect(out.items).toHaveLength(1);
+    expect(out.items[0].description).toBe('Real line');
+  });
+
+  it('still rejects non-finite amounts', () => {
+    const parsed = {
+      vendor: 'V', month: '2026-05',
+      items: [{ description: 'NaN', amount: NaN, date: null }],
+    };
+    expect(validateResponse(parsed).items).toHaveLength(0);
   });
 });
 

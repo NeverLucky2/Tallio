@@ -61,7 +61,7 @@ export function validateResponse(parsed) {
       it.description.trim().length > 0 &&
       typeof it.amount === 'number' &&
       isFinite(it.amount) &&
-      it.amount > 0
+      it.amount !== 0
     )
     .map(it => ({
       description: it.description.trim(),
