@@ -804,7 +804,7 @@
 
 .item-row {
   display: grid;
-  grid-template-columns: 32px 124px 124px 1fr 112px 30px;
+  grid-template-columns: 32px 124px 124px 1fr 28px 112px 30px;
   gap: 10px;
   align-items: center;
   padding: 9px 10px;
@@ -2797,17 +2797,22 @@
 .bill-total-flat { color: #8a8d94; }
 
 .credit-toggle {
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 99px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
   background: transparent;
-  color: var(--text-tertiary, #8a8d94);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  border: 1px solid var(--border-strong);
   cursor: pointer;
-  transition: all 0.15s ease;
+  font-size: 16px;
   font-weight: 600;
+  font-family: var(--font-mono);
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
 }
 .credit-toggle:hover {
   border-color: rgba(107, 212, 154, 0.4);
@@ -2820,6 +2825,17 @@
 }
 .item-row-credit, .item-row-mobile-credit {
   background: rgba(107, 212, 154, 0.04);
+}
+
+.description-textarea {
+  resize: none;
+  field-sizing: content;
+  min-height: 20px;
+  line-height: 1.4;
+  overflow: hidden;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .flow-control {

@@ -34,9 +34,10 @@ function CreditToggle({ item, onUpdate, active }) {
       className={`credit-toggle${active ? ' credit-toggle-active' : ''}`}
       onClick={() => onUpdate({ ...item, amount: -item.amount })}
       aria-pressed={active}
-      title={active ? 'Refund (click to remove credit)' : 'Mark as refund / credit'}
+      aria-label={active ? 'Refund / credit (click to mark as charge)' : 'Charge (click to mark as refund / credit)'}
+      title={active ? 'Refund / credit (click to remove)' : 'Mark as refund / credit'}
     >
-      Credit
+      {active ? '−' : '+'}
     </button>
   );
 }
@@ -92,12 +93,12 @@ export default function BillItem({ item, bill, categories, otherCategoryId, onUp
             >
               {category.icon}
             </div>
-            <input
-              type="text"
+            <textarea
               value={item.description}
               onChange={(e) => onUpdate({ ...item, description: e.target.value })}
-              className="input-transparent"
+              className="input-transparent description-textarea"
               placeholder="Description"
+              rows={1}
             />
           </div>
           <button className="btn-delete" onClick={onDelete}>×</button>
@@ -152,12 +153,12 @@ export default function BillItem({ item, bill, categories, otherCategoryId, onUp
           onChange={(e) => onUpdate({ ...item, categoryId: e.target.value })}
           categories={categories}
         />
-        <input
-          type="text"
+        <textarea
           value={item.description}
           onChange={(e) => onUpdate({ ...item, description: e.target.value })}
-          className="input-transparent"
+          className="input-transparent description-textarea"
           placeholder="Description"
+          rows={1}
         />
         <CreditToggle item={item} onUpdate={onUpdate} active={isCredit} />
         <div className="input-amount-wrap">
