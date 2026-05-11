@@ -396,3 +396,133 @@ export function shiftItemDate(date, targetMonth) {
   const clampedDay = Math.min(day, lastDay);
   return `${targetMonth}-${String(clampedDay).padStart(2, '0')}`;
 }
+
+// Plan auto-spawn catch-up for the current app session.
+// Pure function. Inputs:
+//   bills      — current bills array
+//   todayMonth — "YYYY-MM" for the catch-up upper bound (inclusive)
+// Returns:
+//   { bills, conflicts }
+//     bills      — bills array with all unambiguous spawns appended
+//     conflicts  — { chainId, chainSourceBillId, targetMonth, existingBillId }[]
+//
+// Algorithm:
+//   1. Group bills by recurringChainId (skip null).
+//   2. For each chain:
+//      a. Find the chronologically latest instance where recurring === true.
+//         If none, the chain is dormant — skip.
+//      b. Walk target months strictly after source.month up to and including
+//         todayMonth. For each:
+//           - If a bill in the chain already exists in that month, skip.
+//           - Else if a same-vendor non-chain bill exists, push a conflict
+//             entry and stop iterating further months for this chain.
+//           - Else clone source: fresh bill id, fresh item ids, month replaced,
+//             item dates shifted via shiftItemDate, recurring=true,
+//             recurringChainId carried over.
+export function computeCatchUp(bills, todayMonth) {
+  if (!Array.isArray(bills) || bills.length === 0) {
+    return { bills: bills || [], conflicts: [] };
+  }
+  if (typeof todayMonth !== 'string' || !MONTH_RE.test(todayMonth)) {
+    return { bills, conflicts: [] };
+  }
+
+  // Group bills by chain id.
+  const byChain = new Map();
+  for (const b of bills) {
+    if (b && typeof b.recurringChainId === 'string' && b.recurringChainId) {
+      if (!byChain.has(b.recurringChainId)) byChain.set(b.recurringChainId, []);
+      byChain.get(b.recurringChainId).push(b);
+    }
+  }
+
+  if (byChain.size === 0) {
+    return { bills, conflicts: [] };
+  }
+
+  // Working copy of bills — we'll append spawns to it as we go.
+  let working = bills.slice();
+  const conflicts = [];
+
+  for (const [chainId, chainBills] of byChain) {
+    // Find the chronologically latest bill in the chain overall.
+    const sortedChain = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month));
+    const latestOverall = sortedChain[sortedChain.length - 1];
+    // If the latest bill has recurring=false, the chain is dormant — skip.
+    if (latestOverall.recurring !== true) continue;
+    // The source is the latest bill with recurring=true (which is latestOverall,
+    // since we just confirmed it; but guard for correctness).
+    const activeInstances = chainBills.filter(b => b.recurring === true);
+    if (activeInstances.length === 0) continue;
+    const source = activeInstances
+      .slice()
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .pop();
+
+    // Iterate target months strictly after source.month, up to todayMonth.
+    const targets = monthsBetweenExclusiveInclusive(source.month, todayMonth);
+    for (const targetMonth of targets) {
+      const alreadyInChain = working.some(b =>
+        b.recurringChainId === chainId && b.month === targetMonth
+      );
+      if (alreadyInChain) continue;
+
+      const conflictBill = working.find(b =>
+        b.month === targetMonth &&
+        b.vendor === source.vendor &&
+        b.recurringChainId !== chainId
+      );
+      if (conflictBill) {
+        conflicts.push({
+          chainId,
+          chainSourceBillId: source.id,
+          targetMonth,
+          existingBillId: conflictBill.id,
+        });
+        break;  // stop further months for this chain
+      }
+
+      // Clean spawn.
+      const spawned = {
+        ...source,
+        id: spawnId(),
+        month: targetMonth,
+        items: (source.items || []).map(it => ({
+          ...it,
+          id: spawnId(),
+          date: shiftItemDate(it.date, targetMonth),
+        })),
+        recurring: true,
+        recurringChainId: chainId,
+      };
+      working = [...working, spawned];
+    }
+  }
+
+  return { bills: working, conflicts };
+}
+
+// Exclusive of `fromMonth`, inclusive of `toMonth`.
+function monthsBetweenExclusiveInclusive(fromMonth, toMonth) {
+  if (fromMonth >= toMonth) return [];
+  const out = [];
+  let [y, m] = fromMonth.split('-').map(n => parseInt(n, 10));
+  while (true) {
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    out.push(key);
+    if (key === toMonth) break;
+    if (key > toMonth) break;  // defensive — shouldn't happen with valid inputs
+  }
+  return out;
+}
+
+// Pure id generator for spawned bills/items. crypto.randomUUID is available
+// in Node 16+ (vitest jsdom) and all modern browsers — matches the pattern
+// used by handleCapture in App.jsx.
+function spawnId() {
+  return (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'spawn_' + Math.random().toString(36).slice(2, 10);
+}

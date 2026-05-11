@@ -986,3 +986,155 @@ describe('getBillNet', () => {
     expect(result.net).toBe(-10);
   });
 });
+
+import { computeCatchUp } from './spendingMath.js';
+
+function makeBill(over = {}) {
+  return {
+    id: over.id || 'bill_' + Math.random().toString(36).slice(2, 8),
+    vendor: over.vendor ?? 'Honda Finance',
+    month: over.month ?? '2026-04',
+    items: over.items ?? [
+      { id: 'it_' + Math.random().toString(36).slice(2, 8),
+        description: 'Auto loan', amount: 452, categoryId: 'c_auto',
+        date: `${over.month ?? '2026-04'}-15` },
+    ],
+    ...(over.recurring !== undefined ? { recurring: over.recurring } : {}),
+    ...(over.recurringChainId !== undefined ? { recurringChainId: over.recurringChainId } : {}),
+  };
+}
+
+describe('computeCatchUp', () => {
+  it('no recurring chains → input unchanged, empty conflicts', () => {
+    const bills = [
+      makeBill({ id: 'b1', month: '2026-04', vendor: 'Honda' }),
+      makeBill({ id: 'b2', month: '2026-05', vendor: 'Comed' }),
+    ];
+    const out = computeCatchUp(bills, '2026-07');
+    expect(out.bills).toBe(bills);
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('one chain, source April, today July, no other bills → three clean spawns', () => {
+    const source = makeBill({
+      id: 'b_apr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-04-15' }],
+    });
+    const out = computeCatchUp([source], '2026-07');
+    expect(out.conflicts).toEqual([]);
+    const months = out.bills.map(b => b.month).sort();
+    expect(months).toEqual(['2026-04', '2026-05', '2026-06', '2026-07']);
+    const newBills = out.bills.filter(b => b.id !== 'b_apr');
+    for (const nb of newBills) {
+      expect(nb.recurring).toBe(true);
+      expect(nb.recurringChainId).toBe('rec_h');
+      expect(nb.vendor).toBe('Honda');
+      expect(nb.id).not.toBe('b_apr');
+      expect(nb.items[0].id).not.toBe('it1');  // fresh item id
+      expect(nb.items[0].date).toBe(`${nb.month}-15`);  // date shifted
+      expect(nb.items[0].amount).toBe(452);
+    }
+  });
+
+  it('skips months already linked to the chain id', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true,  recurringChainId: 'rec_h' });
+    const may = makeBill({ id: 'b_may', month: '2026-05', vendor: 'Honda', recurring: true,  recurringChainId: 'rec_h' });
+    const out = computeCatchUp([apr, may], '2026-05');
+    expect(out.bills).toHaveLength(2);
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('same-vendor non-chain bill → conflict queued, no spawn, stops further months for that chain', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h' });
+    const may = makeBill({ id: 'b_may_manual', month: '2026-05', vendor: 'Honda' });  // no chain id
+    const out = computeCatchUp([apr, may], '2026-07');
+    expect(out.bills).toHaveLength(2);  // no spawns
+    expect(out.conflicts).toHaveLength(1);
+    expect(out.conflicts[0]).toEqual({
+      chainId: 'rec_h',
+      chainSourceBillId: 'b_apr',
+      targetMonth: '2026-05',
+      existingBillId: 'b_may_manual',
+    });
+  });
+
+  it('two chains, one clean / one conflicted → clean fully materialized; conflicted queued', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda',   recurring: true, recurringChainId: 'rec_h' });
+    const mar = makeBill({ id: 'b_mar', month: '2026-03', vendor: 'Verizon', recurring: true, recurringChainId: 'rec_v' });
+    const conflict = makeBill({ id: 'b_v_may', month: '2026-05', vendor: 'Verizon' });
+    const out = computeCatchUp([apr, mar, conflict], '2026-05');
+    const hondaMonths = out.bills.filter(b => b.recurringChainId === 'rec_h').map(b => b.month).sort();
+    expect(hondaMonths).toEqual(['2026-04', '2026-05']);
+    const verizonChain = out.bills.filter(b => b.recurringChainId === 'rec_v');
+    expect(verizonChain).toHaveLength(2);  // mar + a clean April spawn (no conflict in April)
+    const verizonMonths = verizonChain.map(b => b.month).sort();
+    expect(verizonMonths).toEqual(['2026-03', '2026-04']);
+    expect(out.conflicts).toHaveLength(1);
+    expect(out.conflicts[0].chainId).toBe('rec_v');
+    expect(out.conflicts[0].targetMonth).toBe('2026-05');
+  });
+
+  it('source month equals today → no spawns', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h' });
+    const out = computeCatchUp([apr], '2026-04');
+    expect(out.bills).toHaveLength(1);
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('latest source has recurring=false (chain dormant) → ignored', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true,  recurringChainId: 'rec_h' });
+    const may = makeBill({ id: 'b_may', month: '2026-05', vendor: 'Honda', recurring: false, recurringChainId: 'rec_h' });
+    const out = computeCatchUp([apr, may], '2026-07');
+    expect(out.bills).toHaveLength(2);  // chain dormant since latest has recurring=false
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('multiple recurring=true instances in chain → latest is used as source', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', description: 'Auto', amount: 452, categoryId: 'c_a', date: '2026-04-15' }] });
+    const may = makeBill({ id: 'b_may', month: '2026-05', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it2', description: 'Auto', amount: 470, categoryId: 'c_a', date: '2026-05-15' }] });
+    const out = computeCatchUp([apr, may], '2026-06');
+    expect(out.bills).toHaveLength(3);
+    const jun = out.bills.find(b => b.month === '2026-06');
+    expect(jun.items[0].amount).toBe(470);  // inherited from May (latest), not April
+  });
+
+  it('idempotency: running twice on the same input is a no-op the second time', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h' });
+    const out1 = computeCatchUp([apr], '2026-06');
+    const out2 = computeCatchUp(out1.bills, '2026-06');
+    expect(out2.bills).toHaveLength(out1.bills.length);
+    expect(out2.conflicts).toEqual([]);
+  });
+
+  it('backward clock (today < source.month) → no spawns', () => {
+    const may = makeBill({ id: 'b_may', month: '2026-05', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h' });
+    const out = computeCatchUp([may], '2026-03');
+    expect(out.bills).toHaveLength(1);
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('empty-vendor source matches empty-vendor existing bill → conflict', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: '', recurring: true, recurringChainId: 'rec_h' });
+    const may = makeBill({ id: 'b_other', month: '2026-05', vendor: '' });
+    const out = computeCatchUp([apr, may], '2026-05');
+    expect(out.conflicts).toHaveLength(1);
+  });
+
+  it('items in spawned bill get fresh ids', () => {
+    const apr = makeBill({ id: 'b_apr', month: '2026-04', vendor: 'Honda', recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'orig1', description: 'A', amount: 10, categoryId: 'c', date: '2026-04-05' },
+        { id: 'orig2', description: 'B', amount: 20, categoryId: 'c', date: '2026-04-15' },
+      ],
+    });
+    const out = computeCatchUp([apr], '2026-05');
+    const may = out.bills.find(b => b.month === '2026-05');
+    expect(may.items.map(i => i.id)).not.toContain('orig1');
+    expect(may.items.map(i => i.id)).not.toContain('orig2');
+    expect(may.items[0].date).toBe('2026-05-05');
+    expect(may.items[1].date).toBe('2026-05-15');
+  });
+});
