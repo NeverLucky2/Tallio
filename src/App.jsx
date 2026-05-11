@@ -577,6 +577,7 @@ function BillTracker() {
   const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
   const [pendingDeleteBillId, setPendingDeleteBillId] = useState(null);
   const [pendingDuplicateBillId, setPendingDuplicateBillId] = useState(null);
+  const [pendingPromoteEntry, setPendingPromoteEntry] = useState(null);
   const [pendingRecurringTip, setPendingRecurringTip] = useState(false);
   const [showUndoTip, setShowUndoTip] = useState(false);
   const [undoTipSeen, setUndoTipSeen] = useState(() => {
@@ -898,6 +899,36 @@ function BillTracker() {
     maybeShowUndoTip();
   };
 
+  const promoteToAuto = (entry) => {
+    if (!entry) return;
+    pushHistory(bills);
+    const newBill = {
+      id: crypto.randomUUID(),
+      vendor: entry.vendor || entry.description,
+      month: todayMonth,
+      items: [{
+        id: crypto.randomUUID(),
+        description: entry.description,
+        amount: entry.lastAmount,
+        categoryId: entry.categoryId || cats.otherId(),
+        date: shiftItemDate(entry.lastDate, todayMonth),
+      }],
+      recurring: true,
+      recurringChainId: nanoid(8),
+    };
+    setBills(prev => [newBill, ...prev]);
+    setSelectedMonth(todayMonth);
+    setSearchTerm('');
+    setNewlyAddedBillId(newBill.id);
+    setPendingPromoteEntry(null);
+    try {
+      if (localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
+        setPendingRecurringTip(true);
+      }
+    } catch (e) { /* storage unavailable */ }
+    maybeShowUndoTip();
+  };
+
   const dismissRecurringTip = () => {
     setPendingRecurringTip(false);
     try { localStorage.setItem('billtracker-recurring-tip-seen', 'true'); } catch (e) { /* quota */ }
@@ -1072,6 +1103,17 @@ function BillTracker() {
             setPendingKeywordApply(null);
           }}
           onCancel={() => setPendingKeywordApply(null)}
+        />
+      )}
+
+      {pendingPromoteEntry && (
+        <ConfirmDialog
+          title={`Make "${pendingPromoteEntry.description}" auto-managed?`}
+          message={`BillTracker will create a new monthly recurring bill for ${pendingPromoteEntry.vendor || pendingPromoteEntry.description} starting in ${formatMonthCompact(todayMonth)} (${formatCurrency(Math.abs(pendingPromoteEntry.lastAmount))}). The historical occurrences in your existing bills stay where they are; future months will get a dedicated auto-managed bill.`}
+          confirmLabel="Make Recurring"
+          variant="default"
+          onConfirm={() => promoteToAuto(pendingPromoteEntry)}
+          onCancel={() => setPendingPromoteEntry(null)}
         />
       )}
 
@@ -1302,7 +1344,7 @@ function BillTracker() {
               categoriesById={categoriesById}
               fallbackCategory={fallbackCategory}
               onEndRecurring={endRecurringChain}
-              onPromoteInferred={() => { /* wired in Task 10 */ }}
+              onPromoteInferred={(entry) => setPendingPromoteEntry(entry)}
             />
 
             <div className="formats-panel">
