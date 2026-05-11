@@ -2424,6 +2424,13 @@
   background: var(--bg);
 }
 
+.manage-empty {
+  color: var(--text-muted, #64748B);
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+
 /* ============================ CategoryEditor ============================ */
 
 .cat-editor {

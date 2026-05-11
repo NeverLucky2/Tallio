@@ -266,7 +266,7 @@ describe('aggregateByDay', () => {
 describe('findRecurringCharges', () => {
   const subscription = (month, day, amount = 15.99, description = 'NETFLIX', vendor = 'Chase') => ({
     id: `${month}-${description}`, vendor, month,
-    items: [{ id: `${month}-${description}`, description, amount, date: `${month}-${String(day).padStart(2, '0')}`, category: 'Subscriptions' }],
+    items: [{ id: `${month}-${description}`, description, amount, date: `${month}-${String(day).padStart(2, '0')}`, categoryId: 'c_subs' }],
   });
 
   it('detects a charge that recurs across 3 distinct months', () => {
@@ -284,8 +284,8 @@ describe('findRecurringCharges', () => {
   it('ignores items that appear in only one month', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'COFFEE', amount: 5, date: '2026-05-01', category: 'Dining' },
-        { description: 'COFFEE', amount: 5, date: '2026-05-15', category: 'Dining' },
+        { description: 'COFFEE', amount: 5, date: '2026-05-01', categoryId: 'c_dining' },
+        { description: 'COFFEE', amount: 5, date: '2026-05-15', categoryId: 'c_dining' },
       ]},
     ];
     expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
@@ -303,10 +303,10 @@ describe('findRecurringCharges', () => {
   it('rejects charges with scattered days AND varying amounts', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'GROCERIES', amount: 50, date: '2026-04-03', category: 'Groceries' },
+        { description: 'GROCERIES', amount: 50, date: '2026-04-03', categoryId: 'c_groceries' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'GROCERIES', amount: 120, date: '2026-05-22', category: 'Groceries' },
+        { description: 'GROCERIES', amount: 120, date: '2026-05-22', categoryId: 'c_groceries' },
       ]},
     ];
     expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
@@ -315,13 +315,13 @@ describe('findRecurringCharges', () => {
   it('detects recurring charges with consistent day even when amount varies (e.g. donations)', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-03', items: [
-        { description: 'CHURCH OFFERING', amount: 450, date: '2026-03-01', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 450, date: '2026-03-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH OFFERING', amount: 620, date: '2026-04-02', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 620, date: '2026-04-02', categoryId: 'c_donations' },
       ]},
       { id: '3', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH OFFERING', amount: 525, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 525, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const result = findRecurringCharges(bills, '2026-05');
@@ -332,10 +332,10 @@ describe('findRecurringCharges', () => {
   it('returns lastAmount as the amount of the most recent occurrence', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const [r] = findRecurringCharges(bills, '2026-05');
@@ -345,10 +345,10 @@ describe('findRecurringCharges', () => {
   it('flags varies=true when amounts differ by more than 15%', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const [r] = findRecurringCharges(bills, '2026-05');
@@ -394,10 +394,10 @@ describe('findRecurringCharges', () => {
   it('treats descriptions as case-insensitive', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'netflix', amount: 15.99, date: '2026-04-05', category: 'Subscriptions' },
+        { description: 'netflix', amount: 15.99, date: '2026-04-05', categoryId: 'c_subs' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'NETFLIX', amount: 15.99, date: '2026-05-05', category: 'Subscriptions' },
+        { description: 'NETFLIX', amount: 15.99, date: '2026-05-05', categoryId: 'c_subs' },
       ]},
     ];
     const result = findRecurringCharges(bills, '2026-05');
@@ -451,11 +451,11 @@ describe('aggregateByKeyword', () => {
   it('matches items by case-insensitive substring on description', () => {
     const bills = [
       billWithItems('2026-04', [
-        { description: 'Church of Saint Mary', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'Church of Saint Mary', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]),
       billWithItems('2026-05', [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
-        { description: 'BURGER KING', amount: 12, date: '2026-05-04', category: 'Dining' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
+        { description: 'BURGER KING', amount: 12, date: '2026-05-04', categoryId: 'c_dining' },
       ]),
     ];
     const result = aggregateByKeyword(bills, 'church');
@@ -465,10 +465,10 @@ describe('aggregateByKeyword', () => {
 
   it('breaks down totals by month', () => {
     const bills = [
-      billWithItems('2026-04', [{ description: 'McDonald', amount: 8, date: '2026-04-03', category: 'Dining' }]),
+      billWithItems('2026-04', [{ description: 'McDonald', amount: 8, date: '2026-04-03', categoryId: 'c_dining' }]),
       billWithItems('2026-05', [
-        { description: 'McDonalds Drive Thru', amount: 12, date: '2026-05-02', category: 'Dining' },
-        { description: 'McDONALD\'S', amount: 9, date: '2026-05-15', category: 'Dining' },
+        { description: 'McDonalds Drive Thru', amount: 12, date: '2026-05-02', categoryId: 'c_dining' },
+        { description: 'McDONALD\'S', amount: 9, date: '2026-05-15', categoryId: 'c_dining' },
       ]),
     ];
     const result = aggregateByKeyword(bills, 'mcdonald');
@@ -478,8 +478,8 @@ describe('aggregateByKeyword', () => {
 
   it('returns the last (most recent) matching date', () => {
     const bills = [
-      billWithItems('2026-03', [{ description: 'CHURCH', amount: 400, date: '2026-03-01', category: 'Donations' }]),
-      billWithItems('2026-05', [{ description: 'CHURCH', amount: 600, date: '2026-05-15', category: 'Donations' }]),
+      billWithItems('2026-03', [{ description: 'CHURCH', amount: 400, date: '2026-03-01', categoryId: 'c_donations' }]),
+      billWithItems('2026-05', [{ description: 'CHURCH', amount: 600, date: '2026-05-15', categoryId: 'c_donations' }]),
     ];
     expect(aggregateByKeyword(bills, 'CHURCH').lastDate).toBe('2026-05-15');
   });

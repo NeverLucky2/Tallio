@@ -44,4 +44,17 @@ describe('ChipEditor', () => {
     await userEvent.type(input, 'X{enter}');
     expect(input.value).toBe('');
   });
+
+  it('does NOT call onAdd when blur target is a remove × inside the same chip-editor', async () => {
+    const onAdd = vi.fn();
+    const onRemove = vi.fn();
+    render(<ChipEditor values={['EXISTING']} onAdd={onAdd} onRemove={onRemove} placeholder="add" />);
+    const input = screen.getByPlaceholderText('add');
+    await userEvent.type(input, 'partial-draft');
+    // Click the × — this triggers blur on the input with relatedTarget = the × button
+    const removeBtn = screen.getByLabelText('Remove EXISTING');
+    await userEvent.click(removeBtn);
+    expect(onRemove).toHaveBeenCalledWith('EXISTING');
+    expect(onAdd).not.toHaveBeenCalled();
+  });
 });

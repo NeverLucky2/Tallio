@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import PhoneCapture from './PhoneCapture.jsx';
 import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
@@ -768,8 +768,14 @@ function BillTracker() {
     URL.revokeObjectURL(url);
   };
 
-  const categoriesById = new Map(cats.categories.map(c => [c.id, c]));
-  const fallbackCategory = cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' };
+  const categoriesById = React.useMemo(
+    () => new Map(cats.categories.map(c => [c.id, c])),
+    [cats.categories]
+  );
+  const fallbackCategory = React.useMemo(
+    () => cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' },
+    [cats]
+  );
 
   return (
     <div className="app-root">

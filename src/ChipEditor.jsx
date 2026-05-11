@@ -32,7 +32,14 @@ export default function ChipEditor({ values, onAdd, onRemove, placeholder }) {
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
-        onBlur={submit}
+        onBlur={(e) => {
+          // Ignore focus shifts INTO another element of this chip-editor
+          // (e.g. clicking a chip's × button) — those should not commit the draft.
+          if (e.currentTarget.parentElement && e.currentTarget.parentElement.contains(e.relatedTarget)) {
+            return;
+          }
+          submit();
+        }}
       />
     </div>
   );
