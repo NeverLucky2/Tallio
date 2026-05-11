@@ -2673,3 +2673,25 @@
     padding-left: 0;
   }
 }
+
+/* ============================ Error toast variant ============================ */
+
+.toast-error {
+  background: var(--red-bg, #7f1d1d33);
+  border: 1px solid var(--red, #EF4444);
+  color: var(--text, #F1F5F9);
+  padding-right: 36px; /* room for dismiss × */
+  position: relative;
+}
+.toast-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+}
+.toast-dismiss:hover { opacity: 1; }

@@ -6,12 +6,12 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV2 } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
-import { DEFAULT_CATEGORIES } from './categoriesDefaults.js';
+import { initializeFromStorage } from './initializeFromStorage.js';
 import './App.css';
 
 const formatCurrency = (amount) => {
@@ -437,39 +437,11 @@ const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fal
 
 function BillTracker() {
   // One-time schema-v1 → v2 migration: items.category (string) → items.categoryId (id ref).
-  // Backup is written before transformation so the user can recover if anything goes wrong.
-  const [{ bills: initialBills }] = useState(() => {
-    try {
-      const rawBills = localStorage.getItem('billtracker-bills');
-      const rawCats  = localStorage.getItem('billtracker-categories');
-      const ver      = parseInt(localStorage.getItem('billtracker-schema-version') || '1', 10);
-
-      const v1Bills = rawBills ? migrateBills(JSON.parse(rawBills)) : [];
-      const existingCats = rawCats ? JSON.parse(rawCats) : null;
-
-      if (ver < 2 && rawBills && !localStorage.getItem('billtracker-pre-categories-backup')) {
-        localStorage.setItem('billtracker-pre-categories-backup', JSON.stringify({
-          ts: new Date().toISOString(),
-          bills: v1Bills,
-        }));
-      }
-
-      const { bills: v2Bills, categories: v2Cats } = migrateToV2(v1Bills, existingCats, DEFAULT_CATEGORIES);
-
-      if (ver < 2) {
-        localStorage.setItem('billtracker-bills', JSON.stringify(v2Bills));
-        localStorage.setItem('billtracker-categories', JSON.stringify(v2Cats));
-        localStorage.setItem('billtracker-schema-version', '2');
-      }
-
-      return { bills: v2Bills };
-    } catch (e) {
-      console.error('Migration failed:', e);
-      return { bills: [] };
-    }
-  });
-
+  // Extracted to initializeFromStorage.js for testability. Writes a backup before transforming
+  // so the user can recover if migration throws.
+  const [{ bills: initialBills, migrationError }] = useState(() => initializeFromStorage(window.localStorage));
   const [bills, setBills] = useState(initialBills);
+  const [migrationBanner, setMigrationBanner] = useState(migrationError);
 
   const cats = useCategories();
   const [screen, setScreen] = useState('main');
@@ -895,6 +867,36 @@ function BillTracker() {
       {undoToast && (
         <div className="toast">
           ↩ Change undone
+        </div>
+      )}
+
+      {/* Migration recovery banner */}
+      {migrationBanner && (
+        <div className="toast toast-error">
+          {migrationBanner.message}
+          <button
+            type="button"
+            className="toast-dismiss"
+            aria-label="Dismiss"
+            onClick={() => setMigrationBanner(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Storage quota error toast */}
+      {cats.storageError && (
+        <div className="toast toast-error">
+          {cats.storageError.message}
+          <button
+            type="button"
+            className="toast-dismiss"
+            aria-label="Dismiss"
+            onClick={cats.clearStorageError}
+          >
+            ×
+          </button>
         </div>
       )}
 
