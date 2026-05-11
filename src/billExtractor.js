@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const PROMPT = `You are extracting structured data from a bill, receipt, or credit-card statement image.
+const PROMPT = `You are extracting structured data from a bill, receipt, paystub, brokerage statement, or credit-card statement image.
 
 Return ONLY a JSON object matching this schema, with no surrounding prose:
 {
@@ -16,13 +16,19 @@ Return ONLY a JSON object matching this schema, with no surrounding prose:
 }
 
 Rules:
-- Extract every line-item charge you can identify.
-- Skip subtotals, totals, tax-only lines, payment/balance lines, and headers.
-- For credit-card statements: each transaction is one item. Skip "PAYMENT - THANK YOU" and similar.
+- Extract every line-item that moves money in or out, including refunds, credits, deposits, and paycheck deductions.
+- Amounts:
+  - Purchases / outflows / deductions: positive (e.g., 84.20)
+  - Refunds / credits / returns: NEGATIVE (e.g., -40.00)
+  - Income (deposits, paycheck gross, dividends, interest, Zelle): positive
+- For paystubs: extract gross pay as one positive line, then each deduction (federal tax, state tax, FICA, 401k, Roth, insurance, etc.) as a positive line using the deduction name as description. Use the current-period column, not YTD.
+- For brokerage statements: extract dividends, interest, distributions as positive lines. SKIP buy/sell trades.
+- For credit-card statements: each transaction is one item. Refunds / returns / credits → negative amount. Skip "PAYMENT - THANK YOU" lines (those are the user's payment to the card issuer, not a transaction).
+- Always skip: statement totals/balances, sales-tax breakdown lines on single receipts, account-number headers, table-rule lines.
 - If amount appears as "$12.99", "12.99", or "12,99" — normalize to 12.99.
-- "month" is the statement month for credit-card statements, or the receipt month for single-purchase receipts. Format YYYY-MM. Use null if you cannot read it.
+- "month" is the statement month for credit-card / paystub / brokerage statements, or the receipt month for single-purchase receipts. Format YYYY-MM. Use null if you cannot read it.
 - Each item's "date" is the transaction's posting/purchase date in YYYY-MM-DD. If the printed date omits the year, infer it from the statement period (transactions in Dec on a Jan statement use the previous year). Use null if you cannot read a date for an item.
-- "vendor" should be the store/merchant name (or card name for statements), null if unclear.
+- "vendor" should be the store/merchant name (or card name for statements, employer name for paystubs, brokerage name for brokerage statements). Use null if unclear.
 - If you cannot read the image at all, return {"vendor": null, "month": null, "items": []}.`;
 
 export function parseDataUrl(dataUrl) {
