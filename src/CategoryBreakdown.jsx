@@ -1,3 +1,7 @@
+import { useState, useEffect } from 'react';
+import ColorPicker from './ColorPicker.jsx';
+import IconPicker from './IconPicker.jsx';
+
 const FALLBACK = { name: 'Other', icon: '📋', color: '#6B7280' };
 
 function lookup(categories, categoryId, otherCategoryId) {
@@ -22,7 +26,16 @@ function formatMonth(monthString) {
   return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-export default function CategoryBreakdown({ items, categories, otherCategoryId, selectedMonth }) {
+export default function CategoryBreakdown({ items, categories, otherCategoryId, selectedMonth, onUpdateCategory }) {
+  const [editingId, setEditingId] = useState(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const handler = (e) => { if (e.key === 'Escape') setEditingId(null); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingId]);
+
   const totalsById = new Map();
   for (const item of items || []) {
     if (!item) continue;
@@ -48,8 +61,58 @@ export default function CategoryBreakdown({ items, categories, otherCategoryId, 
         <p className="panel-empty">No expenses for {selectedMonth ? formatMonth(selectedMonth) : 'this period'}</p>
       ) : (
         <div className="cat-list">
+          {editingId && (
+            <div className="cat-edit-backdrop" onClick={() => setEditingId(null)} />
+          )}
           {sorted.map(({ category, amount }) => {
             const pct = (amount / max) * 100;
+
+            if (onUpdateCategory) {
+              return (
+                <div key={category.id || category.name} className={`cat-row-wrap${editingId === category.id ? ' cat-row-wrap-editing' : ''}`}>
+                  <button
+                    type="button"
+                    className={`cat-row${editingId === category.id ? ' cat-row-active' : ''}`}
+                    onClick={() => setEditingId(editingId === category.id ? null : category.id)}
+                    aria-label={`Edit ${category.name}`}
+                  >
+                    <div className="cat-meta">
+                      <div className="cat-name">
+                        <span className="cat-icon">{category.icon}</span>
+                        {category.name}
+                      </div>
+                      <span className="cat-amount" style={{ color: category.color }}>
+                        {formatCurrency(amount)}
+                      </span>
+                    </div>
+                    <div className="cat-track">
+                      <div className="cat-fill" style={{ width: `${pct}%`, background: category.color }} />
+                    </div>
+                  </button>
+                  {editingId === category.id && (
+                    <div className="cat-edit-popover" onClick={(e) => e.stopPropagation()}>
+                      <div className="cat-edit-header">
+                        <span className="cat-edit-title">
+                          {category.icon} {category.name}
+                        </span>
+                      </div>
+                      <div className="cat-edit-field">
+                        <span className="cat-edit-label">Color</span>
+                        <ColorPicker value={category.color} onChange={(color) => onUpdateCategory(category.id, { color })} />
+                      </div>
+                      <div className="cat-edit-field">
+                        <span className="cat-edit-label">Icon</span>
+                        <IconPicker value={category.icon} onChange={(icon) => onUpdateCategory(category.id, { icon })} />
+                      </div>
+                      <div className="cat-edit-footer">
+                        <button type="button" className="btn" onClick={() => setEditingId(null)}>Done</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div key={category.id || category.name}>
                 <div className="cat-meta">

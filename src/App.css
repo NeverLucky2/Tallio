@@ -1056,6 +1056,48 @@
   transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.cat-row-wrap { position: relative; }
+.cat-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+.cat-row:hover { background: var(--bg, #1E293B); border-radius: 4px; }
+.cat-row-active { background: var(--bg, #1E293B); border-radius: 4px; }
+
+.cat-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.cat-edit-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 31;
+  margin-top: 6px;
+  background: var(--bg-elev, var(--bg-raised, #0B1220));
+  border: 1px solid var(--border-strong, #334155);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  min-width: 240px;
+}
+.cat-edit-header { margin-bottom: 10px; font-weight: 600; font-size: 13px; }
+.cat-edit-title { font-size: 13px; }
+.cat-edit-field { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cat-edit-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted, #64748B);
+  min-width: 50px;
+}
+.cat-edit-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+
 /* ---- Tracked Keywords ---- */
 
 .track-input-row {

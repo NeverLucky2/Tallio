@@ -1079,6 +1079,7 @@ function BillTracker() {
               categories={cats.categories}
               otherCategoryId={cats.otherId()}
               selectedMonth={searchActive ? null : selectedMonth}
+              onUpdateCategory={cats.updateCategory}
             />
             <TrackedPanel
               bills={bills}
