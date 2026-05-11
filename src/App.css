@@ -2794,3 +2794,27 @@
 .item-row-credit, .item-row-mobile-credit {
   background: rgba(107, 212, 154, 0.04);
 }
+
+.flow-control {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.flow-control-option {
+  position: relative;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text-secondary, #8a8d94);
+  transition: all 0.15s ease;
+}
+.flow-control-option:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+.flow-control-option input { position: absolute; opacity: 0; pointer-events: none; }
+.flow-control-option:hover { color: var(--text-primary, #e6e7ea); }
+.flow-control-option.active {
+  background: rgba(212, 168, 83, 0.12);
+  color: #d4a853;
+}

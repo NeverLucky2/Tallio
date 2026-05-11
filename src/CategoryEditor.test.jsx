@@ -144,4 +144,70 @@ describe('CategoryEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: /move all/i }));
     expect(onMoveAll).toHaveBeenCalledWith('c3');
   });
+
+  it('renders flow segmented control with 3 options', () => {
+    const category = { id: 'c1', name: 'Groceries', icon: '🛒', color: '#10B981', flow: 'expense', keywords: [], templates: [], builtin: true };
+    render(
+      <CategoryEditor
+        category={category}
+        itemCount={0}
+        otherCategories={[]}
+        onMoveAll={() => {}}
+        onUpdate={() => {}}
+        onAddKeyword={() => {}}
+        onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}}
+        onRemoveTemplate={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    expect(screen.getByRole('radio', { name: /income/i })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /expense/i })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /savings/i })).toBeTruthy();
+  });
+
+  it('changing flow on a category with zero items calls onUpdate immediately (no warning)', async () => {
+    const onUpdate = vi.fn();
+    const category = { id: 'c1', name: 'Hobby', icon: '🎨', color: '#fff', flow: 'expense', keywords: [], templates: [], builtin: false };
+    render(
+      <CategoryEditor
+        category={category}
+        itemCount={0}
+        otherCategories={[]}
+        onMoveAll={() => {}}
+        onUpdate={onUpdate}
+        onAddKeyword={() => {}}
+        onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}}
+        onRemoveTemplate={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    await userEvent.click(screen.getByRole('radio', { name: /income/i }));
+    expect(onUpdate).toHaveBeenCalledWith({ flow: 'income' });
+  });
+
+  it('changing flow on a category with items shows warning before calling onUpdate', async () => {
+    const onUpdate = vi.fn();
+    const category = { id: 'c1', name: 'Cash Savings', icon: '🪙', color: '#fff', flow: 'savings', keywords: [], templates: [], builtin: true };
+    render(
+      <CategoryEditor
+        category={category}
+        itemCount={14}
+        otherCategories={[]}
+        onMoveAll={() => {}}
+        onUpdate={onUpdate}
+        onAddKeyword={() => {}}
+        onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}}
+        onRemoveTemplate={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    await userEvent.click(screen.getByRole('radio', { name: /expense/i }));
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText(/14 items/i)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }));
+    expect(onUpdate).toHaveBeenCalledWith({ flow: 'expense' });
+  });
 });

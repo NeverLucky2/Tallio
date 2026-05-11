@@ -3,6 +3,51 @@ import IconPicker from './IconPicker.jsx';
 import ColorPicker from './ColorPicker.jsx';
 import ChipEditor from './ChipEditor.jsx';
 
+const FLOW_OPTIONS = [
+  { key: 'income',  label: 'Income'  },
+  { key: 'expense', label: 'Expense' },
+  { key: 'savings', label: 'Savings' },
+];
+
+function FlowControl({ value, onChange }) {
+  return (
+    <div className="flow-control" role="radiogroup" aria-label="Category flow">
+      {FLOW_OPTIONS.map(opt => (
+        <label
+          key={opt.key}
+          className={`flow-control-option${value === opt.key ? ' active' : ''}`}
+        >
+          <input
+            type="radio"
+            name="flow"
+            value={opt.key}
+            checked={value === opt.key}
+            onChange={() => onChange(opt.key)}
+          />
+          <span>{opt.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function FlowChangeDialog({ category, fromFlow, toFlow, itemCount, onConfirm, onCancel }) {
+  return (
+    <div className="dialog-overlay" onClick={onCancel}>
+      <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
+        <h2 className="dialog-title">Change flow on "{category.name}"?</h2>
+        <p className="dialog-body">
+          Changing this category from <strong>{fromFlow}</strong> to <strong>{toFlow}</strong> will reclassify {itemCount} item{itemCount === 1 ? '' : 's'} into the {toFlow === 'income' ? 'Income' : toFlow === 'savings' ? 'Saved' : 'Spent'} bucket. This affects past months too.
+        </p>
+        <div className="dialog-actions">
+          <button className="btn dialog-btn-cancel" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-primary dialog-btn-confirm" onClick={onConfirm} autoFocus>Continue</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CategoryEditor({
   category,
   itemCount,
@@ -18,22 +63,34 @@ export default function CategoryEditor({
   const [name, setName] = useState(category.name);
   const [nameError, setNameError] = useState('');
   const [moveTarget, setMoveTarget] = useState('');
+  const [pendingFlow, setPendingFlow] = useState(null);
 
-  // Reset local draft when the selected category changes.
   useEffect(() => {
     setName(category.name);
     setNameError('');
     setMoveTarget('');
+    setPendingFlow(null);
   }, [category.id, category.name]);
 
   const commitName = () => {
     const v = name.trim();
-    if (!v) {
-      setNameError('Name required');
-      return;
-    }
+    if (!v) { setNameError('Name required'); return; }
     setNameError('');
     if (v !== category.name) onUpdate({ name: v });
+  };
+
+  const handleFlowSelect = (nextFlow) => {
+    if (nextFlow === category.flow) return;
+    if (itemCount === 0) {
+      onUpdate({ flow: nextFlow });
+    } else {
+      setPendingFlow(nextFlow);
+    }
+  };
+
+  const confirmFlowChange = () => {
+    if (pendingFlow) onUpdate({ flow: pendingFlow });
+    setPendingFlow(null);
   };
 
   return (
@@ -56,6 +113,11 @@ export default function CategoryEditor({
             onBlur={commitName}
           />
           {nameError && <span className="cat-editor-error">{nameError}</span>}
+        </label>
+
+        <label className="cat-editor-field">
+          <span className="cat-editor-label">Flow</span>
+          <FlowControl value={category.flow || 'expense'} onChange={handleFlowSelect} />
         </label>
 
         <label className="cat-editor-field">
@@ -102,7 +164,7 @@ export default function CategoryEditor({
         >
           Delete
         </button>
-        {itemCount > 0 && (
+        {itemCount > 0 && !pendingFlow && (
           <div className="cat-editor-move-all">
             <span className="cat-editor-delete-hint">
               Move {itemCount} item{itemCount === 1 ? '' : 's'} to:
@@ -121,16 +183,24 @@ export default function CategoryEditor({
               type="button"
               className="btn"
               disabled={!moveTarget}
-              onClick={() => {
-                onMoveAll(moveTarget);
-                setMoveTarget('');
-              }}
+              onClick={() => { onMoveAll(moveTarget); setMoveTarget(''); }}
             >
               Move all
             </button>
           </div>
         )}
       </div>
+
+      {pendingFlow && (
+        <FlowChangeDialog
+          category={category}
+          fromFlow={category.flow || 'expense'}
+          toFlow={pendingFlow}
+          itemCount={itemCount}
+          onConfirm={confirmFlowChange}
+          onCancel={() => setPendingFlow(null)}
+        />
+      )}
     </div>
   );
 }
