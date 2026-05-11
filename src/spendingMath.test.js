@@ -715,6 +715,11 @@ describe('migrateToV3', () => {
     expect(paycheck.id.length).toBeGreaterThan(0);
   });
 
+  it('appends all seeds when categories is empty', () => {
+    const { categories } = migrateToV3([], [], seedV3);
+    expect(categories.map(c => c.name)).toEqual(['Paycheck', 'Other Income', '401(k)']);
+  });
+
   it('does NOT duplicate a seed when a category with the same name already exists', () => {
     const withPaycheck = [
       ...v2Cats,
