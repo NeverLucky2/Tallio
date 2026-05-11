@@ -385,24 +385,16 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
 };
 
 
-// ---- Subscriptions Panel ----
+// ---- Recurring Panels (split by flow) ----
 
-const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
-  const all = findRecurringCharges(bills, today);
-  const charges = all.filter(c => !trackedKeywords.some(kw =>
-    c.description.toUpperCase().includes(kw.toUpperCase())
-  ));
+const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallbackCategory }) => {
   if (charges.length === 0) return null;
-
-  const monthlyTotal = charges
-    .filter(c => c.active)
-    .reduce((s, c) => s + c.lastAmount, 0);
-
+  const total = charges.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3 className="panel-title">Subscriptions</h3>
-        <span className="panel-sub">~{formatCurrency(monthlyTotal)}/mo</span>
+        <h3 className="panel-title">{title}</h3>
+        <span className="panel-sub">~{formatCurrency(total)}/mo {totalLabel}</span>
       </div>
       <div className="sub-list">
         {charges.map(c => {
@@ -422,8 +414,8 @@ const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fal
               </div>
               <div className="sub-row-right">
                 <div className="sub-amount">
-                  {formatCurrency(c.lastAmount)}
-                  {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(c.avgAmount)}`}>varies</span>}
+                  {formatCurrency(Math.abs(c.lastAmount))}
+                  {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(Math.abs(c.avgAmount))}`}>varies</span>}
                 </div>
                 <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
                   {c.active ? 'ACTIVE' : 'INACTIVE'}
@@ -434,6 +426,44 @@ const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fal
         })}
       </div>
     </div>
+  );
+};
+
+const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
+  const all = findRecurringCharges(bills, today, categoriesById);
+  const filtered = all.filter(c => !trackedKeywords.some(kw =>
+    c.description.toUpperCase().includes(kw.toUpperCase())
+  ));
+  if (filtered.length === 0) return null;
+
+  const income   = filtered.filter(c => c.flow === 'income');
+  const expense  = filtered.filter(c => c.flow === 'expense');
+  const savings  = filtered.filter(c => c.flow === 'savings');
+
+  return (
+    <>
+      <RecurringSection
+        title="Recurring · Income"
+        charges={income}
+        totalLabel="in"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+      <RecurringSection
+        title="Recurring · Expenses"
+        charges={expense}
+        totalLabel="out"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+      <RecurringSection
+        title="Recurring · Savings"
+        charges={savings}
+        totalLabel="saved"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+    </>
   );
 };
 
@@ -1105,7 +1135,7 @@ function BillTracker() {
               categoriesById={categoriesById}
               fallbackCategory={fallbackCategory}
             />
-            <Subscriptions
+            <RecurringPanels
               bills={bills}
               today={todayMonth}
               trackedKeywords={trackedKeywords}
