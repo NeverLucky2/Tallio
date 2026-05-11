@@ -477,6 +477,7 @@ function BillTracker() {
   const [{ bills: initialBills, migrationError, conflicts: initialConflicts }] = useState(() => initializeFromStorage(window.localStorage));
   const [bills, setBills] = useState(initialBills);
   const [migrationBanner, setMigrationBanner] = useState(migrationError);
+  // eslint-disable-next-line no-unused-vars -- staged for Task 11 (RecurringConflictDialog)
   const [pendingConflictQueue, setPendingConflictQueue] = useState(initialConflicts || []);
 
   const cats = useCategories();
