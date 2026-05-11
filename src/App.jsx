@@ -962,6 +962,7 @@ function BillTracker() {
           bills={bills}
           selectedMonth={selectedMonth}
           onSelectMonth={setSelectedMonth}
+          categoriesById={categoriesById}
         />
 
         {/* Main Grid */}
