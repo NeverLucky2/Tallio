@@ -977,17 +977,16 @@ function BillTracker() {
 
   const resolveConflictLink = (conflict) => {
     pushHistory(bills);
-    setBills(prev => prev.map(b => b.id === conflict.existingBillId
+    // Apply Link locally, then re-run catch-up on the linked state.
+    const linked = bills.map(b => b.id === conflict.existingBillId
       ? { ...b, recurringChainId: conflict.chainId, recurring: true }
-      : b));
-    setPendingConflictQueue(q => q.slice(1));
-    setTimeout(() => {
-      setBills(prev => {
-        const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(prev, todayMonth);
-        setPendingConflictQueue(qPrev => [...qPrev.filter(c => c.chainId !== conflict.chainId), ...newConflicts]);
-        return caughtUp;
-      });
-    }, 0);
+      : b);
+    const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(linked, todayMonth);
+    setBills(caughtUp);
+    setPendingConflictQueue(qPrev => [
+      ...qPrev.filter(c => c.chainId !== conflict.chainId).slice(1),
+      ...newConflicts,
+    ]);
   };
 
   const resolveConflictDuplicate = (conflict) => {
@@ -1009,15 +1008,13 @@ function BillTracker() {
       recurring: true,
       recurringChainId: conflict.chainId,
     };
-    setBills(prev => [...prev, spawn]);
-    setPendingConflictQueue(q => q.slice(1));
-    setTimeout(() => {
-      setBills(prev => {
-        const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(prev, todayMonth);
-        setPendingConflictQueue(qPrev => [...qPrev.filter(c => c.chainId !== conflict.chainId), ...newConflicts]);
-        return caughtUp;
-      });
-    }, 0);
+    const withSpawn = [...bills, spawn];
+    const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(withSpawn, todayMonth);
+    setBills(caughtUp);
+    setPendingConflictQueue(qPrev => [
+      ...qPrev.filter(c => c.chainId !== conflict.chainId).slice(1),
+      ...newConflicts,
+    ]);
   };
 
   const resolveConflictSkip = (conflict) => {
