@@ -26,8 +26,10 @@ describe('RecurringConflictDialog', () => {
         onSkip={() => {}}
       />
     );
-    expect(screen.getByText(/Honda Finance/i)).toBeTruthy();
-    expect(screen.getByText(/2026|May/i)).toBeTruthy();
+    // Title says "May 2026 already has a Honda Finance bill."
+    expect(screen.getByText(/already has a Honda Finance bill/i)).toBeTruthy();
+    // Multiple elements contain "May 2026" (title, body, list items) — getAllByText.
+    expect(screen.getAllByText(/May 2026/i).length).toBeGreaterThan(0);
   });
 
   it('renders three actions: Link, Duplicate, Skip', () => {
