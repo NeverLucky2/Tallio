@@ -1,3 +1,6 @@
+import { nanoid } from 'nanoid';
+import { OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -265,4 +268,43 @@ export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
   }
 
   return buckets;
+}
+
+// One-time schema-v1 → schema-v2 migration.
+// v1: item.category is a string (the category name).
+// v2: item.categoryId is a stable id reference; categories are user-managed data.
+//
+// Inputs:
+//   bills          — current bills array (v1 or v2 shape)
+//   categories     — current categories array (null on first migration; v2 array thereafter)
+//   seedCategories — DEFAULT_CATEGORIES (used only when categories is null)
+//
+// Returns: { bills, categories } both in v2 shape. Idempotent.
+export function migrateToV2(bills, categories, seedCategories) {
+  // Build (or reuse) the categories array first.
+  const v2Cats = (categories && Array.isArray(categories) && categories.length > 0)
+    ? categories
+    : (seedCategories || []).map(seed => ({ ...seed, id: nanoid(8) }));
+
+  const otherId =
+    (v2Cats.find(c => c.name === OTHER_CATEGORY_NAME) || v2Cats[0] || {}).id;
+
+  const nameToId = new Map();
+  for (const c of v2Cats) nameToId.set(c.name, c.id);
+
+  const v2Bills = (bills || []).map(bill => {
+    if (!bill || !Array.isArray(bill.items)) return bill;
+    const items = bill.items.map(item => {
+      if (!item) return item;
+      // Already v2 — leave it.
+      if (typeof item.categoryId === 'string') return item;
+      // Migrate from v1.
+      const idFromName = nameToId.get(item.category);
+      const { category, ...rest } = item;
+      return { ...rest, categoryId: idFromName || otherId };
+    });
+    return { ...bill, items };
+  });
+
+  return { bills: v2Bills, categories: v2Cats };
 }

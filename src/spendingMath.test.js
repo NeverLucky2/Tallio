@@ -554,3 +554,89 @@ describe('getMonthItems', () => {
     expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['b']);
   });
 });
+
+import { migrateToV2 } from './spendingMath.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+
+describe('migrateToV2', () => {
+  it('produces v2 categories with stable ids and seeded keywords', () => {
+    const { categories } = migrateToV2([], null, DEFAULT_CATEGORIES);
+    expect(categories).toHaveLength(DEFAULT_CATEGORIES.length);
+    for (const cat of categories) {
+      expect(typeof cat.id).toBe('string');
+      expect(cat.id.length).toBeGreaterThan(0);
+    }
+    const dining = categories.find(c => c.name === 'Dining');
+    expect(dining.keywords).toContain('MCDONALD');
+  });
+
+  it('rewrites items: item.category string becomes item.categoryId', () => {
+    const v1Bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'X', amount: 10, category: 'Utilities', date: null },
+        { id: 'i2', description: 'Y', amount: 20, category: 'Dining',    date: '2026-04-15' },
+      ]},
+    ];
+    const { bills, categories } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    const utilId = categories.find(c => c.name === 'Utilities').id;
+    const dineId = categories.find(c => c.name === 'Dining').id;
+
+    expect(bills[0].items[0].categoryId).toBe(utilId);
+    expect(bills[0].items[1].categoryId).toBe(dineId);
+    // Old string field stripped:
+    expect(bills[0].items[0].category).toBeUndefined();
+    expect(bills[0].items[1].category).toBeUndefined();
+    // Other item fields preserved:
+    expect(bills[0].items[0].description).toBe('X');
+    expect(bills[0].items[0].amount).toBe(10);
+    expect(bills[0].items[1].date).toBe('2026-04-15');
+  });
+
+  it('maps unrecognized category strings to "Other"', () => {
+    const v1Bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'X', amount: 10, category: 'NONEXISTENT', date: null },
+      ]},
+    ];
+    const { bills, categories } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    const otherId = categories.find(c => c.name === OTHER_CATEGORY_NAME).id;
+    expect(bills[0].items[0].categoryId).toBe(otherId);
+  });
+
+  it('falls back to first category when "Other" is somehow missing from seed', () => {
+    const seedNoOther = DEFAULT_CATEGORIES.filter(c => c.name !== OTHER_CATEGORY_NAME);
+    const v1Bills = [{ id: 'b1', vendor: 'V', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'NONEXISTENT', date: null },
+    ]}];
+    const { bills, categories } = migrateToV2(v1Bills, null, seedNoOther);
+    expect(bills[0].items[0].categoryId).toBe(categories[0].id);
+  });
+
+  it('is idempotent when given v2 bills + existing categories', () => {
+    // First pass: produces v2 bills + categories.
+    const v1Bills = [{ id: 'b1', vendor: 'V', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'Dining', date: null },
+    ]}];
+    const first = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    // Second pass: pass v2 bills back in WITH the categories from the first pass.
+    const second = migrateToV2(first.bills, first.categories, DEFAULT_CATEGORIES);
+    expect(second.bills).toEqual(first.bills);
+    expect(second.categories).toEqual(first.categories);
+  });
+
+  it('preserves bill-level fields (vendor, month, id)', () => {
+    const v1Bills = [{ id: 'b1', vendor: 'Acme', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'Other', date: null },
+    ]}];
+    const { bills } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    expect(bills[0].id).toBe('b1');
+    expect(bills[0].vendor).toBe('Acme');
+    expect(bills[0].month).toBe('2026-04');
+  });
+
+  it('returns empty bills + seed categories when input bills is null/undefined', () => {
+    const a = migrateToV2(null, null, DEFAULT_CATEGORIES);
+    expect(a.bills).toEqual([]);
+    expect(a.categories).toHaveLength(DEFAULT_CATEGORIES.length);
+  });
+});
