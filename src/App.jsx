@@ -882,7 +882,7 @@ function BillTracker() {
       if (makeRecurring && localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
         setPendingRecurringTip(true);
       }
-    } catch (e) {
+    } catch {
       // storage unavailable — silently skip the tip
     }
     maybeShowUndoTip();
@@ -925,13 +925,13 @@ function BillTracker() {
       if (localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
         setPendingRecurringTip(true);
       }
-    } catch (e) { /* storage unavailable */ }
+    } catch { /* storage unavailable */ }
     maybeShowUndoTip();
   };
 
   const dismissRecurringTip = () => {
     setPendingRecurringTip(false);
-    try { localStorage.setItem('billtracker-recurring-tip-seen', 'true'); } catch (e) { /* quota */ }
+    try { localStorage.setItem('billtracker-recurring-tip-seen', 'true'); } catch { /* quota */ }
   };
 
   const dismissUndoTip = () => {
@@ -1017,7 +1017,7 @@ function BillTracker() {
     ]);
   };
 
-  const resolveConflictSkip = (conflict) => {
+  const resolveConflictSkip = () => {
     // No bill changes. Pop head; don't re-run catch-up. The skipped month
     // re-prompts on next app load (intentional per spec).
     setPendingConflictQueue(q => q.slice(1));

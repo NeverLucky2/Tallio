@@ -2446,7 +2446,8 @@
   padding: 14px;
 }
 
-.dialog-card {
+.dialog-card,
+.dialog {
   background: rgba(20, 22, 28, 0.95);
   border: 1px solid rgba(240, 230, 210, 0.12);
   border-radius: 12px;
