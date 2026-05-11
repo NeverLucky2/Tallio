@@ -316,14 +316,16 @@ export function migrateToV2(bills, categories, seedCategories) {
 //
 // Bills are unchanged — item amount-sign relaxation is additive.
 //
-// Idempotent: if every category already has a `flow` field of a known kind,
-// inputs are returned untouched (no duplicate seed append).
+// Idempotent: if every category already has a `flow` field of a known kind
+// AND every seed category (by name) is present, inputs are returned untouched.
 export function migrateToV3(bills, categories, seedCategoriesV3) {
   const cats = Array.isArray(categories) ? categories : [];
   const allHaveFlow = cats.length > 0 && cats.every(c =>
     c && (c.flow === 'income' || c.flow === 'expense' || c.flow === 'savings')
   );
-  if (allHaveFlow) {
+  const existingNames = new Set(cats.map(c => c && c.name));
+  const allSeedsPresent = (seedCategoriesV3 || []).every(s => existingNames.has(s.name));
+  if (allHaveFlow && allSeedsPresent) {
     return { bills: bills || [], categories: cats };
   }
 
@@ -331,9 +333,9 @@ export function migrateToV3(bills, categories, seedCategoriesV3) {
   const backfilled = cats.map(c => ({ ...c, flow: c.flow || 'expense' }));
 
   // 2. Append seeds by name (skip duplicates).
-  const existingNames = new Set(backfilled.map(c => c.name));
+  const backfilledNames = new Set(backfilled.map(c => c.name));
   const newSeeds = (seedCategoriesV3 || [])
-    .filter(s => !existingNames.has(s.name))
+    .filter(s => !backfilledNames.has(s.name))
     .map(s => ({ ...s, id: nanoid(8) }));
 
   return {

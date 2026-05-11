@@ -17,7 +17,7 @@ describe('initializeFromStorage', () => {
     const result = initializeFromStorage(storage);
     expect(result.bills).toEqual([]);
     expect(result.migrationError).toBeNull();
-    expect(storage.getItem('billtracker-schema-version')).toBe('2');
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
     const cats = JSON.parse(storage.getItem('billtracker-categories'));
     expect(cats.length).toBeGreaterThan(0);
     for (const c of cats) expect(typeof c.id).toBe('string');
@@ -51,7 +51,7 @@ describe('initializeFromStorage', () => {
     expect(backup.ts).toBeTruthy();
 
     // Schema bumped
-    expect(storage.getItem('billtracker-schema-version')).toBe('2');
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
 
     // Categories persisted
     const cats = JSON.parse(storage.getItem('billtracker-categories'));
@@ -103,5 +103,75 @@ describe('initializeFromStorage', () => {
     expect(result.migrationError).not.toBeNull();
     expect(result.migrationError.recovered).toBe(false);
     expect(result.bills).toEqual([]);
+  });
+
+  it('v2 → v3 migration: backfills flow on existing categories', () => {
+    const v2Cats = [
+      { id: 'c_util',  name: 'Utilities', icon: '⚡',  color: '#F59E0B', keywords: [], templates: [], builtin: true },
+      { id: 'c_other', name: 'Other',     icon: '📋', color: '#6B7280', keywords: [], templates: [], builtin: true },
+    ];
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([]),
+      'billtracker-categories':      JSON.stringify(v2Cats),
+      'billtracker-schema-version':  '2',
+    });
+    const result = initializeFromStorage(storage);
+    expect(result.migrationError).toBeNull();
+    const cats = JSON.parse(storage.getItem('billtracker-categories'));
+    for (const c of cats) expect(c.flow).toBeTruthy();
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
+  });
+
+  it('v2 → v3 migration: writes categories-v2-backup before transforming', () => {
+    const v2Cats = [
+      { id: 'c_util', name: 'Utilities', icon: '⚡', color: '#F59E0B', keywords: ['COMED'], templates: [], builtin: true },
+    ];
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([]),
+      'billtracker-categories':      JSON.stringify(v2Cats),
+      'billtracker-schema-version':  '2',
+    });
+    initializeFromStorage(storage);
+    const backup = JSON.parse(storage.getItem('billtracker-categories-v2-backup'));
+    expect(backup.categories).toEqual(v2Cats);
+    expect(backup.ts).toBeTruthy();
+  });
+
+  it('v2 → v3 migration: appends income + savings seeds', () => {
+    const v2Cats = [
+      { id: 'c_other', name: 'Other', icon: '📋', color: '#6B7280', keywords: [], templates: [], builtin: true },
+    ];
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([]),
+      'billtracker-categories':      JSON.stringify(v2Cats),
+      'billtracker-schema-version':  '2',
+    });
+    initializeFromStorage(storage);
+    const cats = JSON.parse(storage.getItem('billtracker-categories'));
+    expect(cats.some(c => c.name === 'Paycheck' && c.flow === 'income')).toBe(true);
+    expect(cats.some(c => c.name === '401(k)' && c.flow === 'savings')).toBe(true);
+    expect(cats.some(c => c.name === 'Other Income' && c.flow === 'income')).toBe(true);
+  });
+
+  it('v3 idempotency: running on already-v3 data does not re-write backup or re-migrate', () => {
+    const storage = makeFakeStorage();
+    initializeFromStorage(storage);
+    const firstCats   = storage.getItem('billtracker-categories');
+    const firstBackup = storage.getItem('billtracker-categories-v2-backup');
+    initializeFromStorage(storage);
+    expect(storage.getItem('billtracker-categories')).toBe(firstCats);
+    expect(storage.getItem('billtracker-categories-v2-backup')).toBe(firstBackup);
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
+  });
+
+  it('fresh install (no prior data): reaches v3 with seeds + version 3 + no backup written', () => {
+    const storage = makeFakeStorage();
+    const result = initializeFromStorage(storage);
+    expect(result.migrationError).toBeNull();
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
+    const cats = JSON.parse(storage.getItem('billtracker-categories'));
+    expect(cats.some(c => c.flow === 'income')).toBe(true);
+    expect(cats.some(c => c.flow === 'savings')).toBe(true);
+    expect(storage.getItem('billtracker-categories-v2-backup')).toBeNull();
   });
 });
