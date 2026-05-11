@@ -14,7 +14,7 @@ export default defineConfig({
     allowedHosts: true,
   },
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.js'],
+    environment: 'jsdom',
+    include: ['src/**/*.test.{js,jsx}'],
   },
 })
