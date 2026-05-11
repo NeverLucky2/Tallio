@@ -210,6 +210,34 @@ describe('useCategories', () => {
     expect(refs[0].billId).toBe('b1');
   });
 
+  it('addCategory accepts flow and round-trips through localStorage', async () => {
+    const { result } = renderHook(() => useCategories());
+
+    let newId;
+    await act(async () => {
+      newId = result.current.addCategory({
+        name: 'Side Hustle',
+        icon: '💼',
+        color: '#6BD49A',
+        flow: 'income',
+      });
+    });
+
+    const cat = result.current.getById(newId);
+    expect(cat.flow).toBe('income');
+    expect(cat.name).toBe('Side Hustle');
+  });
+
+  it('addCategory defaults flow to "expense" when omitted (backwards compatible)', async () => {
+    const { result } = renderHook(() => useCategories());
+    let newId;
+    await act(async () => {
+      newId = result.current.addCategory({ name: 'Hobby', icon: '🎨', color: '#fff' });
+    });
+    const cat = result.current.getById(newId);
+    expect(cat.flow).toBe('expense');
+  });
+
   it('clearStorageError resets storageError to null', async () => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key) {

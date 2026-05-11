@@ -54,13 +54,14 @@ export default function useCategories() {
     return o ? o.id : (categories[0] && categories[0].id);
   }, [categories]);
 
-  const addCategory = useCallback(({ name, icon, color }) => {
+  const addCategory = useCallback(({ name, icon, color, flow }) => {
     const id = nanoid(8);
     setCategories(prev => [...prev, {
       id,
       name: (name || '').trim(),
       icon: icon || '📋',
       color: color || '#6B7280',
+      flow: flow === 'income' || flow === 'savings' ? flow : 'expense',
       keywords: [],
       templates: [],
       builtin: false,
