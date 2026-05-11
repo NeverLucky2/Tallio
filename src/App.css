@@ -2323,3 +2323,353 @@
 .dialog-btn-confirm {
   min-width: 96px;
 }
+
+/* ============================ Manage Categories screen ============================ */
+
+.manage-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.manage-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.manage-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.manage-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.manage-list {
+  width: 240px;
+  border-right: 1px solid var(--border);
+  padding: 12px 8px;
+  overflow-y: auto;
+  background: var(--bg-raised);
+}
+
+.manage-list-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 8px 8px;
+}
+
+.manage-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.manage-list-row:hover {
+  background: var(--bg-card);
+}
+
+.manage-list-row.active {
+  background: var(--bg-card);
+  border-color: var(--border-strong);
+}
+
+.manage-list-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.manage-list-name {
+  flex: 1;
+}
+
+.manage-list-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.manage-editor {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+/* ============================ CategoryEditor ============================ */
+
+.cat-editor {
+  max-width: 640px;
+}
+
+.cat-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cat-editor-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.cat-editor-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cat-editor-fields {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.cat-editor-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cat-editor-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.cat-editor-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.cat-editor-error {
+  font-size: 11px;
+  color: var(--red);
+}
+
+.cat-editor-section {
+  margin-bottom: 16px;
+}
+
+.cat-editor-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.cat-editor-section-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.cat-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cat-editor-delete-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ============================ ChipEditor ============================ */
+
+.chip-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.chip-remove {
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  font-size: 13px;
+}
+
+.chip-input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  font-size: 12px;
+  padding: 4px;
+  min-width: 140px;
+}
+
+/* ============================ Pickers ============================ */
+
+.picker {
+  position: relative;
+  display: inline-block;
+}
+
+.picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: inherit;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.picker-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  min-width: 240px;
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.picker-cell {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.picker-cell:hover {
+  background: var(--bg-card);
+}
+
+.picker-swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.picker-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.picker-swatch:hover {
+  border-color: white;
+}
+
+.picker-swatch-mini {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.picker-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: inherit;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* ============================ Template chips on BillItem ============================ */
+
+.item-template-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 8px 56px;
+  /* aligns under the description input on desktop */
+}
+
+.template-chip {
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.template-chip:hover {
+  background: var(--bg-card);
+}
+
+@media (max-width: 767px) {
+  .item-template-chips {
+    padding-left: 0;
+  }
+}
