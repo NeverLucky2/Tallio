@@ -343,3 +343,19 @@ export function migrateToV3(bills, categories, seedCategoriesV3) {
     categories: [...backfilled, ...newSeeds],
   };
 }
+
+// Pure: compute the flow-aware net of a bill.
+// Returns { income, expense, savings, net } where net = income - expense - savings.
+// Items with an unknown categoryId fall back to 'expense' flow (safe default).
+export function getBillNet(bill, categoriesById) {
+  let income = 0, expense = 0, savings = 0;
+  for (const item of (bill && bill.items) || []) {
+    if (!item || !Number.isFinite(item.amount)) continue;
+    const cat = categoriesById && categoriesById.get(item.categoryId);
+    const flow = cat && cat.flow ? cat.flow : 'expense';
+    if (flow === 'income')        income  += item.amount;
+    else if (flow === 'savings')  savings += item.amount;
+    else                          expense += item.amount;
+  }
+  return { income, expense, savings, net: income - expense - savings };
+}

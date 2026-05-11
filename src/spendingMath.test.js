@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3 } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3, getBillNet } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -747,5 +747,57 @@ describe('migrateToV3', () => {
     ];
     const { bills: outBills } = migrateToV3(bills, v2Cats, seedV3);
     expect(outBills).toEqual(bills);
+  });
+});
+
+describe('getBillNet', () => {
+  const categoriesById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_tax',       { id: 'c_tax',       flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('paycheck bill nets to deposit amount (income - expense - savings)', () => {
+    const bill = {
+      id: 'b1', vendor: 'Acme', month: '2026-05',
+      items: [
+        { id: 'i1', description: 'Gross',   amount: 5200, categoryId: 'c_paycheck' },
+        { id: 'i2', description: 'Fed tax', amount:  687, categoryId: 'c_tax'      },
+        { id: 'i3', description: '401(k)',  amount:  260, categoryId: 'c_401k'     },
+      ],
+    };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.income).toBe(5200);
+    expect(result.expense).toBe(687);
+    expect(result.savings).toBe(260);
+    expect(result.net).toBe(4253); // 5200 - 687 - 260
+  });
+
+  it('credit card bill with refund nets negative (outflow)', () => {
+    const bill = {
+      id: 'b2', vendor: 'Chase', month: '2026-05',
+      items: [
+        { id: 'i1', description: 'Whole Foods',        amount:  84, categoryId: 'c_groceries' },
+        { id: 'i2', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries' },
+      ],
+    };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.income).toBe(0);
+    expect(result.expense).toBe(44);
+    expect(result.savings).toBe(0);
+    expect(result.net).toBe(-44);
+  });
+
+  it('empty bill yields zeros', () => {
+    const result = getBillNet({ items: [] }, categoriesById);
+    expect(result).toEqual({ income: 0, expense: 0, savings: 0, net: 0 });
+  });
+
+  it('items with unknown categoryId are treated as expense (safe default)', () => {
+    const bill = { items: [{ id: 'i1', amount: 10, categoryId: 'unknown' }] };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.expense).toBe(10);
+    expect(result.net).toBe(-10);
   });
 });
