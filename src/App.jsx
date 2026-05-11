@@ -576,25 +576,41 @@ function BillTracker() {
     toastTimerRef.current = setTimeout(() => setUndoToast(false), 2000);
   };
 
-  const totalExpenses = bills.reduce((sum, bill) =>
-    sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
+  const categoriesById = React.useMemo(
+    () => new Map(cats.categories.map(c => [c.id, c])),
+    [cats.categories]
+  );
+  const fallbackCategory = React.useMemo(
+    () => cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' },
+    [cats]
   );
 
   const todayMonth = currentMonthKey();
   const monthBills = bills.filter(bill => bill.month === selectedMonth);
   const selectedMonthItems = getMonthItems(bills, selectedMonth);
-  const selectedMonthTotal = selectedMonthItems.reduce((sum, item) => sum + item.amount, 0);
-  const monthCardTitle = selectedMonth === todayMonth
-    ? 'This Month'
-    : formatMonthCompact(selectedMonth);
+
+  function sumByFlow(items, targetFlow) {
+    let s = 0;
+    for (const it of items) {
+      const cat = categoriesById.get(it.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow === targetFlow) s += it.amount;
+    }
+    return s;
+  }
+
+  const selectedMonthIncome = sumByFlow(selectedMonthItems, 'income');
+  const selectedMonthSpent  = sumByFlow(selectedMonthItems, 'expense');
+  const selectedMonthSaved  = sumByFlow(selectedMonthItems, 'savings');
+  const selectedMonthNet    = selectedMonthIncome - selectedMonthSpent - selectedMonthSaved;
 
   const previousMonth = shiftMonth(selectedMonth, -1);
-  const previousMonthTotal = getMonthItems(bills, previousMonth)
-    .reduce((sum, item) => sum + item.amount, 0);
+  const previousMonthItems = getMonthItems(bills, previousMonth);
+  const previousMonthSpent = sumByFlow(previousMonthItems, 'expense');
 
   let monthDelta = null;
-  if (previousMonthTotal > 0) {
-    const change = (selectedMonthTotal - previousMonthTotal) / previousMonthTotal;
+  if (previousMonthSpent > 0) {
+    const change = (selectedMonthSpent - previousMonthSpent) / previousMonthSpent;
     monthDelta = {
       pct: Math.round(Math.abs(change) * 100),
       direction: change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat',
@@ -767,15 +783,6 @@ function BillTracker() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const categoriesById = React.useMemo(
-    () => new Map(cats.categories.map(c => [c.id, c])),
-    [cats.categories]
-  );
-  const fallbackCategory = React.useMemo(
-    () => cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' },
-    [cats]
-  );
 
   return (
     <div className="app-root">
@@ -952,9 +959,10 @@ function BillTracker() {
 
         {/* Stats */}
         <div className="stats-grid">
-          <SummaryCard title="Total Expenses" amount={totalExpenses} colorKey="blue" />
-          <SummaryCard title={monthCardTitle}  amount={selectedMonthTotal} colorKey="green" delta={monthDelta} />
-          <SummaryCard title="Total Bills"    amount={bills.length} isCount={true} colorKey="purple" />
+          <SummaryCard title="Income" amount={selectedMonthIncome} colorKey="green" />
+          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} />
+          <SummaryCard title="Saved"  amount={selectedMonthSaved}  colorKey="blue"  />
+          <SummaryCard title="Net"    amount={selectedMonthNet}    colorKey="amber" />
         </div>
 
         {/* Spending Hero */}

@@ -364,14 +364,14 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   margin-bottom: 32px;
 }
 
 @media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 22px;
   }
@@ -403,6 +403,16 @@
 .stat-card-blue::before  { background: linear-gradient(90deg, transparent 5%, var(--blue) 50%, transparent 95%); }
 .stat-card-green::before { background: linear-gradient(90deg, transparent 5%, var(--green) 50%, transparent 95%); }
 .stat-card-purple::before{ background: linear-gradient(90deg, transparent 5%, var(--purple) 50%, transparent 95%); }
+.stat-card-amber::before { background: linear-gradient(90deg, transparent 5%, #d4a853 50%, transparent 95%); }
+.stat-card-red::before   { background: linear-gradient(90deg, transparent 5%, #e0928a 50%, transparent 95%); }
+
+.stat-card-amber { border-color: rgba(212, 168, 83, 0.20); }
+.stat-card-amber .stat-value { color: #d4a853; }
+.stat-dot-amber { background: #d4a853; box-shadow: 0 0 6px rgba(212,168,83,0.6); }
+
+.stat-card-red { border-color: rgba(224, 108, 108, 0.20); }
+.stat-card-red .stat-value { color: #e0928a; }
+.stat-dot-red { background: #e0928a; box-shadow: 0 0 6px rgba(224,108,108,0.6); }
 
 .stat-card:hover {
   border-color: var(--border-strong);
