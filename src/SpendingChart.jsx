@@ -31,8 +31,9 @@ const formatCurrencyShort = (amount) => {
 const STACK_HEADROOM_PCT = 88; // leave room above bars for the total label
 
 const VENDOR_COLOR_KEY = 'billtracker-vendor-colors';
+const COLLAPSE_KEY = 'billtracker-chart-collapsed';
 
-export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
+export default function SpendingChart({ bills, selectedMonth, onSelectMonth, categoriesById }) {
   const [vendorFilter, setVendorFilter] = useState(null); // null = all
   const [drillMonth, setDrillMonth] = useState(null);     // null = monthly view
   const previousMonthRef = useRef(null);                  // captured at first drill-in
@@ -53,6 +54,15 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
     }
   }, [vendorColors]);
 
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === 'true'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSE_KEY, collapsed ? 'true' : 'false'); }
+    catch (e) { console.error('Failed to persist chart collapsed state:', e); }
+  }, [collapsed]);
+
   const resolveVendorColor = (vendor) => vendorColors[vendor] || getVendorColor(vendor);
 
   const windowEnd = new Date().toISOString().slice(0, 7);
@@ -63,20 +73,23 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
     for (const b of bills) {
       if (!b.vendor) continue;
       if (!window.has(b.month)) continue;
-      const hasSpending = (b.items || []).some(
-        i => Number.isFinite(i.amount) && i.amount > 0
-      );
+      const hasSpending = (b.items || []).some(i => {
+        if (!Number.isFinite(i.amount) || i.amount <= 0) return false;
+        const cat = categoriesById && categoriesById.get(i.categoryId);
+        const flow = cat && cat.flow ? cat.flow : 'expense';
+        return flow === 'expense';
+      });
       if (hasSpending) set.add(b.vendor);
     }
     return Array.from(set).sort();
-  }, [bills, windowEnd]);
+  }, [bills, windowEnd, categoriesById]);
 
   // If the selected vendor was deleted, treat as "All" without a setState call.
   const effectiveFilter = vendorFilter !== null && vendors.includes(vendorFilter) ? vendorFilter : null;
 
   const monthly = useMemo(
-    () => aggregateByMonth(bills, windowEnd, effectiveFilter),
-    [bills, windowEnd, effectiveFilter]
+    () => aggregateByMonth(bills, windowEnd, categoriesById, effectiveFilter),
+    [bills, windowEnd, categoriesById, effectiveFilter]
   );
 
   // If selectedMonth changes from outside (e.g. header toggle) while a drill is
@@ -105,14 +118,14 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
 
   const daily = useMemo(() => {
     if (!drillMonth) return null;
-    return aggregateByDay(bills, drillMonth, effectiveFilter);
-  }, [bills, drillMonth, effectiveFilter]);
+    return aggregateByDay(bills, drillMonth, categoriesById, effectiveFilter);
+  }, [bills, drillMonth, categoriesById, effectiveFilter]);
 
   const isAll = effectiveFilter === null;
 
   const filteredTotal = useMemo(() => {
-    if (drillMonth && daily) return daily.reduce((s, d) => s + d.total, 0);
-    return monthly.reduce((s, m) => s + m.total, 0);
+    if (drillMonth && daily) return daily.reduce((s, d) => s + d.spent, 0);
+    return monthly.reduce((s, m) => s + m.spent, 0);
   }, [monthly, daily, drillMonth]);
 
   if (bills.length === 0) {
@@ -166,23 +179,23 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
   };
 
   const renderMonthlyBars = () => {
-    if (effectiveFilter && monthly.every(m => m.total === 0)) {
+    if (effectiveFilter && monthly.every(m => m.spent === 0)) {
       return <div className="spending-empty">No spending recorded for {effectiveFilter}.</div>;
     }
-    const max = Math.max(...monthly.map(m => m.total), 1);
+    const max = Math.max(...monthly.map(m => m.spent), 1);
     return (
       <div className="spending-bars">
         {monthly.map(m => {
-          const pct = (m.total / max) * STACK_HEADROOM_PCT;
+          const pct = (m.spent / max) * STACK_HEADROOM_PCT;
           const isCurrent = m.month === selectedMonth;
           return (
             <button
               key={m.month}
               className={`spending-bar${isCurrent ? ' current' : ''}`}
               onClick={() => enterDrill(m.month)}
-              title={`${formatMonthLong(m.month)} — ${formatCurrency(m.total)}`}
+              title={`${formatMonthLong(m.month)} — ${formatCurrency(m.spent)}`}
             >
-              <span className="spending-bar-total">{formatCurrencyShort(m.total)}</span>
+              <span className="spending-bar-total">{formatCurrencyShort(m.spent)}</span>
               <div className="spending-bar-stack" style={{ height: `${pct}%` }}>
                 {isAll ? renderStack(m) : (
                   <div
@@ -207,7 +220,7 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
   const renderStack = (bucket) => {
     const sorted = Object.entries(bucket.byVendor).sort(([a], [b]) => a.localeCompare(b));
     return sorted.map(([vendor, amount]) => {
-      const segPct = bucket.total > 0 ? (amount / bucket.total) * 100 : 0;
+      const segPct = bucket.spent > 0 ? (amount / bucket.spent) * 100 : 0;
       return (
         <div
           key={vendor}
@@ -229,19 +242,19 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
   };
 
   const renderDailyBars = () => {
-    const max = Math.max(...daily.map(d => d.total), 1);
-    if (daily.every(d => d.total === 0)) {
+    const max = Math.max(...daily.map(d => d.spent), 1);
+    if (daily.every(d => d.spent === 0)) {
       return <div className="spending-empty">No spending recorded for {formatMonthLong(drillMonth)}.</div>;
     }
     return (
       <div className="spending-bars spending-bars-daily">
         {daily.map(d => {
-          const pct = (d.total / max) * STACK_HEADROOM_PCT;
+          const pct = (d.spent / max) * STACK_HEADROOM_PCT;
           return (
             <div
               key={d.day}
               className="spending-bar"
-              title={`${formatMonthLong(drillMonth)} ${d.day} — ${formatCurrency(d.total)}`}
+              title={`${formatMonthLong(drillMonth)} ${d.day} — ${formatCurrency(d.spent)}`}
             >
               <div className="spending-bar-stack" style={{ height: `${pct}%` }}>
                 {isAll ? renderStack(d) : (
@@ -300,20 +313,33 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth }) {
     <div className="spending-panel">
       <div className="spending-header">
         <h2 className="spending-title">Spending</h2>
+        <button
+          type="button"
+          className="spending-collapse-btn"
+          onClick={() => setCollapsed(c => !c)}
+          aria-label={collapsed ? 'Expand chart' : 'Collapse chart'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? '▾' : '▴'}
+        </button>
         <div>
           <span className="spending-total-label">{totalLabel}</span>
           <span className="spending-total">{formatCurrency(filteredTotal)}</span>
         </div>
       </div>
-      {renderChips()}
-      {renderLegend()}
-      {drillMonth ? (
+      {!collapsed && (
         <>
-          {renderDailyHeader()}
-          {renderDailyBars()}
+          {renderChips()}
+          {renderLegend()}
+          {drillMonth ? (
+            <>
+              {renderDailyHeader()}
+              {renderDailyBars()}
+            </>
+          ) : (
+            renderMonthlyBars()
+          )}
         </>
-      ) : (
-        renderMonthlyBars()
       )}
     </div>
   );

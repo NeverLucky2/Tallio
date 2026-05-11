@@ -87,22 +87,32 @@ export function getMonthWindow(endMonth) {
   return out;
 }
 
-export function aggregateByMonth(bills, endMonth, vendorFilter = null) {
+export function aggregateByMonth(bills, endMonth, categoriesById, vendorFilter = null) {
   const window = getMonthWindow(endMonth);
   const windowSet = new Set(window);
   const buckets = {};
-  for (const m of window) buckets[m] = { month: m, total: 0, byVendor: {} };
+  for (const m of window) {
+    buckets[m] = { month: m, income: 0, spent: 0, saved: 0, byVendor: {} };
+  }
 
   for (const bill of bills || []) {
     if (vendorFilter && bill.vendor !== vendorFilter) continue;
     for (const item of bill.items || []) {
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       const itemMonth = getItemDate(bill, item).slice(0, 7);
       if (!windowSet.has(itemMonth)) continue;
       const bucket = buckets[itemMonth];
-      bucket.total += item.amount;
-      const vendor = bill.vendor || 'Unknown';
-      bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
+      const cat = categoriesById && categoriesById.get(item.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow === 'income') {
+        bucket.income += item.amount;
+      } else if (flow === 'savings') {
+        bucket.saved += item.amount;
+      } else {
+        bucket.spent += item.amount;
+        const vendor = bill.vendor || 'Unknown';
+        bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
+      }
     }
   }
 
@@ -135,12 +145,12 @@ function mode(values) {
   return best;
 }
 
-export function findRecurringCharges(bills, today = currentMonth()) {
+export function findRecurringCharges(bills, today = currentMonth(), categoriesById = null) {
   const groups = new Map();
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
       if (!item || typeof item.description !== 'string') continue;
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       const key = normalizeDescription(item.description);
       if (!key) continue;
       const date = getItemDate(bill, item);
@@ -163,8 +173,8 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 
     const amounts = occurrences.map(o => o.amount);
     const avg = amounts.reduce((s, a) => s + a, 0) / amounts.length;
-    const maxDeviation = avg > 0
-      ? Math.max(...amounts.map(a => Math.abs(a - avg) / avg))
+    const maxDeviation = avg !== 0
+      ? Math.max(...amounts.map(a => Math.abs(a - avg) / Math.abs(avg)))
       : 0;
     const varies = maxDeviation > 0.15;
 
@@ -183,10 +193,15 @@ export function findRecurringCharges(bills, today = currentMonth()) {
     const monthsSinceLast = monthsBetween(lastDate.slice(0, 7), today);
     const active = monthsSinceLast >= 0 && monthsSinceLast <= 1;
 
+    const majorityCategoryId = mode(occurrences.map(o => o.categoryId));
+    const majorityCat = categoriesById && categoriesById.get(majorityCategoryId);
+    const flow = (majorityCat && majorityCat.flow) || 'expense';
+
     results.push({
       description: mode(occurrences.map(o => o.description)),
       vendor: mode(occurrences.map(o => o.vendor)),
-      categoryId: mode(occurrences.map(o => o.categoryId)),
+      categoryId: majorityCategoryId,
+      flow,
       avgAmount: avg,
       lastAmount,
       varies,
@@ -200,14 +215,14 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 
   results.sort((a, b) => {
     if (a.active !== b.active) return a.active ? -1 : 1;
-    return b.avgAmount - a.avgAmount;
+    return Math.abs(b.avgAmount) - Math.abs(a.avgAmount);
   });
 
   return results;
 }
 
-export function aggregateByKeyword(bills, keyword) {
-  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 };
+export function aggregateByKeyword(bills, keyword, categoriesById = null) {
+  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, flow: 'expense', occurrences: 0 };
   if (!keyword || typeof keyword !== 'string' || !keyword.trim()) return empty;
   const needle = keyword.trim().toLowerCase();
 
@@ -220,7 +235,7 @@ export function aggregateByKeyword(bills, keyword) {
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
       if (!item || typeof item.description !== 'string') continue;
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
       if (!item.description.toLowerCase().includes(needle)) continue;
 
       const date = getItemDate(bill, item);
@@ -241,27 +256,32 @@ export function aggregateByKeyword(bills, keyword) {
   for (const [cid, count] of categoryIdCounts) {
     if (count > max) { categoryId = cid; max = count; }
   }
+  const cat = categoriesById && categoriesById.get(categoryId);
+  const flow = (cat && cat.flow) || 'expense';
 
-  return { total, byMonth, lastDate, categoryId, occurrences };
+  return { total, byMonth, lastDate, categoryId, flow, occurrences };
 }
 
-export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
+export function aggregateByDay(bills, targetMonth, categoriesById = null, vendorFilter = null) {
   const days = daysInMonth(targetMonth);
   const buckets = [];
   for (let d = 1; d <= days; d++) {
-    buckets.push({ day: d, total: 0, byVendor: {} });
+    buckets.push({ day: d, spent: 0, byVendor: {} });
   }
 
   for (const bill of bills || []) {
     if (vendorFilter && bill.vendor !== vendorFilter) continue;
     for (const item of bill.items || []) {
-      if (!Number.isFinite(item.amount) || item.amount <= 0) continue;
+      if (!Number.isFinite(item.amount) || item.amount === 0) continue;
+      const cat = categoriesById && categoriesById.get(item.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow !== 'expense') continue;
       const date = getItemDate(bill, item);
       if (date.slice(0, 7) !== targetMonth) continue;
       const day = parseInt(date.slice(8, 10), 10);
       if (day < 1 || day > days) continue;
       const bucket = buckets[day - 1];
-      bucket.total += item.amount;
+      bucket.spent += item.amount;
       const vendor = bill.vendor || 'Unknown';
       bucket.byVendor[vendor] = (bucket.byVendor[vendor] || 0) + item.amount;
     }
@@ -307,4 +327,55 @@ export function migrateToV2(bills, categories, seedCategories) {
   });
 
   return { bills: v2Bills, categories: v2Cats };
+}
+
+// v2 → v3 migration: every category gets a `flow` field. Existing categories
+// backfill to 'expense' (the implicit v2 behavior). Seed income + savings
+// categories are appended; skipped if a category with the same name already
+// exists in the user's list.
+//
+// Bills are unchanged — item amount-sign relaxation is additive.
+//
+// Idempotent: if every category already has a `flow` field of a known kind
+// AND every seed category (by name) is present, inputs are returned untouched.
+export function migrateToV3(bills, categories, seedCategoriesV3) {
+  const cats = Array.isArray(categories) ? categories : [];
+  const allHaveFlow = cats.length > 0 && cats.every(c =>
+    c && (c.flow === 'income' || c.flow === 'expense' || c.flow === 'savings')
+  );
+  const existingNames = new Set(cats.map(c => c && c.name));
+  const allSeedsPresent = (seedCategoriesV3 || []).every(s => existingNames.has(s.name));
+  if (allHaveFlow && allSeedsPresent) {
+    return { bills: bills || [], categories: cats };
+  }
+
+  // 1. Backfill flow on existing categories.
+  const backfilled = cats.map(c => ({ ...c, flow: c.flow || 'expense' }));
+
+  // 2. Append seeds by name (skip duplicates).
+  const backfilledNames = new Set(backfilled.map(c => c.name));
+  const newSeeds = (seedCategoriesV3 || [])
+    .filter(s => !backfilledNames.has(s.name))
+    .map(s => ({ ...s, id: nanoid(8) }));
+
+  return {
+    bills: bills || [],
+    categories: [...backfilled, ...newSeeds],
+  };
+}
+
+// Pure: compute the flow-aware net of a bill.
+// Returns { income, expense, savings, net } where net = income - expense - savings.
+// Items with an unknown categoryId fall back to 'expense' flow (safe default).
+export function getBillNet(bill, categoriesById) {
+  let income = 0, expense = 0, savings = 0;
+  for (const item of (bill && bill.items) || []) {
+    if (!item || !Number.isFinite(item.amount)) continue;
+    const cat = categoriesById && categoriesById.get(item.categoryId);
+    const flow = cat && cat.flow ? cat.flow : 'expense';
+    if (flow === 'income')        income  += item.amount;
+    else if (flow === 'savings')  savings += item.amount;
+    else                          expense += item.amount;
+  }
+  return { income, expense, savings, net: income - expense - savings };
 }

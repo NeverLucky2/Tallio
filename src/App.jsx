@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
@@ -180,9 +180,11 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
-  const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
+  const billNet = getBillNet(bill, categoriesById);
+  const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
+  const displayAmount = Math.abs(billNet.net);
 
   const addItem = () => {
     const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date: null };
@@ -218,7 +220,10 @@ const BillCard = ({ bill, defaultCategoryId, categories, otherCategoryId, onUpda
           </div>
         </div>
         <div className="bill-right">
-          <span className="bill-total">{formatCurrency(total)}</span>
+          <span className={`bill-total bill-total-${direction}`}>
+            {direction === 'in' ? '↑' : direction === 'out' ? '↓' : ''}
+            {formatCurrency(displayAmount)}
+          </span>
           <span className={`bill-chevron${isExpanded ? ' bill-chevron-open' : ''}`}>▾</span>
         </div>
       </div>
@@ -326,7 +331,7 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
       ) : (
         <div className="track-list">
           {keywords.map(kw => {
-            const summary = aggregateByKeyword(bills, kw);
+            const summary = aggregateByKeyword(bills, kw, categoriesById);
             const thisMonth = summary.byMonth[selectedMonth] || 0;
             const prevMonthKey = shiftMonth(selectedMonth, -1);
             const prevMonth = summary.byMonth[prevMonthKey] || 0;
@@ -380,24 +385,16 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
 };
 
 
-// ---- Subscriptions Panel ----
+// ---- Recurring Panels (split by flow) ----
 
-const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
-  const all = findRecurringCharges(bills, today);
-  const charges = all.filter(c => !trackedKeywords.some(kw =>
-    c.description.toUpperCase().includes(kw.toUpperCase())
-  ));
+const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallbackCategory }) => {
   if (charges.length === 0) return null;
-
-  const monthlyTotal = charges
-    .filter(c => c.active)
-    .reduce((s, c) => s + c.lastAmount, 0);
-
+  const total = charges.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
   return (
     <div className="panel">
       <div className="panel-header">
-        <h3 className="panel-title">Subscriptions</h3>
-        <span className="panel-sub">~{formatCurrency(monthlyTotal)}/mo</span>
+        <h3 className="panel-title">{title}</h3>
+        <span className="panel-sub">~{formatCurrency(total)}/mo {totalLabel}</span>
       </div>
       <div className="sub-list">
         {charges.map(c => {
@@ -417,8 +414,8 @@ const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fal
               </div>
               <div className="sub-row-right">
                 <div className="sub-amount">
-                  {formatCurrency(c.lastAmount)}
-                  {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(c.avgAmount)}`}>varies</span>}
+                  {formatCurrency(Math.abs(c.lastAmount))}
+                  {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(Math.abs(c.avgAmount))}`}>varies</span>}
                 </div>
                 <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
                   {c.active ? 'ACTIVE' : 'INACTIVE'}
@@ -429,6 +426,44 @@ const Subscriptions = ({ bills, today, trackedKeywords = [], categoriesById, fal
         })}
       </div>
     </div>
+  );
+};
+
+const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
+  const all = findRecurringCharges(bills, today, categoriesById);
+  const filtered = all.filter(c => !trackedKeywords.some(kw =>
+    c.description.toUpperCase().includes(kw.toUpperCase())
+  ));
+  if (filtered.length === 0) return null;
+
+  const income   = filtered.filter(c => c.flow === 'income');
+  const expense  = filtered.filter(c => c.flow === 'expense');
+  const savings  = filtered.filter(c => c.flow === 'savings');
+
+  return (
+    <>
+      <RecurringSection
+        title="Recurring · Income"
+        charges={income}
+        totalLabel="in"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+      <RecurringSection
+        title="Recurring · Expenses"
+        charges={expense}
+        totalLabel="out"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+      <RecurringSection
+        title="Recurring · Savings"
+        charges={savings}
+        totalLabel="saved"
+        categoriesById={categoriesById}
+        fallbackCategory={fallbackCategory}
+      />
+    </>
   );
 };
 
@@ -576,25 +611,41 @@ function BillTracker() {
     toastTimerRef.current = setTimeout(() => setUndoToast(false), 2000);
   };
 
-  const totalExpenses = bills.reduce((sum, bill) =>
-    sum + bill.items.reduce((itemSum, item) => itemSum + item.amount, 0), 0
+  const categoriesById = React.useMemo(
+    () => new Map(cats.categories.map(c => [c.id, c])),
+    [cats.categories]
+  );
+  const fallbackCategory = React.useMemo(
+    () => cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' },
+    [cats]
   );
 
   const todayMonth = currentMonthKey();
   const monthBills = bills.filter(bill => bill.month === selectedMonth);
   const selectedMonthItems = getMonthItems(bills, selectedMonth);
-  const selectedMonthTotal = selectedMonthItems.reduce((sum, item) => sum + item.amount, 0);
-  const monthCardTitle = selectedMonth === todayMonth
-    ? 'This Month'
-    : formatMonthCompact(selectedMonth);
+
+  function sumByFlow(items, targetFlow) {
+    let s = 0;
+    for (const it of items) {
+      const cat = categoriesById.get(it.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      if (flow === targetFlow) s += it.amount;
+    }
+    return s;
+  }
+
+  const selectedMonthIncome = sumByFlow(selectedMonthItems, 'income');
+  const selectedMonthSpent  = sumByFlow(selectedMonthItems, 'expense');
+  const selectedMonthSaved  = sumByFlow(selectedMonthItems, 'savings');
+  const selectedMonthNet    = selectedMonthIncome - selectedMonthSpent - selectedMonthSaved;
 
   const previousMonth = shiftMonth(selectedMonth, -1);
-  const previousMonthTotal = getMonthItems(bills, previousMonth)
-    .reduce((sum, item) => sum + item.amount, 0);
+  const previousMonthItems = getMonthItems(bills, previousMonth);
+  const previousMonthSpent = sumByFlow(previousMonthItems, 'expense');
 
   let monthDelta = null;
-  if (previousMonthTotal > 0) {
-    const change = (selectedMonthTotal - previousMonthTotal) / previousMonthTotal;
+  if (previousMonthSpent > 0) {
+    const change = (selectedMonthSpent - previousMonthSpent) / previousMonthSpent;
     monthDelta = {
       pct: Math.round(Math.abs(change) * 100),
       direction: change > 0.005 ? 'up' : change < -0.005 ? 'down' : 'flat',
@@ -620,6 +671,13 @@ function BillTracker() {
   const visibleBills = searchActive
     ? bills.filter(b => matchesSearch(b, searchTerm))
     : monthBills;
+
+  const expenseItemsForBreakdown = (searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems)
+    .filter(it => {
+      const cat = categoriesById.get(it.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      return flow === 'expense';
+    });
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
@@ -767,15 +825,6 @@ function BillTracker() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const categoriesById = React.useMemo(
-    () => new Map(cats.categories.map(c => [c.id, c])),
-    [cats.categories]
-  );
-  const fallbackCategory = React.useMemo(
-    () => cats.getById(cats.otherId()) || { name: 'Other', icon: '📋', color: '#6B7280' },
-    [cats]
-  );
 
   return (
     <div className="app-root">
@@ -952,9 +1001,10 @@ function BillTracker() {
 
         {/* Stats */}
         <div className="stats-grid">
-          <SummaryCard title="Total Expenses" amount={totalExpenses} colorKey="blue" />
-          <SummaryCard title={monthCardTitle}  amount={selectedMonthTotal} colorKey="green" delta={monthDelta} />
-          <SummaryCard title="Total Bills"    amount={bills.length} isCount={true} colorKey="purple" />
+          <SummaryCard title="Income" amount={selectedMonthIncome} colorKey="green" />
+          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} />
+          <SummaryCard title="Saved"  amount={selectedMonthSaved}  colorKey="blue"  />
+          <SummaryCard title="Net"    amount={selectedMonthNet}    colorKey="amber" />
         </div>
 
         {/* Spending Hero */}
@@ -962,6 +1012,7 @@ function BillTracker() {
           bills={bills}
           selectedMonth={selectedMonth}
           onSelectMonth={setSelectedMonth}
+          categoriesById={categoriesById}
         />
 
         {/* Main Grid */}
@@ -1060,6 +1111,7 @@ function BillTracker() {
                   bill={bill}
                   defaultCategoryId={cats.otherId()}
                   categories={cats.categories}
+                  categoriesById={categoriesById}
                   otherCategoryId={cats.otherId()}
                   onUpdate={updateBill}
                   onDelete={deleteBill}
@@ -1075,7 +1127,7 @@ function BillTracker() {
           {/* Sidebar */}
           <div className="sidebar">
             <CategoryBreakdown
-              items={searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems}
+              items={expenseItemsForBreakdown}
               categories={cats.categories}
               otherCategoryId={cats.otherId()}
               selectedMonth={searchActive ? null : selectedMonth}
@@ -1090,7 +1142,7 @@ function BillTracker() {
               categoriesById={categoriesById}
               fallbackCategory={fallbackCategory}
             />
-            <Subscriptions
+            <RecurringPanels
               bills={bills}
               today={todayMonth}
               trackedKeywords={trackedKeywords}

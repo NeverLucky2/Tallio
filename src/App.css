@@ -364,14 +364,14 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   margin-bottom: 32px;
 }
 
 @media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 22px;
   }
@@ -403,6 +403,16 @@
 .stat-card-blue::before  { background: linear-gradient(90deg, transparent 5%, var(--blue) 50%, transparent 95%); }
 .stat-card-green::before { background: linear-gradient(90deg, transparent 5%, var(--green) 50%, transparent 95%); }
 .stat-card-purple::before{ background: linear-gradient(90deg, transparent 5%, var(--purple) 50%, transparent 95%); }
+.stat-card-amber::before { background: linear-gradient(90deg, transparent 5%, #d4a853 50%, transparent 95%); }
+.stat-card-red::before   { background: linear-gradient(90deg, transparent 5%, #e0928a 50%, transparent 95%); }
+
+.stat-card-amber { border-color: rgba(212, 168, 83, 0.20); }
+.stat-card-amber .stat-value { color: #d4a853; }
+.stat-dot-amber { background: #d4a853; box-shadow: 0 0 6px rgba(212,168,83,0.6); }
+
+.stat-card-red { border-color: rgba(224, 108, 108, 0.20); }
+.stat-card-red .stat-value { color: #e0928a; }
+.stat-dot-red { background: #e0928a; box-shadow: 0 0 6px rgba(224,108,108,0.6); }
 
 .stat-card:hover {
   border-color: var(--border-strong);
@@ -794,7 +804,7 @@
 
 .item-row {
   display: grid;
-  grid-template-columns: 32px 124px 124px 1fr 112px 30px;
+  grid-template-columns: 32px 124px 124px 1fr 28px 112px 30px;
   gap: 10px;
   align-items: center;
   padding: 9px 10px;
@@ -2078,6 +2088,23 @@
   letter-spacing: 0.01em;
 }
 
+.spending-collapse-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text-secondary, #8a8d94);
+  font-size: 0.9rem;
+}
+.spending-collapse-btn:hover {
+  color: var(--text-primary, #e6e7ea);
+  border-color: rgba(212, 168, 83, 0.25);
+}
+
 .spending-total {
   font-family: var(--font-mono);
   font-size: 18px;
@@ -2413,6 +2440,16 @@
   letter-spacing: 0.05em;
   color: var(--text-muted);
   margin: 0 8px 8px;
+}
+
+.manage-list-flow-group { margin-top: 0.5rem; }
+.manage-list-flow-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #6b6e74);
+  padding: 0.4rem 0.75rem 0.2rem;
+  font-weight: 600;
 }
 
 .manage-list-row {
@@ -2754,3 +2791,73 @@
   opacity: 0.7;
 }
 .toast-dismiss:hover { opacity: 1; }
+
+.bill-total-in  { color: #6bd49a; }
+.bill-total-out { color: #e6e7ea; }
+.bill-total-flat { color: #8a8d94; }
+
+.credit-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.credit-toggle:hover {
+  border-color: rgba(107, 212, 154, 0.4);
+  color: #6bd49a;
+}
+.credit-toggle-active {
+  background: rgba(107, 212, 154, 0.15);
+  color: #6bd49a;
+  border-color: rgba(107, 212, 154, 0.35);
+}
+.item-row-credit, .item-row-mobile-credit {
+  background: rgba(107, 212, 154, 0.04);
+}
+
+.description-textarea {
+  resize: none;
+  field-sizing: content;
+  min-height: 20px;
+  line-height: 1.4;
+  overflow: hidden;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.flow-control {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.flow-control-option {
+  position: relative;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text-secondary, #8a8d94);
+  transition: all 0.15s ease;
+}
+.flow-control-option:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+.flow-control-option input { position: absolute; opacity: 0; pointer-events: none; }
+.flow-control-option:hover { color: var(--text-primary, #e6e7ea); }
+.flow-control-option.active {
+  background: rgba(212, 168, 83, 0.12);
+  color: #d4a853;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3, getBillNet } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -148,28 +148,28 @@ describe('aggregateByMonth', () => {
   ];
 
   it('returns one entry per month in the window with totals and per-vendor breakdown', () => {
-    const result = aggregateByMonth(bills, '2026-05');
+    const result = aggregateByMonth(bills, '2026-05', new Map());
     expect(result).toHaveLength(12);
     const may = result.find(m => m.month === '2026-05');
-    expect(may.total).toBe(47);
+    expect(may.spent).toBe(47);
     expect(may.byVendor.Chase).toBe(17);
     expect(may.byVendor.Amex).toBe(30);
     const apr = result.find(m => m.month === '2026-04');
-    expect(apr.total).toBe(80);
+    expect(apr.spent).toBe(80);
     expect(apr.byVendor.Chase).toBe(80);
   });
 
   it('returns zero totals for months with no spending', () => {
-    const result = aggregateByMonth(bills, '2026-05');
+    const result = aggregateByMonth(bills, '2026-05', new Map());
     const jan = result.find(m => m.month === '2026-01');
-    expect(jan.total).toBe(0);
+    expect(jan.spent).toBe(0);
     expect(jan.byVendor).toEqual({});
   });
 
   it('respects vendor filter (single vendor)', () => {
-    const result = aggregateByMonth(bills, '2026-05', 'Chase');
+    const result = aggregateByMonth(bills, '2026-05', new Map(), 'Chase');
     const may = result.find(m => m.month === '2026-05');
-    expect(may.total).toBe(17);
+    expect(may.spent).toBe(17);
     expect(may.byVendor).toEqual({ Chase: 17 });
   });
 
@@ -178,9 +178,9 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2026-05',
       items: [{ description: 'Late Apr', amount: 10, date: '2026-04-29' }],
     }];
-    const result = aggregateByMonth(cross, '2026-05');
-    expect(result.find(m => m.month === '2026-04').total).toBe(10);
-    expect(result.find(m => m.month === '2026-05').total).toBe(0);
+    const result = aggregateByMonth(cross, '2026-05', new Map());
+    expect(result.find(m => m.month === '2026-04').spent).toBe(10);
+    expect(result.find(m => m.month === '2026-05').spent).toBe(0);
   });
 
   it('uses bill-month fallback for items without dates', () => {
@@ -188,8 +188,8 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2026-05',
       items: [{ description: 'X', amount: 7 }],
     }];
-    const result = aggregateByMonth(noDates, '2026-05');
-    expect(result.find(m => m.month === '2026-05').total).toBe(7);
+    const result = aggregateByMonth(noDates, '2026-05', new Map());
+    expect(result.find(m => m.month === '2026-05').spent).toBe(7);
   });
 
   it('excludes items outside the 12-month window', () => {
@@ -197,8 +197,57 @@ describe('aggregateByMonth', () => {
       id: 'b1', vendor: 'Chase', month: '2024-01',
       items: [{ description: 'Old', amount: 999, date: '2024-01-15' }],
     }];
-    const result = aggregateByMonth(old, '2026-05');
-    expect(result.every(m => m.total === 0)).toBe(true);
+    const result = aggregateByMonth(old, '2026-05', new Map());
+    expect(result.every(m => m.spent === 0)).toBe(true);
+  });
+});
+
+describe('aggregateByMonth (flow-aware)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('returns separate income/spent/saved per month bucket', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme',  month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck' },
+        { id: 'i2', amount:  260, categoryId: 'c_401k'     },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i3', amount:   84, categoryId: 'c_groceries' },
+        { id: 'i4', amount:  -40, categoryId: 'c_groceries' }, // refund
+      ]},
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById);
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.income).toBe(5200);
+    expect(may.spent).toBe(44);  // 84 - 40
+    expect(may.saved).toBe(260);
+  });
+
+  it('byVendor only accumulates expense-flow items', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck'  },
+        { id: 'i2', amount:   84, categoryId: 'c_groceries' },
+      ]},
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById);
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.byVendor).toEqual({ Acme: 84 });
+  });
+
+  it('vendorFilter still works for expense breakdowns', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase',  month: '2026-05', items: [{ id: 'i1', amount: 50, categoryId: 'c_groceries' }] },
+      { id: 'b2', vendor: 'Capital', month: '2026-05', items: [{ id: 'i2', amount: 30, categoryId: 'c_groceries' }] },
+    ];
+    const out = aggregateByMonth(bills, '2026-05', catsById, 'Chase');
+    const may = out.find(b => b.month === '2026-05');
+    expect(may.spent).toBe(50);
+    expect(may.byVendor).toEqual({ Chase: 50 });
   });
 });
 
@@ -233,7 +282,7 @@ describe('aggregateByDay', () => {
 
   it('sums multiple items on the same day', () => {
     const result = aggregateByDay(bills, '2026-05');
-    expect(result[2].total).toBe(9); // day 3
+    expect(result[2].spent).toBe(9); // day 3
   });
 
   it('includes per-vendor breakdown', () => {
@@ -249,8 +298,8 @@ describe('aggregateByDay', () => {
         items: [{ description: 'X', amount: 50, date: '2026-05-15' }],
       },
     ];
-    const result = aggregateByDay(more, '2026-05', 'Chase');
-    expect(result[14].total).toBe(12); // day 15, only Chase
+    const result = aggregateByDay(more, '2026-05', new Map(), 'Chase');
+    expect(result[14].spent).toBe(12); // day 15, only Chase
   });
 
   it('ignores items outside the target month', () => {
@@ -259,7 +308,30 @@ describe('aggregateByDay', () => {
       items: [{ description: 'X', amount: 999, date: '2026-04-30' }],
     }];
     const result = aggregateByDay(cross, '2026-05');
-    expect(result.every(d => d.total === 0)).toBe(true);
+    expect(result.every(d => d.spent === 0)).toBe(true);
+  });
+});
+
+describe('aggregateByDay (expense-only)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+  ]);
+
+  it('sums spent (expense-flow only), ignoring income and savings', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme',  month: '2026-05', items: [
+        { id: 'i1', amount: 5200, categoryId: 'c_paycheck',  date: '2026-05-15' },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i2', amount: 84,   categoryId: 'c_groceries', date: '2026-05-15' },
+      ]},
+    ];
+    const out = aggregateByDay(bills, '2026-05', catsById);
+    const d15 = out[14];
+    expect(d15.day).toBe(15);
+    expect(d15.spent).toBe(84);
+    expect(d15.byVendor).toEqual({ Chase: 84 });
   });
 });
 
@@ -445,7 +517,7 @@ describe('aggregateByKeyword', () => {
 
   it('returns null/empty summary when keyword is blank', () => {
     const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', categoryId: 'c_other' }])];
-    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 });
+    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, flow: 'expense', occurrences: 0 });
   });
 
   it('matches items by case-insensitive substring on description', () => {
@@ -495,14 +567,15 @@ describe('aggregateByKeyword', () => {
     expect(aggregateByKeyword(bills, 'AMAZON').categoryId).toBe('c_shopping');
   });
 
-  it('ignores items with non-positive amounts', () => {
+  it('ignores items with zero amounts but sums negative amounts (refunds)', () => {
     const bills = [
       billWithItems('2026-05', [
         { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
         { description: 'CHURCH REFUND', amount: -50, date: '2026-05-15', category: 'Donations' },
+        { description: 'CHURCH NOOP', amount: 0, date: '2026-05-20', category: 'Donations' },
       ]),
     ];
-    expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(600);
+    expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(550);
   });
 });
 
@@ -574,6 +647,49 @@ describe('findRecurringCharges (post-categoryId)', () => {
   });
 });
 
+describe('findRecurringCharges (flow-aware)', () => {
+  const catsById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('annotates each recurring result with flow from majority category', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-04', items: [
+        { id: 'i1', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-04-15' },
+      ]},
+      { id: 'b2', vendor: 'Acme', month: '2026-04', items: [
+        { id: 'i2', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-04-29' },
+      ]},
+      { id: 'b3', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i3', description: 'Bi-weekly paycheck', amount: 2600, categoryId: 'c_paycheck', date: '2026-05-13' },
+      ]},
+    ];
+    const results = findRecurringCharges(bills, '2026-05', catsById);
+    const paycheck = results.find(r => r.description === 'Bi-weekly paycheck');
+    expect(paycheck).toBeDefined();
+    expect(paycheck.flow).toBe('income');
+  });
+
+  it('accepts negative-amount items but groups by description (refunds do not pollute)', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-04', items: [
+        { id: 'i1', description: 'Netflix', amount:  15.99, categoryId: 'c_groceries', date: '2026-04-05' },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i2', description: 'Netflix', amount:  15.99, categoryId: 'c_groceries', date: '2026-05-05' },
+      ]},
+      { id: 'b3', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i3', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries', date: '2026-05-10' },
+      ]},
+    ];
+    const results = findRecurringCharges(bills, '2026-05', catsById);
+    expect(results.find(r => r.description === 'Netflix')).toBeDefined();
+    expect(results.find(r => r.description === 'Whole Foods refund')).toBeUndefined();
+  });
+});
+
 describe('aggregateByKeyword (post-categoryId)', () => {
   it('returns categoryId of the most-frequent matching item', () => {
     const bills = [
@@ -586,6 +702,34 @@ describe('aggregateByKeyword (post-categoryId)', () => {
     const summary = aggregateByKeyword(bills, 'CHURCH');
     expect(summary.occurrences).toBe(3);
     expect(summary.categoryId).toBe('c_don');
+  });
+});
+
+describe('aggregateByKeyword (sign-aware)', () => {
+  const catsById = new Map([
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+  ]);
+
+  it('sums signed amounts (refunds reduce the total)', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i1', description: 'Whole Foods',        amount:  84, categoryId: 'c_groceries', date: '2026-05-02' },
+        { id: 'i2', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries', date: '2026-05-12' },
+      ]},
+    ];
+    const out = aggregateByKeyword(bills, 'WHOLE FOODS', catsById);
+    expect(out.total).toBe(44);
+    expect(out.occurrences).toBe(2);
+  });
+
+  it('returns flow from the majority category', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i1', description: 'Whole Foods', amount: 84, categoryId: 'c_groceries', date: '2026-05-02' },
+      ]},
+    ];
+    const out = aggregateByKeyword(bills, 'WHOLE FOODS', catsById);
+    expect(out.flow).toBe('expense');
   });
 });
 
@@ -672,5 +816,132 @@ describe('migrateToV2', () => {
     const a = migrateToV2(null, null, DEFAULT_CATEGORIES);
     expect(a.bills).toEqual([]);
     expect(a.categories).toHaveLength(DEFAULT_CATEGORIES.length);
+  });
+});
+
+describe('migrateToV3', () => {
+  const v2Cats = [
+    { id: 'c_util',  name: 'Utilities', icon: '⚡',  color: '#F59E0B', keywords: ['COMED'],     templates: [], builtin: true },
+    { id: 'c_food',  name: 'Groceries', icon: '🛒', color: '#10B981', keywords: ['WHOLE FOODS'], templates: [], builtin: true },
+    { id: 'c_other', name: 'Other',     icon: '📋', color: '#6B7280', keywords: [],              templates: [], builtin: true },
+  ];
+
+  const seedV3 = [
+    { name: 'Paycheck',     icon: '💼', color: '#6BD49A', flow: 'income',  keywords: ['PAYCHECK'], templates: [], builtin: true },
+    { name: 'Other Income', icon: '📥', color: '#94A3B8', flow: 'income',  keywords: [],            templates: [], builtin: true },
+    { name: '401(k)',       icon: '📊', color: '#5B8DFF', flow: 'savings', keywords: ['401K'],     templates: [], builtin: true },
+  ];
+
+  it('backfills flow="expense" on every existing v2 category', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    for (const c of v2Cats) {
+      const out = categories.find(x => x.id === c.id);
+      expect(out).toBeDefined();
+      expect(out.flow).toBe('expense');
+    }
+  });
+
+  it('preserves keywords, templates, name, icon, color, id on existing categories', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    const util = categories.find(c => c.id === 'c_util');
+    expect(util).toMatchObject({
+      id: 'c_util', name: 'Utilities', icon: '⚡', color: '#F59E0B',
+      keywords: ['COMED'], templates: [], builtin: true, flow: 'expense',
+    });
+  });
+
+  it('appends seed categories with fresh nanoid ids', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    const paycheck = categories.find(c => c.name === 'Paycheck');
+    expect(paycheck).toBeDefined();
+    expect(paycheck.flow).toBe('income');
+    expect(typeof paycheck.id).toBe('string');
+    expect(paycheck.id.length).toBeGreaterThan(0);
+  });
+
+  it('appends all seeds when categories is empty', () => {
+    const { categories } = migrateToV3([], [], seedV3);
+    expect(categories.map(c => c.name)).toEqual(['Paycheck', 'Other Income', '401(k)']);
+  });
+
+  it('does NOT duplicate a seed when a category with the same name already exists', () => {
+    const withPaycheck = [
+      ...v2Cats,
+      { id: 'c_pay_user', name: 'Paycheck', icon: '💼', color: '#fff', keywords: ['CUSTOM'], templates: [], builtin: false },
+    ];
+    const { categories } = migrateToV3([], withPaycheck, seedV3);
+    const paychecks = categories.filter(c => c.name === 'Paycheck');
+    expect(paychecks).toHaveLength(1);
+    expect(paychecks[0].id).toBe('c_pay_user');
+    expect(paychecks[0].keywords).toEqual(['CUSTOM']);
+    expect(paychecks[0].flow).toBe('expense');
+  });
+
+  it('idempotent: re-running on v3 output produces identical categories', () => {
+    const first  = migrateToV3([], v2Cats, seedV3);
+    const second = migrateToV3([], first.categories, seedV3);
+    expect(second.categories).toEqual(first.categories);
+  });
+
+  it('passes bills through unchanged', () => {
+    const bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'x', amount: 10, categoryId: 'c_food', date: null },
+      ]},
+    ];
+    const { bills: outBills } = migrateToV3(bills, v2Cats, seedV3);
+    expect(outBills).toEqual(bills);
+  });
+});
+
+describe('getBillNet', () => {
+  const categoriesById = new Map([
+    ['c_paycheck',  { id: 'c_paycheck',  flow: 'income'  }],
+    ['c_groceries', { id: 'c_groceries', flow: 'expense' }],
+    ['c_tax',       { id: 'c_tax',       flow: 'expense' }],
+    ['c_401k',      { id: 'c_401k',      flow: 'savings' }],
+  ]);
+
+  it('paycheck bill nets to deposit amount (income - expense - savings)', () => {
+    const bill = {
+      id: 'b1', vendor: 'Acme', month: '2026-05',
+      items: [
+        { id: 'i1', description: 'Gross',   amount: 5200, categoryId: 'c_paycheck' },
+        { id: 'i2', description: 'Fed tax', amount:  687, categoryId: 'c_tax'      },
+        { id: 'i3', description: '401(k)',  amount:  260, categoryId: 'c_401k'     },
+      ],
+    };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.income).toBe(5200);
+    expect(result.expense).toBe(687);
+    expect(result.savings).toBe(260);
+    expect(result.net).toBe(4253); // 5200 - 687 - 260
+  });
+
+  it('credit card bill with refund nets negative (outflow)', () => {
+    const bill = {
+      id: 'b2', vendor: 'Chase', month: '2026-05',
+      items: [
+        { id: 'i1', description: 'Whole Foods',        amount:  84, categoryId: 'c_groceries' },
+        { id: 'i2', description: 'Whole Foods refund', amount: -40, categoryId: 'c_groceries' },
+      ],
+    };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.income).toBe(0);
+    expect(result.expense).toBe(44);
+    expect(result.savings).toBe(0);
+    expect(result.net).toBe(-44);
+  });
+
+  it('empty bill yields zeros', () => {
+    const result = getBillNet({ items: [] }, categoriesById);
+    expect(result).toEqual({ income: 0, expense: 0, savings: 0, net: 0 });
+  });
+
+  it('items with unknown categoryId are treated as expense (safe default)', () => {
+    const bill = { items: [{ id: 'i1', amount: 10, categoryId: 'unknown' }] };
+    const result = getBillNet(bill, categoriesById);
+    expect(result.expense).toBe(10);
+    expect(result.net).toBe(-10);
   });
 });

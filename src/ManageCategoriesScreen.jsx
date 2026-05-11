@@ -63,24 +63,33 @@ export default function ManageCategoriesScreen({
       <div className="manage-body">
         <aside className="manage-list">
           <div className="manage-list-title">{categories.length} categories</div>
-          {categories.map(cat => {
-            const count = itemCounts.get(cat.id) || 0;
+          {(['income', 'expense', 'savings']).map(flow => {
+            const inFlow = categories.filter(c => (c.flow || 'expense') === flow);
+            if (inFlow.length === 0) return null;
             return (
-              <button
-                key={cat.id}
-                type="button"
-                className={`manage-list-row${cat.id === selectedId ? ' active' : ''}`}
-                onClick={() => setSelectedId(cat.id)}
-              >
-                <span
-                  className="manage-list-icon"
-                  style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}
-                >
-                  {cat.icon}
-                </span>
-                <span className="manage-list-name">{cat.name}</span>
-                <span className="manage-list-count">{count}</span>
-              </button>
+              <div key={flow} className="manage-list-flow-group">
+                <div className="manage-list-flow-label">{flow}</div>
+                {inFlow.map(cat => {
+                  const count = itemCounts.get(cat.id) || 0;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={`manage-list-row${cat.id === selectedId ? ' active' : ''}`}
+                      onClick={() => setSelectedId(cat.id)}
+                    >
+                      <span
+                        className="manage-list-icon"
+                        style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}
+                      >
+                        {cat.icon}
+                      </span>
+                      <span className="manage-list-name">{cat.name}</span>
+                      <span className="manage-list-count">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </aside>
