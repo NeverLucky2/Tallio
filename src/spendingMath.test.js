@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems, migrateToV3 } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -672,5 +672,75 @@ describe('migrateToV2', () => {
     const a = migrateToV2(null, null, DEFAULT_CATEGORIES);
     expect(a.bills).toEqual([]);
     expect(a.categories).toHaveLength(DEFAULT_CATEGORIES.length);
+  });
+});
+
+describe('migrateToV3', () => {
+  const v2Cats = [
+    { id: 'c_util',  name: 'Utilities', icon: '⚡',  color: '#F59E0B', keywords: ['COMED'],     templates: [], builtin: true },
+    { id: 'c_food',  name: 'Groceries', icon: '🛒', color: '#10B981', keywords: ['WHOLE FOODS'], templates: [], builtin: true },
+    { id: 'c_other', name: 'Other',     icon: '📋', color: '#6B7280', keywords: [],              templates: [], builtin: true },
+  ];
+
+  const seedV3 = [
+    { name: 'Paycheck',     icon: '💼', color: '#6BD49A', flow: 'income',  keywords: ['PAYCHECK'], templates: [], builtin: true },
+    { name: 'Other Income', icon: '📥', color: '#94A3B8', flow: 'income',  keywords: [],            templates: [], builtin: true },
+    { name: '401(k)',       icon: '📊', color: '#5B8DFF', flow: 'savings', keywords: ['401K'],     templates: [], builtin: true },
+  ];
+
+  it('backfills flow="expense" on every existing v2 category', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    for (const c of v2Cats) {
+      const out = categories.find(x => x.id === c.id);
+      expect(out).toBeDefined();
+      expect(out.flow).toBe('expense');
+    }
+  });
+
+  it('preserves keywords, templates, name, icon, color, id on existing categories', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    const util = categories.find(c => c.id === 'c_util');
+    expect(util).toMatchObject({
+      id: 'c_util', name: 'Utilities', icon: '⚡', color: '#F59E0B',
+      keywords: ['COMED'], templates: [], builtin: true, flow: 'expense',
+    });
+  });
+
+  it('appends seed categories with fresh nanoid ids', () => {
+    const { categories } = migrateToV3([], v2Cats, seedV3);
+    const paycheck = categories.find(c => c.name === 'Paycheck');
+    expect(paycheck).toBeDefined();
+    expect(paycheck.flow).toBe('income');
+    expect(typeof paycheck.id).toBe('string');
+    expect(paycheck.id.length).toBeGreaterThan(0);
+  });
+
+  it('does NOT duplicate a seed when a category with the same name already exists', () => {
+    const withPaycheck = [
+      ...v2Cats,
+      { id: 'c_pay_user', name: 'Paycheck', icon: '💼', color: '#fff', keywords: ['CUSTOM'], templates: [], builtin: false },
+    ];
+    const { categories } = migrateToV3([], withPaycheck, seedV3);
+    const paychecks = categories.filter(c => c.name === 'Paycheck');
+    expect(paychecks).toHaveLength(1);
+    expect(paychecks[0].id).toBe('c_pay_user');
+    expect(paychecks[0].keywords).toEqual(['CUSTOM']);
+    expect(paychecks[0].flow).toBe('expense');
+  });
+
+  it('idempotent: re-running on v3 output produces identical categories', () => {
+    const first  = migrateToV3([], v2Cats, seedV3);
+    const second = migrateToV3([], first.categories, seedV3);
+    expect(second.categories).toEqual(first.categories);
+  });
+
+  it('passes bills through unchanged', () => {
+    const bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'x', amount: 10, categoryId: 'c_food', date: null },
+      ]},
+    ];
+    const { bills: outBills } = migrateToV3(bills, v2Cats, seedV3);
+    expect(outBills).toEqual(bills);
   });
 });

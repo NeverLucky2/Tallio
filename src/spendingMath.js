@@ -308,3 +308,36 @@ export function migrateToV2(bills, categories, seedCategories) {
 
   return { bills: v2Bills, categories: v2Cats };
 }
+
+// v2 → v3 migration: every category gets a `flow` field. Existing categories
+// backfill to 'expense' (the implicit v2 behavior). Seed income + savings
+// categories are appended; skipped if a category with the same name already
+// exists in the user's list.
+//
+// Bills are unchanged — item amount-sign relaxation is additive.
+//
+// Idempotent: if every category already has a `flow` field of a known kind,
+// inputs are returned untouched (no duplicate seed append).
+export function migrateToV3(bills, categories, seedCategoriesV3) {
+  const cats = Array.isArray(categories) ? categories : [];
+  const allHaveFlow = cats.length > 0 && cats.every(c =>
+    c && (c.flow === 'income' || c.flow === 'expense' || c.flow === 'savings')
+  );
+  if (allHaveFlow) {
+    return { bills: bills || [], categories: cats };
+  }
+
+  // 1. Backfill flow on existing categories.
+  const backfilled = cats.map(c => ({ ...c, flow: c.flow || 'expense' }));
+
+  // 2. Append seeds by name (skip duplicates).
+  const existingNames = new Set(backfilled.map(c => c.name));
+  const newSeeds = (seedCategoriesV3 || [])
+    .filter(s => !existingNames.has(s.name))
+    .map(s => ({ ...s, id: nanoid(8) }));
+
+  return {
+    bills: bills || [],
+    categories: [...backfilled, ...newSeeds],
+  };
+}
