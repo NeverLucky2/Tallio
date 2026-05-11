@@ -2425,6 +2425,16 @@
   margin: 0 8px 8px;
 }
 
+.manage-list-flow-group { margin-top: 0.5rem; }
+.manage-list-flow-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #6b6e74);
+  padding: 0.4rem 0.75rem 0.2rem;
+  font-weight: 600;
+}
+
 .manage-list-row {
   display: flex;
   align-items: center;
