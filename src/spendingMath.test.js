@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword } from './spendingMath.js';
+import { migrateBills, getItemDate, getVendorColor, VENDOR_PALETTE, getMonthWindow, aggregateByMonth, aggregateByDay, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
 
 describe('migrateBills', () => {
   it('converts bill.date YYYY-MM-DD to bill.month YYYY-MM', () => {
@@ -266,7 +266,7 @@ describe('aggregateByDay', () => {
 describe('findRecurringCharges', () => {
   const subscription = (month, day, amount = 15.99, description = 'NETFLIX', vendor = 'Chase') => ({
     id: `${month}-${description}`, vendor, month,
-    items: [{ id: `${month}-${description}`, description, amount, date: `${month}-${String(day).padStart(2, '0')}`, category: 'Subscriptions' }],
+    items: [{ id: `${month}-${description}`, description, amount, date: `${month}-${String(day).padStart(2, '0')}`, categoryId: 'c_subs' }],
   });
 
   it('detects a charge that recurs across 3 distinct months', () => {
@@ -284,8 +284,8 @@ describe('findRecurringCharges', () => {
   it('ignores items that appear in only one month', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'COFFEE', amount: 5, date: '2026-05-01', category: 'Dining' },
-        { description: 'COFFEE', amount: 5, date: '2026-05-15', category: 'Dining' },
+        { description: 'COFFEE', amount: 5, date: '2026-05-01', categoryId: 'c_dining' },
+        { description: 'COFFEE', amount: 5, date: '2026-05-15', categoryId: 'c_dining' },
       ]},
     ];
     expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
@@ -303,10 +303,10 @@ describe('findRecurringCharges', () => {
   it('rejects charges with scattered days AND varying amounts', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'GROCERIES', amount: 50, date: '2026-04-03', category: 'Groceries' },
+        { description: 'GROCERIES', amount: 50, date: '2026-04-03', categoryId: 'c_groceries' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'GROCERIES', amount: 120, date: '2026-05-22', category: 'Groceries' },
+        { description: 'GROCERIES', amount: 120, date: '2026-05-22', categoryId: 'c_groceries' },
       ]},
     ];
     expect(findRecurringCharges(bills, '2026-05')).toEqual([]);
@@ -315,13 +315,13 @@ describe('findRecurringCharges', () => {
   it('detects recurring charges with consistent day even when amount varies (e.g. donations)', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-03', items: [
-        { description: 'CHURCH OFFERING', amount: 450, date: '2026-03-01', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 450, date: '2026-03-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH OFFERING', amount: 620, date: '2026-04-02', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 620, date: '2026-04-02', categoryId: 'c_donations' },
       ]},
       { id: '3', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH OFFERING', amount: 525, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH OFFERING', amount: 525, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const result = findRecurringCharges(bills, '2026-05');
@@ -332,10 +332,10 @@ describe('findRecurringCharges', () => {
   it('returns lastAmount as the amount of the most recent occurrence', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const [r] = findRecurringCharges(bills, '2026-05');
@@ -345,10 +345,10 @@ describe('findRecurringCharges', () => {
   it('flags varies=true when amounts differ by more than 15%', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'CHURCH', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
       ]},
     ];
     const [r] = findRecurringCharges(bills, '2026-05');
@@ -394,10 +394,10 @@ describe('findRecurringCharges', () => {
   it('treats descriptions as case-insensitive', () => {
     const bills = [
       { id: '1', vendor: 'Chase', month: '2026-04', items: [
-        { description: 'netflix', amount: 15.99, date: '2026-04-05', category: 'Subscriptions' },
+        { description: 'netflix', amount: 15.99, date: '2026-04-05', categoryId: 'c_subs' },
       ]},
       { id: '2', vendor: 'Chase', month: '2026-05', items: [
-        { description: 'NETFLIX', amount: 15.99, date: '2026-05-05', category: 'Subscriptions' },
+        { description: 'NETFLIX', amount: 15.99, date: '2026-05-05', categoryId: 'c_subs' },
       ]},
     ];
     const result = findRecurringCharges(bills, '2026-05');
@@ -444,18 +444,18 @@ describe('aggregateByKeyword', () => {
   });
 
   it('returns null/empty summary when keyword is blank', () => {
-    const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', category: 'Other' }])];
-    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 });
+    const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', categoryId: 'c_other' }])];
+    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 });
   });
 
   it('matches items by case-insensitive substring on description', () => {
     const bills = [
       billWithItems('2026-04', [
-        { description: 'Church of Saint Mary', amount: 400, date: '2026-04-01', category: 'Donations' },
+        { description: 'Church of Saint Mary', amount: 400, date: '2026-04-01', categoryId: 'c_donations' },
       ]),
       billWithItems('2026-05', [
-        { description: 'CHURCH', amount: 600, date: '2026-05-01', category: 'Donations' },
-        { description: 'BURGER KING', amount: 12, date: '2026-05-04', category: 'Dining' },
+        { description: 'CHURCH', amount: 600, date: '2026-05-01', categoryId: 'c_donations' },
+        { description: 'BURGER KING', amount: 12, date: '2026-05-04', categoryId: 'c_dining' },
       ]),
     ];
     const result = aggregateByKeyword(bills, 'church');
@@ -465,10 +465,10 @@ describe('aggregateByKeyword', () => {
 
   it('breaks down totals by month', () => {
     const bills = [
-      billWithItems('2026-04', [{ description: 'McDonald', amount: 8, date: '2026-04-03', category: 'Dining' }]),
+      billWithItems('2026-04', [{ description: 'McDonald', amount: 8, date: '2026-04-03', categoryId: 'c_dining' }]),
       billWithItems('2026-05', [
-        { description: 'McDonalds Drive Thru', amount: 12, date: '2026-05-02', category: 'Dining' },
-        { description: 'McDONALD\'S', amount: 9, date: '2026-05-15', category: 'Dining' },
+        { description: 'McDonalds Drive Thru', amount: 12, date: '2026-05-02', categoryId: 'c_dining' },
+        { description: 'McDONALD\'S', amount: 9, date: '2026-05-15', categoryId: 'c_dining' },
       ]),
     ];
     const result = aggregateByKeyword(bills, 'mcdonald');
@@ -478,21 +478,21 @@ describe('aggregateByKeyword', () => {
 
   it('returns the last (most recent) matching date', () => {
     const bills = [
-      billWithItems('2026-03', [{ description: 'CHURCH', amount: 400, date: '2026-03-01', category: 'Donations' }]),
-      billWithItems('2026-05', [{ description: 'CHURCH', amount: 600, date: '2026-05-15', category: 'Donations' }]),
+      billWithItems('2026-03', [{ description: 'CHURCH', amount: 400, date: '2026-03-01', categoryId: 'c_donations' }]),
+      billWithItems('2026-05', [{ description: 'CHURCH', amount: 600, date: '2026-05-15', categoryId: 'c_donations' }]),
     ];
     expect(aggregateByKeyword(bills, 'CHURCH').lastDate).toBe('2026-05-15');
   });
 
   it('returns the most common category among matching items', () => {
     const bills = [
-      billWithItems('2026-04', [{ description: 'AMAZON', amount: 30, date: '2026-04-01', category: 'Shopping' }]),
+      billWithItems('2026-04', [{ description: 'AMAZON', amount: 30, date: '2026-04-01', categoryId: 'c_shopping' }]),
       billWithItems('2026-05', [
-        { description: 'AMAZON', amount: 12, date: '2026-05-01', category: 'Shopping' },
-        { description: 'AMAZON PRIME', amount: 14.99, date: '2026-05-05', category: 'Subscriptions' },
+        { description: 'AMAZON', amount: 12, date: '2026-05-01', categoryId: 'c_shopping' },
+        { description: 'AMAZON PRIME', amount: 14.99, date: '2026-05-05', categoryId: 'c_subs' },
       ]),
     ];
-    expect(aggregateByKeyword(bills, 'AMAZON').category).toBe('Shopping');
+    expect(aggregateByKeyword(bills, 'AMAZON').categoryId).toBe('c_shopping');
   });
 
   it('ignores items with non-positive amounts', () => {
@@ -503,5 +503,174 @@ describe('aggregateByKeyword', () => {
       ]),
     ];
     expect(aggregateByKeyword(bills, 'CHURCH').total).toBe(600);
+  });
+});
+
+describe('getMonthItems', () => {
+  it('attributes items to their item.date month, not the bill.month', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        { id: 'a', description: 'Coffee', amount: 5, category: 'Dining', date: '2026-02-28' },
+        { id: 'b', description: 'Gas', amount: 40, category: 'Transportation', date: '2026-03-02' },
+      ]},
+    ];
+    const febItems = getMonthItems(bills, '2026-02');
+    const marItems = getMonthItems(bills, '2026-03');
+    expect(febItems.map(i => i.id)).toEqual(['a']);
+    expect(marItems.map(i => i.id)).toEqual(['b']);
+  });
+
+  it('falls back to bill.month when item.date is missing', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        { id: 'a', description: 'X', amount: 10, category: 'Other' },
+      ]},
+    ];
+    expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['a']);
+    expect(getMonthItems(bills, '2026-02')).toEqual([]);
+  });
+
+  it('returns [] for empty bills array', () => {
+    expect(getMonthItems([], '2026-03')).toEqual([]);
+  });
+
+  it('returns [] for null/undefined bills', () => {
+    expect(getMonthItems(null, '2026-03')).toEqual([]);
+    expect(getMonthItems(undefined, '2026-03')).toEqual([]);
+  });
+
+  it('handles bills with missing items array', () => {
+    const bills = [{ id: '1', vendor: 'AmEx', month: '2026-03' }];
+    expect(getMonthItems(bills, '2026-03')).toEqual([]);
+  });
+
+  it('skips null items without crashing', () => {
+    const bills = [
+      { id: '1', vendor: 'AmEx', month: '2026-03', items: [
+        null,
+        { id: 'b', description: 'Y', amount: 7, category: 'Other', date: '2026-03-15' },
+      ]},
+    ];
+    expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['b']);
+  });
+});
+
+describe('findRecurringCharges (post-categoryId)', () => {
+  it('groups recurring items and reports categoryId', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Netflix', month: '2026-02', items: [
+        { id: 'i1', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-02-10' },
+      ]},
+      { id: 'b2', vendor: 'Netflix', month: '2026-03', items: [
+        { id: 'i2', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-03-10' },
+      ]},
+      { id: 'b3', vendor: 'Netflix', month: '2026-04', items: [
+        { id: 'i3', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-04-10' },
+      ]},
+    ];
+    const out = findRecurringCharges(bills, '2026-05');
+    expect(out).toHaveLength(1);
+    expect(out[0].categoryId).toBe('c_subs');
+  });
+});
+
+describe('aggregateByKeyword (post-categoryId)', () => {
+  it('returns categoryId of the most-frequent matching item', () => {
+    const bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'CHURCH OF X', amount: 50, categoryId: 'c_don', date: null },
+        { id: 'i2', description: 'CHURCH OF Y', amount: 60, categoryId: 'c_don', date: null },
+        { id: 'i3', description: 'CHURCH cafe', amount: 5, categoryId: 'c_dine', date: null },
+      ]},
+    ];
+    const summary = aggregateByKeyword(bills, 'CHURCH');
+    expect(summary.occurrences).toBe(3);
+    expect(summary.categoryId).toBe('c_don');
+  });
+});
+
+import { migrateToV2 } from './spendingMath.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+
+describe('migrateToV2', () => {
+  it('produces v2 categories with stable ids and seeded keywords', () => {
+    const { categories } = migrateToV2([], null, DEFAULT_CATEGORIES);
+    expect(categories).toHaveLength(DEFAULT_CATEGORIES.length);
+    for (const cat of categories) {
+      expect(typeof cat.id).toBe('string');
+      expect(cat.id.length).toBeGreaterThan(0);
+    }
+    const dining = categories.find(c => c.name === 'Dining');
+    expect(dining.keywords).toContain('MCDONALD');
+  });
+
+  it('rewrites items: item.category string becomes item.categoryId', () => {
+    const v1Bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'X', amount: 10, category: 'Utilities', date: null },
+        { id: 'i2', description: 'Y', amount: 20, category: 'Dining',    date: '2026-04-15' },
+      ]},
+    ];
+    const { bills, categories } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    const utilId = categories.find(c => c.name === 'Utilities').id;
+    const dineId = categories.find(c => c.name === 'Dining').id;
+
+    expect(bills[0].items[0].categoryId).toBe(utilId);
+    expect(bills[0].items[1].categoryId).toBe(dineId);
+    // Old string field stripped:
+    expect(bills[0].items[0].category).toBeUndefined();
+    expect(bills[0].items[1].category).toBeUndefined();
+    // Other item fields preserved:
+    expect(bills[0].items[0].description).toBe('X');
+    expect(bills[0].items[0].amount).toBe(10);
+    expect(bills[0].items[1].date).toBe('2026-04-15');
+  });
+
+  it('maps unrecognized category strings to "Other"', () => {
+    const v1Bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'X', amount: 10, category: 'NONEXISTENT', date: null },
+      ]},
+    ];
+    const { bills, categories } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    const otherId = categories.find(c => c.name === OTHER_CATEGORY_NAME).id;
+    expect(bills[0].items[0].categoryId).toBe(otherId);
+  });
+
+  it('falls back to first category when "Other" is somehow missing from seed', () => {
+    const seedNoOther = DEFAULT_CATEGORIES.filter(c => c.name !== OTHER_CATEGORY_NAME);
+    const v1Bills = [{ id: 'b1', vendor: 'V', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'NONEXISTENT', date: null },
+    ]}];
+    const { bills, categories } = migrateToV2(v1Bills, null, seedNoOther);
+    expect(bills[0].items[0].categoryId).toBe(categories[0].id);
+  });
+
+  it('is idempotent when given v2 bills + existing categories', () => {
+    // First pass: produces v2 bills + categories.
+    const v1Bills = [{ id: 'b1', vendor: 'V', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'Dining', date: null },
+    ]}];
+    const first = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    // Second pass: pass v2 bills back in WITH the categories from the first pass.
+    const second = migrateToV2(first.bills, first.categories, DEFAULT_CATEGORIES);
+    expect(second.bills).toEqual(first.bills);
+    expect(second.categories).toEqual(first.categories);
+  });
+
+  it('preserves bill-level fields (vendor, month, id)', () => {
+    const v1Bills = [{ id: 'b1', vendor: 'Acme', month: '2026-04', items: [
+      { id: 'i1', description: 'X', amount: 10, category: 'Other', date: null },
+    ]}];
+    const { bills } = migrateToV2(v1Bills, null, DEFAULT_CATEGORIES);
+    expect(bills[0].id).toBe('b1');
+    expect(bills[0].vendor).toBe('Acme');
+    expect(bills[0].month).toBe('2026-04');
+  });
+
+  it('returns empty bills + seed categories when input bills is null/undefined', () => {
+    const a = migrateToV2(null, null, DEFAULT_CATEGORIES);
+    expect(a.bills).toEqual([]);
+    expect(a.categories).toHaveLength(DEFAULT_CATEGORIES.length);
   });
 });

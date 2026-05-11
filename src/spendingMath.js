@@ -1,3 +1,6 @@
+import { nanoid } from 'nanoid';
+import { OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -29,6 +32,19 @@ export function getItemDate(bill, item) {
     ? bill.month
     : currentMonth();
   return `${month}-01`;
+}
+
+export function getMonthItems(bills, month) {
+  const out = [];
+  for (const bill of bills || []) {
+    for (const item of (bill && bill.items) || []) {
+      if (!item) continue;
+      if (getItemDate(bill, item).slice(0, 7) === month) {
+        out.push(item);
+      }
+    }
+  }
+  return out;
 }
 
 export const VENDOR_PALETTE = [
@@ -134,7 +150,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
         month: date.slice(0, 7),
         amount: item.amount,
         vendor: bill.vendor || 'Unknown',
-        category: item.category || 'Other',
+        categoryId: item.categoryId || null,
         description: item.description.trim(),
       });
     }
@@ -170,7 +186,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
     results.push({
       description: mode(occurrences.map(o => o.description)),
       vendor: mode(occurrences.map(o => o.vendor)),
-      category: mode(occurrences.map(o => o.category)),
+      categoryId: mode(occurrences.map(o => o.categoryId)),
       avgAmount: avg,
       lastAmount,
       varies,
@@ -191,7 +207,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 }
 
 export function aggregateByKeyword(bills, keyword) {
-  const empty = { total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 };
+  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 };
   if (!keyword || typeof keyword !== 'string' || !keyword.trim()) return empty;
   const needle = keyword.trim().toLowerCase();
 
@@ -199,7 +215,7 @@ export function aggregateByKeyword(bills, keyword) {
   let occurrences = 0;
   let lastDate = null;
   const byMonth = {};
-  const categoryCounts = new Map();
+  const categoryIdCounts = new Map();
 
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
@@ -213,20 +229,20 @@ export function aggregateByKeyword(bills, keyword) {
       byMonth[month] = (byMonth[month] || 0) + item.amount;
       occurrences += 1;
       if (!lastDate || date > lastDate) lastDate = date;
-      const cat = item.category || 'Other';
-      categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+      const cid = item.categoryId || null;
+      if (cid) categoryIdCounts.set(cid, (categoryIdCounts.get(cid) || 0) + 1);
     }
   }
 
   if (occurrences === 0) return empty;
 
-  let category = null;
+  let categoryId = null;
   let max = 0;
-  for (const [cat, count] of categoryCounts) {
-    if (count > max) { category = cat; max = count; }
+  for (const [cid, count] of categoryIdCounts) {
+    if (count > max) { categoryId = cid; max = count; }
   }
 
-  return { total, byMonth, lastDate, category, occurrences };
+  return { total, byMonth, lastDate, categoryId, occurrences };
 }
 
 export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
@@ -252,4 +268,43 @@ export function aggregateByDay(bills, targetMonth, vendorFilter = null) {
   }
 
   return buckets;
+}
+
+// One-time schema-v1 → schema-v2 migration.
+// v1: item.category is a string (the category name).
+// v2: item.categoryId is a stable id reference; categories are user-managed data.
+//
+// Inputs:
+//   bills          — current bills array (v1 or v2 shape)
+//   categories     — current categories array (null on first migration; v2 array thereafter)
+//   seedCategories — DEFAULT_CATEGORIES (used only when categories is null)
+//
+// Returns: { bills, categories } both in v2 shape. Idempotent.
+export function migrateToV2(bills, categories, seedCategories) {
+  // Build (or reuse) the categories array first.
+  const v2Cats = (categories && Array.isArray(categories) && categories.length > 0)
+    ? categories
+    : (seedCategories || []).map(seed => ({ ...seed, id: nanoid(8) }));
+
+  const otherId =
+    (v2Cats.find(c => c.name === OTHER_CATEGORY_NAME) || v2Cats[0] || {}).id;
+
+  const nameToId = new Map();
+  for (const c of v2Cats) nameToId.set(c.name, c.id);
+
+  const v2Bills = (bills || []).map(bill => {
+    if (!bill || !Array.isArray(bill.items)) return bill;
+    const items = bill.items.map(item => {
+      if (!item) return item;
+      // Already v2 — leave it.
+      if (typeof item.categoryId === 'string') return item;
+      // Migrate from v1.
+      const idFromName = nameToId.get(item.category);
+      const { category, ...rest } = item;
+      return { ...rest, categoryId: idFromName || otherId };
+    });
+    return { ...bill, items };
+  });
+
+  return { bills: v2Bills, categories: v2Cats };
 }
