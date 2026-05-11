@@ -23,8 +23,9 @@ function renderItem(overrides = {}) {
   };
   const onUpdate = overrides.onUpdate || vi.fn();
   const onDelete = overrides.onDelete || vi.fn();
+  const onDuplicate = overrides.onDuplicate || vi.fn();
   return {
-    onUpdate, onDelete, item,
+    onUpdate, onDelete, onDuplicate, item,
     ...render(
       <BillItem
         item={item}
@@ -33,6 +34,7 @@ function renderItem(overrides = {}) {
         otherCategoryId="c_other"
         onUpdate={onUpdate}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         isMobile={false}
       />
     ),
@@ -132,5 +134,29 @@ describe('BillItem', () => {
     expect(groups.length).toBe(3);
     const labels = Array.from(groups).map(g => g.getAttribute('label'));
     expect(labels).toEqual(['Income', 'Expense', 'Savings']);
+  });
+
+  it('renders the duplicate icon button on each row', () => {
+    renderItem();
+    expect(screen.getByRole('button', { name: /duplicate item/i })).toBeTruthy();
+  });
+
+  it('clicking the duplicate icon calls onDuplicate with the source item', async () => {
+    const onDuplicate = vi.fn();
+    const item = { id: 'i1', description: 'Ticket', amount: 80, categoryId: 'c_util', date: '2026-04-15' };
+    render(
+      <BillItem
+        item={item}
+        bill={bill}
+        categories={cats}
+        otherCategoryId="c_other"
+        onUpdate={() => {}}
+        onDelete={() => {}}
+        onDuplicate={onDuplicate}
+        isMobile={false}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /duplicate item/i }));
+    expect(onDuplicate).toHaveBeenCalledWith(item);
   });
 });

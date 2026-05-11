@@ -202,6 +202,16 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
   const deleteItem = (itemId) => onDeleteItem(bill.id, itemId);
 
+  const duplicateItem = (sourceItem) => {
+    const twin = { ...sourceItem, id: crypto.randomUUID() };
+    const idx = bill.items.findIndex(i => i.id === sourceItem.id);
+    if (idx < 0) return;
+    onUpdate({
+      ...bill,
+      items: [...bill.items.slice(0, idx + 1), twin, ...bill.items.slice(idx + 1)],
+    });
+  };
+
   const initial = (bill.vendor || "?").charAt(0).toUpperCase();
 
   return (
@@ -265,6 +275,7 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
                 otherCategoryId={otherCategoryId}
                 onUpdate={updateItem}
                 onDelete={() => deleteItem(item.id)}
+                onDuplicate={duplicateItem}
                 isMobile={isMobile}
               />
             ))}

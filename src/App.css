@@ -1992,6 +1992,30 @@
   margin-bottom: 4px;
 }
 
+/* ---- Duplicate item button ---- */
+
+.btn-duplicate-item {
+  background: transparent;
+  border: 1px solid rgba(212, 168, 83, 0.30);
+  color: rgba(212, 168, 83, 0.85);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-right: 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.btn-duplicate-item:hover {
+  background: rgba(212, 168, 83, 0.12);
+  color: rgba(212, 168, 83, 1);
+}
+
 .settings-label {
   font-size: 10px;
   letter-spacing: 0.06em;
