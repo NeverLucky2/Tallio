@@ -391,6 +391,7 @@ export function shiftItemDate(date, targetMonth) {
   const [yStr, mStr] = targetMonth.split('-');
   const year = parseInt(yStr, 10);
   const month = parseInt(mStr, 10);
+  if (month < 1 || month > 12) return null;
   const lastDay = new Date(year, month, 0).getDate();
   const clampedDay = Math.min(day, lastDay);
   return `${targetMonth}-${String(clampedDay).padStart(2, '0')}`;

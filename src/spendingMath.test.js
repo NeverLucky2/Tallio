@@ -759,6 +759,11 @@ describe('shiftItemDate', () => {
     expect(shiftItemDate('',          '2026-05')).toBeNull();
   });
 
+  it('returns null for out-of-range months (13, 00)', () => {
+    expect(shiftItemDate('2026-05-15', '2026-13')).toBeNull();
+    expect(shiftItemDate('2026-05-15', '2026-00')).toBeNull();
+  });
+
   it('same-month target is a no-op', () => {
     expect(shiftItemDate('2026-05-15', '2026-05')).toBe('2026-05-15');
   });
