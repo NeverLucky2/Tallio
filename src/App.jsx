@@ -331,7 +331,7 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
       ) : (
         <div className="track-list">
           {keywords.map(kw => {
-            const summary = aggregateByKeyword(bills, kw);
+            const summary = aggregateByKeyword(bills, kw, categoriesById);
             const thisMonth = summary.byMonth[selectedMonth] || 0;
             const prevMonthKey = shiftMonth(selectedMonth, -1);
             const prevMonth = summary.byMonth[prevMonthKey] || 0;
@@ -671,6 +671,13 @@ function BillTracker() {
   const visibleBills = searchActive
     ? bills.filter(b => matchesSearch(b, searchTerm))
     : monthBills;
+
+  const expenseItemsForBreakdown = (searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems)
+    .filter(it => {
+      const cat = categoriesById.get(it.categoryId);
+      const flow = cat && cat.flow ? cat.flow : 'expense';
+      return flow === 'expense';
+    });
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
@@ -1120,7 +1127,7 @@ function BillTracker() {
           {/* Sidebar */}
           <div className="sidebar">
             <CategoryBreakdown
-              items={searchActive ? visibleBills.flatMap(b => b.items ?? []) : selectedMonthItems}
+              items={expenseItemsForBreakdown}
               categories={cats.categories}
               otherCategoryId={cats.otherId()}
               selectedMonth={searchActive ? null : selectedMonth}

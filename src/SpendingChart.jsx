@@ -73,13 +73,16 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     for (const b of bills) {
       if (!b.vendor) continue;
       if (!window.has(b.month)) continue;
-      const hasSpending = (b.items || []).some(
-        i => Number.isFinite(i.amount) && i.amount > 0
-      );
+      const hasSpending = (b.items || []).some(i => {
+        if (!Number.isFinite(i.amount) || i.amount <= 0) return false;
+        const cat = categoriesById && categoriesById.get(i.categoryId);
+        const flow = cat && cat.flow ? cat.flow : 'expense';
+        return flow === 'expense';
+      });
       if (hasSpending) set.add(b.vendor);
     }
     return Array.from(set).sort();
-  }, [bills, windowEnd]);
+  }, [bills, windowEnd, categoriesById]);
 
   // If the selected vendor was deleted, treat as "All" without a setState call.
   const effectiveFilter = vendorFilter !== null && vendors.includes(vendorFilter) ? vendorFilter : null;
