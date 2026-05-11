@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet } from './spendingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
@@ -180,9 +180,11 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
-  const total = bill.items.reduce((sum, item) => sum + item.amount, 0);
+  const billNet = getBillNet(bill, categoriesById);
+  const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
+  const displayAmount = Math.abs(billNet.net);
 
   const addItem = () => {
     const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date: null };
@@ -218,7 +220,10 @@ const BillCard = ({ bill, defaultCategoryId, categories, otherCategoryId, onUpda
           </div>
         </div>
         <div className="bill-right">
-          <span className="bill-total">{formatCurrency(total)}</span>
+          <span className={`bill-total bill-total-${direction}`}>
+            {direction === 'in' ? '↑' : direction === 'out' ? '↓' : ''}
+            {formatCurrency(displayAmount)}
+          </span>
           <span className={`bill-chevron${isExpanded ? ' bill-chevron-open' : ''}`}>▾</span>
         </div>
       </div>
@@ -1069,6 +1074,7 @@ function BillTracker() {
                   bill={bill}
                   defaultCategoryId={cats.otherId()}
                   categories={cats.categories}
+                  categoriesById={categoriesById}
                   otherCategoryId={cats.otherId()}
                   onUpdate={updateBill}
                   onDelete={deleteBill}
