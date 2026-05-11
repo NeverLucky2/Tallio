@@ -150,7 +150,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
         month: date.slice(0, 7),
         amount: item.amount,
         vendor: bill.vendor || 'Unknown',
-        category: item.category || 'Other',
+        categoryId: item.categoryId || null,
         description: item.description.trim(),
       });
     }
@@ -186,7 +186,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
     results.push({
       description: mode(occurrences.map(o => o.description)),
       vendor: mode(occurrences.map(o => o.vendor)),
-      category: mode(occurrences.map(o => o.category)),
+      categoryId: mode(occurrences.map(o => o.categoryId)),
       avgAmount: avg,
       lastAmount,
       varies,
@@ -207,7 +207,7 @@ export function findRecurringCharges(bills, today = currentMonth()) {
 }
 
 export function aggregateByKeyword(bills, keyword) {
-  const empty = { total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 };
+  const empty = { total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 };
   if (!keyword || typeof keyword !== 'string' || !keyword.trim()) return empty;
   const needle = keyword.trim().toLowerCase();
 
@@ -215,7 +215,7 @@ export function aggregateByKeyword(bills, keyword) {
   let occurrences = 0;
   let lastDate = null;
   const byMonth = {};
-  const categoryCounts = new Map();
+  const categoryIdCounts = new Map();
 
   for (const bill of bills || []) {
     for (const item of bill.items || []) {
@@ -229,20 +229,20 @@ export function aggregateByKeyword(bills, keyword) {
       byMonth[month] = (byMonth[month] || 0) + item.amount;
       occurrences += 1;
       if (!lastDate || date > lastDate) lastDate = date;
-      const cat = item.category || 'Other';
-      categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
+      const cid = item.categoryId || null;
+      if (cid) categoryIdCounts.set(cid, (categoryIdCounts.get(cid) || 0) + 1);
     }
   }
 
   if (occurrences === 0) return empty;
 
-  let category = null;
+  let categoryId = null;
   let max = 0;
-  for (const [cat, count] of categoryCounts) {
-    if (count > max) { category = cat; max = count; }
+  for (const [cid, count] of categoryIdCounts) {
+    if (count > max) { categoryId = cid; max = count; }
   }
 
-  return { total, byMonth, lastDate, category, occurrences };
+  return { total, byMonth, lastDate, categoryId, occurrences };
 }
 
 export function aggregateByDay(bills, targetMonth, vendorFilter = null) {

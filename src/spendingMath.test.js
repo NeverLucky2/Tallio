@@ -444,8 +444,8 @@ describe('aggregateByKeyword', () => {
   });
 
   it('returns null/empty summary when keyword is blank', () => {
-    const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', category: 'Other' }])];
-    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, category: null, occurrences: 0 });
+    const bills = [billWithItems('2026-05', [{ description: 'X', amount: 1, date: '2026-05-01', categoryId: 'c_other' }])];
+    expect(aggregateByKeyword(bills, '')).toEqual({ total: 0, byMonth: {}, lastDate: null, categoryId: null, occurrences: 0 });
   });
 
   it('matches items by case-insensitive substring on description', () => {
@@ -486,13 +486,13 @@ describe('aggregateByKeyword', () => {
 
   it('returns the most common category among matching items', () => {
     const bills = [
-      billWithItems('2026-04', [{ description: 'AMAZON', amount: 30, date: '2026-04-01', category: 'Shopping' }]),
+      billWithItems('2026-04', [{ description: 'AMAZON', amount: 30, date: '2026-04-01', categoryId: 'c_shopping' }]),
       billWithItems('2026-05', [
-        { description: 'AMAZON', amount: 12, date: '2026-05-01', category: 'Shopping' },
-        { description: 'AMAZON PRIME', amount: 14.99, date: '2026-05-05', category: 'Subscriptions' },
+        { description: 'AMAZON', amount: 12, date: '2026-05-01', categoryId: 'c_shopping' },
+        { description: 'AMAZON PRIME', amount: 14.99, date: '2026-05-05', categoryId: 'c_subs' },
       ]),
     ];
-    expect(aggregateByKeyword(bills, 'AMAZON').category).toBe('Shopping');
+    expect(aggregateByKeyword(bills, 'AMAZON').categoryId).toBe('c_shopping');
   });
 
   it('ignores items with non-positive amounts', () => {
@@ -552,6 +552,40 @@ describe('getMonthItems', () => {
       ]},
     ];
     expect(getMonthItems(bills, '2026-03').map(i => i.id)).toEqual(['b']);
+  });
+});
+
+describe('findRecurringCharges (post-categoryId)', () => {
+  it('groups recurring items and reports categoryId', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Netflix', month: '2026-02', items: [
+        { id: 'i1', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-02-10' },
+      ]},
+      { id: 'b2', vendor: 'Netflix', month: '2026-03', items: [
+        { id: 'i2', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-03-10' },
+      ]},
+      { id: 'b3', vendor: 'Netflix', month: '2026-04', items: [
+        { id: 'i3', description: 'Netflix', amount: 15, categoryId: 'c_subs', date: '2026-04-10' },
+      ]},
+    ];
+    const out = findRecurringCharges(bills, '2026-05');
+    expect(out).toHaveLength(1);
+    expect(out[0].categoryId).toBe('c_subs');
+  });
+});
+
+describe('aggregateByKeyword (post-categoryId)', () => {
+  it('returns categoryId of the most-frequent matching item', () => {
+    const bills = [
+      { id: 'b1', vendor: 'V', month: '2026-04', items: [
+        { id: 'i1', description: 'CHURCH OF X', amount: 50, categoryId: 'c_don', date: null },
+        { id: 'i2', description: 'CHURCH OF Y', amount: 60, categoryId: 'c_don', date: null },
+        { id: 'i3', description: 'CHURCH cafe', amount: 5, categoryId: 'c_dine', date: null },
+      ]},
+    ];
+    const summary = aggregateByKeyword(bills, 'CHURCH');
+    expect(summary.occurrences).toBe(3);
+    expect(summary.categoryId).toBe('c_don');
   });
 });
 
