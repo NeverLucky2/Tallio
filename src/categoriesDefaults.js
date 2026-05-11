@@ -38,7 +38,7 @@ export const DEFAULT_CATEGORIES = [
     'TITHE', 'PARISH', 'DIOCESE', 'SYNAGOGUE', 'MOSQUE', 'TEMPLE',
     'CHARITY', 'FOUNDATION', 'NONPROFIT', 'NON-PROFIT',
   ], templates: [], builtin: true },
-  { name: 'Taxes',          icon: '🏛', color: '#EAB308', flow: 'expense', keywords: [
+  { name: 'Taxes',          icon: '🏛️', color: '#EAB308', flow: 'expense', keywords: [
     'FEDERAL TAX', 'STATE TAX', 'FICA', 'SOCIAL SECURITY', 'MEDICARE',
     'TAX WITHHOLDING', 'WITHHOLDING',
   ], templates: [], builtin: true },
@@ -53,7 +53,7 @@ export const V3_SEED_CATEGORIES = [
     'PAYCHECK', 'SALARY', 'PAYROLL', 'DIRECT DEPOSIT', 'GROSS PAY',
   ], templates: [], builtin: true },
   { name: 'Zelle In',           icon: '💸', color: '#34D399', flow: 'income',  keywords: ['ZELLE FROM'], templates: [], builtin: true },
-  { name: 'Dividends',          icon: '📈', color: '#22D3EE', flow: 'income',  keywords: ['DIVIDEND', 'DIV'], templates: [], builtin: true },
+  { name: 'Dividends',          icon: '📈', color: '#22D3EE', flow: 'income',  keywords: ['DIVIDEND'], templates: [], builtin: true },
   { name: 'Bank Interest',      icon: '🏦', color: '#0EA5E9', flow: 'income',  keywords: ['INTEREST EARNED', 'INTEREST CREDIT'], templates: [], builtin: true },
   { name: 'Cashback',           icon: '🎁', color: '#A3E635', flow: 'income',  keywords: ['CASHBACK', 'CASH BACK', 'REWARDS', 'REWARD REDEMPTION'], templates: [], builtin: true },
   { name: 'Tax Refund',         icon: '💰', color: '#FBBF24', flow: 'income',  keywords: ['TAX REFUND', 'IRS REFUND', 'STATE REFUND'], templates: [], builtin: true },
