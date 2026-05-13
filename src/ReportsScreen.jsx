@@ -95,7 +95,7 @@ const formatMonthShort = (month) => {
   return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' });
 };
 
-function MonthTrendTab({ bills, categories, categoriesById }) {
+function MonthTrendTab({ bills, categories }) {
   const firstExpense = (categories || []).find(c => c.flow === 'expense');
   const defaultCatId = firstExpense ? firstExpense.id : (categories && categories[0] && categories[0].id) || null;
   const [categoryId, setCategoryId] = React.useState(defaultCatId);
@@ -242,7 +242,7 @@ export default function ReportsScreen({ bills, categories, categoriesById, selec
 
       <div className="reports-body">
         {activeTab === 'yoy' && <YoyTab bills={bills} categoriesById={categoriesById} />}
-        {activeTab === 'month' && <MonthTrendTab bills={bills} categories={categories} categoriesById={categoriesById} />}
+        {activeTab === 'month' && <MonthTrendTab bills={bills} categories={categories} />}
         {activeTab === 'recurring' && <RecurringBreakdownTab bills={bills} categoriesById={categoriesById} selectedMonth={selectedMonth} />}
       </div>
     </div>
