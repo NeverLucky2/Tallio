@@ -1365,6 +1365,29 @@ describe('findAutoRecurringChains', () => {
     expect(chains[0].lastDate).toBe('2026-05-01');
     expect(chains[0].firstDate).toBe('2026-04-01');
   });
+
+  it('firstDate reflects earliest primary across the chain, even when a later anchor has earlier primary', () => {
+    // Chain: an Apr-only bill, then a bill anchored Apr but with items spanning Feb-Apr (multi-month backwards).
+    // sort-by-latest places Apr-only first (latest=Apr) and the Feb-Apr bill second (also latest=Apr).
+    // Either way, the chain's actually-earliest activity is Feb, so firstDate should be 2026-02-01.
+    const aprOnly = makeBill({
+      id: 'b_apr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'i1', amount: 100, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' }],
+    });
+    const febToApr = makeBill({
+      id: 'b_febapr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i2', amount: 50, description: 'early', categoryId: 'c_auto', date: '2026-02-28' },
+        { id: 'i3', amount: 50, description: 'late',  categoryId: 'c_auto', date: '2026-04-10' },
+      ],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprOnly, febToApr], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].firstDate).toBe('2026-02-01');
+  });
 });
 
 import { getPrimaryMonth } from './spendingMath.js';

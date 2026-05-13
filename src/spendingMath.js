@@ -626,6 +626,12 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
 
     const uniqueMonths = new Set(sorted.flatMap(b => [...getBillMonths(b)]));
 
+    let earliestPrimary = getPrimaryMonth(sorted[0]);
+    for (const b of sorted) {
+      const p = getPrimaryMonth(b);
+      if (p < earliestPrimary) earliestPrimary = p;
+    }
+
     results.push({
       kind: 'auto',
       chainId,
@@ -637,7 +643,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
       avgAmount,
       monthCount: uniqueMonths.size,
       occurrences: sorted.length,
-      firstDate: `${getPrimaryMonth(sorted[0])}-01`,
+      firstDate: `${earliestPrimary}-01`,
       lastDate: `${getLatestMonth(latest)}-01`,
       active: true,
     });
