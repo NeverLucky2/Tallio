@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildItemsCsv, buildDataJson } from './exportArchive.js';
+import { buildItemsCsv, buildDataJson, buildArchive } from './exportArchive.js';
+import { unzipSync, strFromU8 } from 'fflate';
 
 const cats = [
   { id: 'c_food', name: 'Groceries',  flow: 'expense' },
@@ -132,5 +133,46 @@ describe('buildDataJson', () => {
   it('serializes with 2-space indent (human-readable)', () => {
     const str = buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow);
     expect(str).toContain('\n  "schemaVersion"');
+  });
+});
+
+describe('buildArchive', () => {
+  const fixedNow = new Date('2026-05-12T18:42:01.234Z');
+  const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+    { id: 'i1', description: 'Coffee', amount: 5, categoryId: 'c_food', date: '2026-05-02' },
+  ]}];
+  const categories = [{ id: 'c_food', name: 'Groceries', flow: 'expense' }];
+  const trackedKeywords = ['CHURCH'];
+
+  it('returns a Uint8Array', () => {
+    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
+    expect(bytes).toBeInstanceOf(Uint8Array);
+  });
+
+  it('zip contains exactly data.json and items.csv', () => {
+    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
+    const unzipped = unzipSync(bytes);
+    expect(Object.keys(unzipped).sort()).toEqual(['data.json', 'items.csv']);
+  });
+
+  it('data.json round-trips through JSON.parse', () => {
+    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
+    const unzipped = unzipSync(bytes);
+    const data = JSON.parse(strFromU8(unzipped['data.json']));
+    expect(data.schemaVersion).toBe(3);
+    expect(data.bills).toEqual(bills);
+  });
+
+  it('items.csv starts with BOM and header row', () => {
+    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
+    const unzipped = unzipSync(bytes);
+    const csvBytes = unzipped['items.csv'];
+    // Check UTF-8 BOM bytes (EF BB BF)
+    expect(csvBytes[0]).toBe(0xEF);
+    expect(csvBytes[1]).toBe(0xBB);
+    expect(csvBytes[2]).toBe(0xBF);
+    // Check header row (strFromU8 will strip the BOM bytes automatically)
+    const csv = strFromU8(csvBytes);
+    expect(csv.split('\n')[0]).toBe('date,vendor,description,amount,category,flow,recurring');
   });
 });

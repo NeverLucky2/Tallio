@@ -1,4 +1,5 @@
 import { getItemDate } from './spendingMath.js';
+import { zipSync } from 'fflate';
 
 const CSV_HEADER = 'date,vendor,description,amount,category,flow,recurring';
 
@@ -59,4 +60,29 @@ export function buildDataJson(bills, categories, trackedKeywords, schemaVersion,
     trackedKeywords: trackedKeywords || [],
   };
   return JSON.stringify(payload, null, 2);
+}
+
+export function buildArchive({ bills, categories, trackedKeywords, schemaVersion, appVersion, now }) {
+  const categoriesById = new Map((categories || []).map(c => [c.id, c]));
+  const jsonString = buildDataJson(bills, categories, trackedKeywords, schemaVersion, appVersion, now);
+  const csvString  = buildItemsCsv(bills, categoriesById);
+  const encoder = new TextEncoder();
+  // In jsdom/vitest, TextEncoder-created Uint8Arrays have serialization issues.
+  // Reconstruct from array to work around the issue.
+  const jsonBytes = new Uint8Array(Array.from(encoder.encode(jsonString)));
+  // csvString includes a BOM character (U+FEFF). When encoded to UTF-8, this becomes
+  // the UTF-8 BOM (EF BB BF), which is stripped by TextDecoder. To preserve the BOM
+  // in the round-trip, we prepend it as three bytes before encoding the rest of the string.
+  const csvWithoutBom = csvString.charCodeAt(0) === 0xFEFF ? csvString.slice(1) : csvString;
+  const csvContentBytes = new Uint8Array(Array.from(encoder.encode(csvWithoutBom)));
+  // Manually prepend the UTF-8 BOM bytes
+  const csvBytes = new Uint8Array(3 + csvContentBytes.length);
+  csvBytes[0] = 0xEF;
+  csvBytes[1] = 0xBB;
+  csvBytes[2] = 0xBF;
+  csvBytes.set(csvContentBytes, 3);
+  return zipSync({
+    'data.json': jsonBytes,
+    'items.csv': csvBytes,
+  });
 }
