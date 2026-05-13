@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp, getBillMonths } from './spendingMath.js';
 import { partitionSpentByRecurring } from './reportingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
@@ -718,7 +718,7 @@ function BillTracker() {
   );
 
   const todayMonth = currentMonthKey();
-  const monthBills = bills.filter(bill => bill.month === selectedMonth);
+  const monthBills = bills.filter(bill => getBillMonths(bill).has(selectedMonth));
   const selectedMonthItems = getMonthItems(bills, selectedMonth);
 
   function sumByFlow(items, targetFlow) {
