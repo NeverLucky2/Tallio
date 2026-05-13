@@ -5,6 +5,8 @@ import {
   findRecurringCharges,
   getBillNet,
 } from '../spendingMath.js';
+import { unzipSync, strFromU8 } from 'fflate';
+import { buildArchive } from '../exportArchive.js';
 
 function makeFakeStorage(initial = {}) {
   const store = { ...initial };
@@ -151,5 +153,41 @@ describe('end-to-end: migration + flow-aware math', () => {
     expect(out.conflicts[0].chainId).toBe('rec_h');
     // No spawn occurred — only the original two bills.
     expect(out.bills).toHaveLength(2);
+  });
+});
+
+describe('end-to-end: reports + export', () => {
+  const cats = [
+    { id: 'c_food', name: 'Groceries', flow: 'expense' },
+    { id: 'c_pay',  name: 'Paycheck',  flow: 'income'  },
+  ];
+
+  it('export archive contains data.json + items.csv with expected shapes', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i1', description: 'Gross pay', amount: 5200, categoryId: 'c_pay', date: '2026-05-15' },
+      ]},
+      { id: 'b2', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i2', description: 'Whole Foods', amount: 84, categoryId: 'c_food', date: '2026-05-02' },
+      ]},
+    ];
+    const bytes = buildArchive({
+      bills, categories: cats, trackedKeywords: ['CHURCH'],
+      schemaVersion: 3, appVersion: '1.0.0', now: new Date('2026-05-12T12:00:00Z'),
+    });
+    const unzipped = unzipSync(bytes);
+    expect(Object.keys(unzipped).sort()).toEqual(['data.json', 'items.csv']);
+    const data = JSON.parse(strFromU8(unzipped['data.json']));
+    expect(data.schemaVersion).toBe(3);
+    expect(data.bills.length).toBe(2);
+    expect(data.trackedKeywords).toEqual(['CHURCH']);
+    const csvBytes = unzipped['items.csv'];
+    // BOM check: assert raw bytes (strFromU8 strips the BOM during decode)
+    expect(csvBytes[0]).toBe(0xEF);
+    expect(csvBytes[1]).toBe(0xBB);
+    expect(csvBytes[2]).toBe(0xBF);
+    const csv = strFromU8(csvBytes);
+    expect(csv.split('\n')[0]).toBe('date,vendor,description,amount,category,flow,recurring');
+    expect(csv).toContain('Gross pay,5200.00,Paycheck,income,no');
   });
 });
