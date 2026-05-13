@@ -34,6 +34,52 @@ export function getItemDate(bill, item) {
   return `${month}-01`;
 }
 
+export function getPrimaryMonth(bill) {
+  let earliest = null;
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      const m = item.date.slice(0, 7);
+      if (earliest === null || m < earliest) earliest = m;
+    }
+  }
+  if (earliest !== null) return earliest;
+  if (bill && typeof bill.month === 'string' && MONTH_RE.test(bill.month)) return bill.month;
+  return currentMonth();
+}
+
+export function getBillMonths(bill) {
+  const months = new Set([getPrimaryMonth(bill)]);
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      months.add(item.date.slice(0, 7));
+    }
+  }
+  return months;
+}
+
+export function getLatestMonth(bill) {
+  let latest = getPrimaryMonth(bill);
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      const m = item.date.slice(0, 7);
+      if (m > latest) latest = m;
+    }
+  }
+  return latest;
+}
+
+export function getBillItemsForMonth(bill, month) {
+  if (!bill || !Array.isArray(bill.items)) return [];
+  const primary = getPrimaryMonth(bill);
+  return bill.items.filter(item => {
+    if (!item) return false;
+    if (typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      return item.date.slice(0, 7) === month;
+    }
+    return month === primary;
+  });
+}
+
 export function getMonthItems(bills, month) {
   const out = [];
   for (const bill of bills || []) {
@@ -411,8 +457,8 @@ export function shiftItemDate(date, targetMonth) {
 //   2. For each chain:
 //      a. Find the chronologically latest instance where recurring === true.
 //         If none, the chain is dormant — skip.
-//      b. Walk target months strictly after source.month up to and including
-//         todayMonth. For each:
+//      b. Walk target months strictly after getLatestMonth(source) up to and
+//         including todayMonth. For each:
 //           - If a bill in the chain already exists in that month, skip.
 //           - Else if a same-vendor non-chain bill exists, push a conflict
 //             entry and stop iterating further months for this chain.
@@ -446,7 +492,7 @@ export function computeCatchUp(bills, todayMonth) {
 
   for (const [chainId, chainBills] of byChain) {
     // Find the chronologically latest bill in the chain overall.
-    const sortedChain = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
+    const sortedChain = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b)));
     const latestOverall = sortedChain[sortedChain.length - 1];
     // If the latest bill has recurring=false (or chain is empty), the chain is dormant — skip.
     if (!latestOverall || latestOverall.recurring !== true) continue;
@@ -454,16 +500,16 @@ export function computeCatchUp(bills, todayMonth) {
     // so there's no need for a separate activeInstances filter/sort/pop.
     const source = latestOverall;
 
-    // Iterate target months strictly after source.month, up to todayMonth.
-    const targets = monthsBetweenExclusiveInclusive(source.month, todayMonth);
+    // Iterate target months strictly after getLatestMonth(source), up to todayMonth.
+    const targets = monthsBetweenExclusiveInclusive(getLatestMonth(source), todayMonth);
     for (const targetMonth of targets) {
       const alreadyInChain = working.some(b =>
-        b.recurringChainId === chainId && b.month === targetMonth
+        b.recurringChainId === chainId && getBillMonths(b).has(targetMonth)
       );
       if (alreadyInChain) continue;
 
       const conflictBill = working.find(b =>
-        b.month === targetMonth &&
+        getBillMonths(b).has(targetMonth) &&
         b.vendor === source.vendor &&
         b.recurringChainId !== chainId
       );
@@ -548,7 +594,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
   const results = [];
   for (const [chainId, chainBills] of byChain) {
     // Sort all chain bills chronologically (null-safe, mirrors computeCatchUp).
-    const sorted = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
+    const sorted = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b)));
     const latest = sorted[sorted.length - 1];
     // Chain is dormant if the latest (chronologically) bill is not recurring=true.
     if (!latest || latest.recurring !== true) continue;
@@ -578,7 +624,13 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
     );
     const avgAmount = totalAmount / sorted.length;
 
-    const uniqueMonths = new Set(sorted.map(b => b.month));
+    const uniqueMonths = new Set(sorted.flatMap(b => [...getBillMonths(b)]));
+
+    let earliestPrimary = getPrimaryMonth(sorted[0]);
+    for (const b of sorted) {
+      const p = getPrimaryMonth(b);
+      if (p < earliestPrimary) earliestPrimary = p;
+    }
 
     results.push({
       kind: 'auto',
@@ -591,8 +643,8 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
       avgAmount,
       monthCount: uniqueMonths.size,
       occurrences: sorted.length,
-      firstDate: `${sorted[0].month}-01`,
-      lastDate: `${latest.month}-01`,
+      firstDate: `${earliestPrimary}-01`,
+      lastDate: `${getLatestMonth(latest)}-01`,
       active: true,
     });
   }

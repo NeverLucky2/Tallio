@@ -1150,6 +1150,69 @@ describe('computeCatchUp', () => {
     const may = out.bills.find(b => b.month === '2026-05');
     expect(may.items).toEqual([]);
   });
+
+  it('multi-month source: next catch-up target is after the source\'s latest month', () => {
+    // Source spans Apr–May (recurring=true). Today is July. Expect spawns for June, July only.
+    const source = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'it1', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'it2', description: 'Auto loan tail', amount: 0, categoryId: 'c_auto', date: '2026-05-03' },
+      ],
+    });
+    const out = computeCatchUp([source], '2026-07');
+    expect(out.conflicts).toEqual([]);
+    const spawns = out.bills.filter(b => b.id !== 'b_aprmay');
+    const months = spawns.map(b => b.month).sort();
+    expect(months).toEqual(['2026-06', '2026-07']);
+  });
+
+  it('multi-month bill in the chain already covers a target month → no spawn for that month', () => {
+    // Source bill spans Apr–May. Today July. June + July should still spawn; April and May are covered.
+    const source = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'it1', amount: 452, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'it2', amount: 0,   description: 'tail', categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const out = computeCatchUp([source], '2026-07');
+    const aprMay = out.bills.filter(b => b.recurringChainId === 'rec_h' && b.id === 'b_aprmay');
+    expect(aprMay).toHaveLength(1);  // source unchanged
+    const spawnMonths = out.bills
+      .filter(b => b.recurringChainId === 'rec_h' && b.id !== 'b_aprmay')
+      .map(b => b.month).sort();
+    expect(spawnMonths).toEqual(['2026-06', '2026-07']);
+  });
+
+  it('conflict check considers spans: a same-vendor multi-month non-chain bill blocks catch-up', () => {
+    // Chain source is April. Catch-up targets are May, June, July.
+    // The stray bill has month='2026-04' (so OLD logic's `b.month === targetMonth` would never match May)
+    // but has an item dated 2026-05-02 (so NEW logic's `getBillMonths(b).has('2026-05')` matches).
+    // This test only passes under span-aware conflict logic.
+    const chainSource = makeBill({
+      id: 'b_apr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', amount: 452, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' }],
+    });
+    const stray = makeBill({
+      id: 'b_stray', month: '2026-04', vendor: 'Honda',
+      items: [
+        { id: 'it_a', amount: 100, description: 'late Apr',  categoryId: 'c_auto', date: '2026-04-30' },
+        { id: 'it_b', amount: 50,  description: 'early May', categoryId: 'c_auto', date: '2026-05-02' },
+      ],
+    });
+    const out = computeCatchUp([chainSource, stray], '2026-07');
+    // Span-aware conflict: stray covers May → conflict on May → stops further targets.
+    expect(out.conflicts).toHaveLength(1);
+    expect(out.conflicts[0].targetMonth).toBe('2026-05');
+    expect(out.conflicts[0].existingBillId).toBe('b_stray');
+    // No catch-up spawns produced because the chain halted at the May conflict.
+    const chainSpawns = out.bills.filter(b => b.recurringChainId === 'rec_h' && b.id !== 'b_apr');
+    expect(chainSpawns).toHaveLength(0);
+  });
 });
 
 describe('findAutoRecurringChains', () => {
@@ -1263,5 +1326,281 @@ describe('findAutoRecurringChains', () => {
     expect(out).toHaveLength(1);
     expect(out[0].monthCount).toBe(2);
     expect(out[0].occurrences).toBe(2);
+  });
+
+  it('multi-month bills contribute every spanned month to monthCount', () => {
+    const aprMay = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i1', description: 'Auto', amount: 100, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'i2', description: 'tail', amount: 50,  categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const jun = makeBill({
+      id: 'b_jun', month: '2026-06', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'i3', description: 'Auto', amount: 150, categoryId: 'c_auto', date: '2026-06-15' }],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprMay, jun], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].monthCount).toBe(3);   // Apr, May, Jun
+    expect(chains[0].occurrences).toBe(2);  // two bill rows
+  });
+
+  it('multi-month chain lastDate reflects the latest spanned month, not bill.month', () => {
+    // Single chain bill spanning Apr–May; "latest" should be May not Apr.
+    const aprMay = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i1', description: 'Auto', amount: 100, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'i2', description: 'tail', amount: 50,  categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprMay], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].lastDate).toBe('2026-05-01');
+    expect(chains[0].firstDate).toBe('2026-04-01');
+  });
+
+  it('firstDate reflects earliest primary across the chain, even when a later anchor has earlier primary', () => {
+    // Chain: an Apr-only bill, then a bill anchored Apr but with items spanning Feb-Apr (multi-month backwards).
+    // sort-by-latest places Apr-only first (latest=Apr) and the Feb-Apr bill second (also latest=Apr).
+    // Either way, the chain's actually-earliest activity is Feb, so firstDate should be 2026-02-01.
+    const aprOnly = makeBill({
+      id: 'b_apr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'i1', amount: 100, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' }],
+    });
+    const febToApr = makeBill({
+      id: 'b_febapr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i2', amount: 50, description: 'early', categoryId: 'c_auto', date: '2026-02-28' },
+        { id: 'i3', amount: 50, description: 'late',  categoryId: 'c_auto', date: '2026-04-10' },
+      ],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprOnly, febToApr], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].firstDate).toBe('2026-02-01');
+  });
+});
+
+import { getPrimaryMonth } from './spendingMath.js';
+
+describe('getPrimaryMonth', () => {
+  it('returns the earliest dated item month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-05-04' },
+        { date: '2026-04-22' },
+        { date: '2026-04-15' },
+      ],
+    };
+    expect(getPrimaryMonth(bill)).toBe('2026-04');
+  });
+
+  it('falls back to bill.month when no items are dated', () => {
+    const bill = { month: '2026-07', items: [{ date: null }, { amount: 5 }] };
+    expect(getPrimaryMonth(bill)).toBe('2026-07');
+  });
+
+  it('falls back to bill.month when items array is empty', () => {
+    expect(getPrimaryMonth({ month: '2026-03', items: [] })).toBe('2026-03');
+  });
+
+  it('ignores malformed item dates', () => {
+    const bill = {
+      month: '2026-04',
+      items: [{ date: 'May 1, 2026' }, { date: '2026-03-09' }],
+    };
+    expect(getPrimaryMonth(bill)).toBe('2026-03');
+  });
+
+  it('handles a null bill gracefully (returns currentMonth fallback shape)', () => {
+    expect(getPrimaryMonth(null)).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('handles a bill with no items array (returns bill.month)', () => {
+    expect(getPrimaryMonth({ month: '2026-09' })).toBe('2026-09');
+  });
+
+  it('falls back to currentMonth when bill.month is a malformed string', () => {
+    expect(getPrimaryMonth({ month: 'not-a-month', items: [] })).toMatch(/^\d{4}-\d{2}$/);
+  });
+});
+
+import { getBillMonths } from './spendingMath.js';
+import { getLatestMonth } from './spendingMath.js';
+
+describe('getLatestMonth', () => {
+  it('returns the latest dated item month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-15' },
+        { date: '2026-05-04' },
+        { date: '2026-04-22' },
+      ],
+    };
+    expect(getLatestMonth(bill)).toBe('2026-05');
+  });
+
+  it('equals primary month when bill is single-month', () => {
+    const bill = { month: '2026-03', items: [{ date: '2026-03-10' }] };
+    expect(getLatestMonth(bill)).toBe('2026-03');
+  });
+
+  it('falls back to bill.month when no items are dated', () => {
+    expect(getLatestMonth({ month: '2026-07', items: [{ date: null }] })).toBe('2026-07');
+  });
+
+  it('handles null bill gracefully', () => {
+    expect(getLatestMonth(null)).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('handles three-month spans', () => {
+    const bill = {
+      month: '2026-01',
+      items: [
+        { date: '2026-01-30' },
+        { date: '2026-03-02' },
+      ],
+    };
+    expect(getLatestMonth(bill)).toBe('2026-03');
+  });
+
+  it('falls back to currentMonth when bill.month is malformed and no items are dated', () => {
+    expect(getLatestMonth({ month: 'bad', items: [] })).toMatch(/^\d{4}-\d{2}$/);
+  });
+});
+
+describe('getBillMonths', () => {
+  it('returns a single month when all items are in one month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-03' },
+        { date: '2026-04-22' },
+      ],
+    };
+    const months = getBillMonths(bill);
+    expect([...months].sort()).toEqual(['2026-04']);
+  });
+
+  it('returns two months when items span them', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { date: '2026-02-15' },
+        { date: '2026-03-04' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-02', '2026-03']);
+  });
+
+  it('returns three months when items span them', () => {
+    const bill = {
+      month: '2026-01',
+      items: [
+        { date: '2026-01-30' },
+        { date: '2026-02-14' },
+        { date: '2026-03-02' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-01', '2026-02', '2026-03']);
+  });
+
+  it('returns bill.month when no items are dated', () => {
+    const bill = { month: '2026-06', items: [{ date: null }, { date: null }] };
+    expect([...getBillMonths(bill)]).toEqual(['2026-06']);
+  });
+
+  it('returns bill.month when items array is empty', () => {
+    expect([...getBillMonths({ month: '2026-08', items: [] })]).toEqual(['2026-08']);
+  });
+
+  it('includes the primary month plus every dated item month (dateless do not add)', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-15' },
+        { date: null },
+        { date: '2026-05-03' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-04', '2026-05']);
+  });
+
+  it('handles null bill gracefully', () => {
+    const months = getBillMonths(null);
+    expect(months.size).toBe(1);
+    expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('falls back to currentMonth when bill.month is malformed and no items are dated', () => {
+    const months = getBillMonths({ month: 'bad', items: [] });
+    expect(months.size).toBe(1);
+    expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
+  });
+});
+
+import { getBillItemsForMonth } from './spendingMath.js';
+
+describe('getBillItemsForMonth', () => {
+  it('returns only items dated in the requested month', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { id: 'a', date: '2026-02-15' },
+        { id: 'b', date: '2026-02-22' },
+        { id: 'c', date: '2026-03-04' },
+      ],
+    };
+    const feb = getBillItemsForMonth(bill, '2026-02');
+    expect(feb.map(i => i.id).sort()).toEqual(['a', 'b']);
+    const mar = getBillItemsForMonth(bill, '2026-03');
+    expect(mar.map(i => i.id)).toEqual(['c']);
+  });
+
+  it('returns dateless items only when the requested month is the primary', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { id: 'a', date: '2026-02-15' },
+        { id: 'b', date: null },
+        { id: 'c', date: '2026-03-04' },
+      ],
+    };
+    // primary = 2026-02 (earliest dated)
+    expect(getBillItemsForMonth(bill, '2026-02').map(i => i.id).sort()).toEqual(['a', 'b']);
+    expect(getBillItemsForMonth(bill, '2026-03').map(i => i.id)).toEqual(['c']);
+  });
+
+  it('returns dateless items in bill.month when no items are dated', () => {
+    const bill = {
+      month: '2026-05',
+      items: [{ id: 'a', date: null }, { id: 'b' }],
+    };
+    expect(getBillItemsForMonth(bill, '2026-05').map(i => i.id).sort()).toEqual(['a', 'b']);
+    expect(getBillItemsForMonth(bill, '2026-06').map(i => i.id)).toEqual([]);
+  });
+
+  it('returns empty array when no items match', () => {
+    const bill = { month: '2026-04', items: [{ date: '2026-04-10' }] };
+    expect(getBillItemsForMonth(bill, '2026-09')).toEqual([]);
+  });
+
+  it('handles null bill gracefully', () => {
+    expect(getBillItemsForMonth(null, '2026-04')).toEqual([]);
+  });
+
+  it('handles bill with no items array', () => {
+    expect(getBillItemsForMonth({ month: '2026-04' }, '2026-04')).toEqual([]);
   });
 });

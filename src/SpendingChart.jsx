@@ -4,6 +4,7 @@ import {
   aggregateByDay,
   getVendorColor,
   getMonthWindow,
+  getBillMonths,
 } from './spendingMath.js';
 
 const formatMonthShort = (month) => {
@@ -73,7 +74,12 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     const window = new Set(getMonthWindow(windowEnd));
     for (const b of bills) {
       if (!b.vendor) continue;
-      if (!window.has(b.month)) continue;
+      const billMonths = getBillMonths(b);
+      let inWindow = false;
+      for (const m of billMonths) {
+        if (window.has(m)) { inWindow = true; break; }
+      }
+      if (!inWindow) continue;
       const hasSpending = (b.items || []).some(i => {
         if (!Number.isFinite(i.amount) || i.amount <= 0) return false;
         const cat = categoriesById && categoriesById.get(i.categoryId);

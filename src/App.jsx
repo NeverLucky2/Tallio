@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp, getBillMonths, getBillItemsForMonth, getPrimaryMonth, getLatestMonth } from './spendingMath.js';
 import { partitionSpentByRecurring } from './reportingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
@@ -188,14 +188,21 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, selectedMonth, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
-  const billNet = getBillNet(bill, categoriesById);
+  const slicedItems = selectedMonth
+    ? getBillItemsForMonth(bill, selectedMonth)
+    : (bill.items || []);
+  const billNet = getBillNet({ ...bill, items: slicedItems }, categoriesById);
   const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
   const displayAmount = Math.abs(billNet.net);
 
   const addItem = () => {
-    const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date: null };
+    const primary = getPrimaryMonth(bill);
+    const date = (selectedMonth && selectedMonth !== primary)
+      ? `${selectedMonth}-01`
+      : null;
+    const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date };
     onUpdate({ ...bill, items: [...bill.items, newItem] });
   };
 
@@ -232,9 +239,18 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
         <div className="bill-info">
           <h3 className="bill-vendor">{bill.vendor || "Untitled Bill"}</h3>
           <div className="bill-meta">
-            {formatMonth(bill.month)}
+            {(() => {
+              const primary = getPrimaryMonth(bill);
+              const latest = getLatestMonth(bill);
+              return primary === latest
+                ? formatMonth(primary)
+                : <>{formatMonth(primary)} <span className="bill-meta-arrow">→</span> {formatMonth(latest)}</>;
+            })()}
             <div className="bill-meta-dot" />
-            {bill.items.length} item{bill.items.length !== 1 ? 's' : ''}
+            {(() => {
+              const sliceCount = slicedItems.length;
+              return <>{sliceCount} item{sliceCount !== 1 ? 's' : ''}</>;
+            })()}
           </div>
         </div>
         <div className="bill-right">
@@ -268,6 +284,7 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
               onChange={(e) => onUpdate({ ...bill, month: e.target.value })}
               className="input"
               style={{ width: isMobile ? '100%' : '160px', flex: isMobile ? '1 1 auto' : '0 0 auto' }}
+              title="Anchor month — where items without dates live, and the bill's home month when no items are dated."
             />
           </div>
 
@@ -718,7 +735,7 @@ function BillTracker() {
   );
 
   const todayMonth = currentMonthKey();
-  const monthBills = bills.filter(bill => bill.month === selectedMonth);
+  const monthBills = bills.filter(bill => getBillMonths(bill).has(selectedMonth));
   const selectedMonthItems = getMonthItems(bills, selectedMonth);
 
   function sumByFlow(items, targetFlow) {
@@ -918,7 +935,7 @@ function BillTracker() {
     setBills(prev => {
       const chainBills = prev.filter(b => b.recurringChainId === chainId && b.recurring === true);
       if (chainBills.length === 0) return prev;
-      const latest = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month)).pop();
+      const latest = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b))).pop();
       return prev.map(b => b.id === latest.id ? { ...b, recurring: false } : b);
     });
     maybeShowUndoTip();
@@ -1422,6 +1439,7 @@ function BillTracker() {
                 <BillCard
                   key={bill.id}
                   bill={bill}
+                  selectedMonth={searchActive ? null : selectedMonth}
                   defaultCategoryId={cats.otherId()}
                   categories={cats.categories}
                   categoriesById={categoriesById}

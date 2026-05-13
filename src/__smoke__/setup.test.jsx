@@ -5,6 +5,7 @@ import {
   findRecurringCharges,
   getBillNet,
 } from '../spendingMath.js';
+import { getBillMonths, getBillItemsForMonth, getPrimaryMonth, getLatestMonth } from '../spendingMath.js';
 import { unzipSync, strFromU8 } from 'fflate';
 import { buildArchive } from '../exportArchive.js';
 
@@ -189,5 +190,44 @@ describe('end-to-end: reports + export', () => {
     const csv = strFromU8(csvBytes);
     expect(csv.split('\n')[0]).toBe('date,vendor,description,amount,category,flow,recurring');
     expect(csv).toContain('Gross pay,5200.00,Paycheck,income,no');
+  });
+});
+
+describe('end-to-end: multi-month bill attribution', () => {
+  it('a bill with Feb 15 + Mar 4 items participates in both Feb and Mar', () => {
+    const bill = {
+      id: 'b_acme', vendor: 'Acme', month: '2026-02',
+      items: [
+        { id: 'i1', description: 'Feb charge', amount: 60, categoryId: 'c_food', date: '2026-02-15' },
+        { id: 'i2', description: 'Mar charge', amount: 40, categoryId: 'c_food', date: '2026-03-04' },
+      ],
+    };
+
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-02', '2026-03']);
+    expect(getPrimaryMonth(bill)).toBe('2026-02');
+    expect(getLatestMonth(bill)).toBe('2026-03');
+
+    const febSlice = getBillItemsForMonth(bill, '2026-02');
+    const marSlice = getBillItemsForMonth(bill, '2026-03');
+    expect(febSlice.map(i => i.id)).toEqual(['i1']);
+    expect(marSlice.map(i => i.id)).toEqual(['i2']);
+    expect(febSlice.reduce((s, i) => s + i.amount, 0)).toBe(60);
+    expect(marSlice.reduce((s, i) => s + i.amount, 0)).toBe(40);
+  });
+
+  it('a dateless item lives in the bill primary month only', () => {
+    const bill = {
+      id: 'b_mix', vendor: 'Acme', month: '2026-02',
+      items: [
+        { id: 'i_dated_feb', amount: 30, date: '2026-02-22' },
+        { id: 'i_dateless',  amount: 20, date: null },
+        { id: 'i_dated_mar', amount: 40, date: '2026-03-04' },
+      ],
+    };
+
+    const febSlice = getBillItemsForMonth(bill, '2026-02');
+    expect(febSlice.map(i => i.id).sort()).toEqual(['i_dated_feb', 'i_dateless']);
+    const marSlice = getBillItemsForMonth(bill, '2026-03');
+    expect(marSlice.map(i => i.id)).toEqual(['i_dated_mar']);
   });
 });

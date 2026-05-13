@@ -734,6 +734,12 @@
   flex-shrink: 0;
 }
 
+.bill-meta-arrow {
+  margin: 0 2px;
+  color: #9aa3b2;
+  font-size: 0.95em;
+}
+
 .bill-right {
   display: flex;
   align-items: center;
