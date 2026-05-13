@@ -34,6 +34,19 @@ export function getItemDate(bill, item) {
   return `${month}-01`;
 }
 
+export function getPrimaryMonth(bill) {
+  let earliest = null;
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      const m = item.date.slice(0, 7);
+      if (earliest === null || m < earliest) earliest = m;
+    }
+  }
+  if (earliest !== null) return earliest;
+  if (bill && typeof bill.month === 'string' && MONTH_RE.test(bill.month)) return bill.month;
+  return currentMonth();
+}
+
 export function getMonthItems(bills, month) {
   const out = [];
   for (const bill of bills || []) {

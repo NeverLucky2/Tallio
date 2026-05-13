@@ -1265,3 +1265,44 @@ describe('findAutoRecurringChains', () => {
     expect(out[0].occurrences).toBe(2);
   });
 });
+
+import { getPrimaryMonth } from './spendingMath.js';
+
+describe('getPrimaryMonth', () => {
+  it('returns the earliest dated item month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-05-04' },
+        { date: '2026-04-22' },
+        { date: '2026-04-15' },
+      ],
+    };
+    expect(getPrimaryMonth(bill)).toBe('2026-04');
+  });
+
+  it('falls back to bill.month when no items are dated', () => {
+    const bill = { month: '2026-07', items: [{ date: null }, { amount: 5 }] };
+    expect(getPrimaryMonth(bill)).toBe('2026-07');
+  });
+
+  it('falls back to bill.month when items array is empty', () => {
+    expect(getPrimaryMonth({ month: '2026-03', items: [] })).toBe('2026-03');
+  });
+
+  it('ignores malformed item dates', () => {
+    const bill = {
+      month: '2026-04',
+      items: [{ date: 'May 1, 2026' }, { date: '2026-03-09' }],
+    };
+    expect(getPrimaryMonth(bill)).toBe('2026-03');
+  });
+
+  it('handles a null bill gracefully (returns currentMonth fallback shape)', () => {
+    expect(getPrimaryMonth(null)).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('handles a bill with no items array (returns bill.month)', () => {
+    expect(getPrimaryMonth({ month: '2026-09' })).toBe('2026-09');
+  });
+});
