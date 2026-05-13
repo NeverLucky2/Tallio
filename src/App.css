@@ -3120,3 +3120,54 @@
   color: #d4a853;
   border-color: rgba(212, 168, 83, 0.35);
 }
+.reports-subtitle {
+  color: #9aa3b2;
+  font-size: 12px;
+  font-family: 'Outfit', sans-serif;
+  margin: 0 0 16px;
+}
+.reports-empty {
+  color: #9aa3b2;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 0;
+  font-family: 'Outfit', sans-serif;
+}
+.yoy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+}
+.yoy-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa3b2;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.yoy-table th.num,
+.yoy-table td.num {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
+}
+.yoy-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.yoy-table .yoy-flow-header td {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #d4a853;
+  padding-top: 16px;
+  padding-bottom: 4px;
+  border: 0;
+}
+.yoy-table .delta-up    { color: #e0928a; }
+.yoy-table .delta-down  { color: #6BD49A; }
+.yoy-table .delta-flat  { color: #9aa3b2; }
