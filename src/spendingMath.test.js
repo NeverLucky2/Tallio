@@ -1425,3 +1425,58 @@ describe('getBillMonths', () => {
     expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
   });
 });
+
+import { getBillItemsForMonth } from './spendingMath.js';
+
+describe('getBillItemsForMonth', () => {
+  it('returns only items dated in the requested month', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { id: 'a', date: '2026-02-15' },
+        { id: 'b', date: '2026-02-22' },
+        { id: 'c', date: '2026-03-04' },
+      ],
+    };
+    const feb = getBillItemsForMonth(bill, '2026-02');
+    expect(feb.map(i => i.id).sort()).toEqual(['a', 'b']);
+    const mar = getBillItemsForMonth(bill, '2026-03');
+    expect(mar.map(i => i.id)).toEqual(['c']);
+  });
+
+  it('returns dateless items only when the requested month is the primary', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { id: 'a', date: '2026-02-15' },
+        { id: 'b', date: null },
+        { id: 'c', date: '2026-03-04' },
+      ],
+    };
+    // primary = 2026-02 (earliest dated)
+    expect(getBillItemsForMonth(bill, '2026-02').map(i => i.id).sort()).toEqual(['a', 'b']);
+    expect(getBillItemsForMonth(bill, '2026-03').map(i => i.id)).toEqual(['c']);
+  });
+
+  it('returns dateless items in bill.month when no items are dated', () => {
+    const bill = {
+      month: '2026-05',
+      items: [{ id: 'a', date: null }, { id: 'b' }],
+    };
+    expect(getBillItemsForMonth(bill, '2026-05').map(i => i.id).sort()).toEqual(['a', 'b']);
+    expect(getBillItemsForMonth(bill, '2026-06').map(i => i.id)).toEqual([]);
+  });
+
+  it('returns empty array when no items match', () => {
+    const bill = { month: '2026-04', items: [{ date: '2026-04-10' }] };
+    expect(getBillItemsForMonth(bill, '2026-09')).toEqual([]);
+  });
+
+  it('handles null bill gracefully', () => {
+    expect(getBillItemsForMonth(null, '2026-04')).toEqual([]);
+  });
+
+  it('handles bill with no items array', () => {
+    expect(getBillItemsForMonth({ month: '2026-04' }, '2026-04')).toEqual([]);
+  });
+});

@@ -68,6 +68,18 @@ export function getLatestMonth(bill) {
   return latest;
 }
 
+export function getBillItemsForMonth(bill, month) {
+  if (!bill || !Array.isArray(bill.items)) return [];
+  const primary = getPrimaryMonth(bill);
+  return bill.items.filter(item => {
+    if (!item) return false;
+    if (typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      return item.date.slice(0, 7) === month;
+    }
+    return month === primary;
+  });
+}
+
 export function getMonthItems(bills, month) {
   const out = [];
   for (const bill of bills || []) {
