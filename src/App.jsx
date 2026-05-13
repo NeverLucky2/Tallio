@@ -18,6 +18,7 @@ import RecurringConflictDialog from './RecurringConflictDialog.jsx';
 import DuplicateBillDialog from './DuplicateBillDialog.jsx';
 import { nanoid } from 'nanoid';
 import './App.css';
+import ReportsScreen from './ReportsScreen.jsx';
 import { buildArchive } from './exportArchive.js';
 import pkg from '../package.json';
 
@@ -1104,6 +1105,16 @@ function BillTracker() {
         />
       )}
 
+      {screen === 'reports' && (
+        <ReportsScreen
+          bills={bills}
+          categories={cats.categories}
+          categoriesById={categoriesById}
+          selectedMonth={selectedMonth}
+          onClose={() => setScreen('main')}
+        />
+      )}
+
       {/* Camera Modal */}
       {showCamera && (
         <CameraCapture
@@ -1279,6 +1290,14 @@ function BillTracker() {
               aria-label="Manage Categories"
             >
               ☰ Categories
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen('reports')}
+              className="btn btn-reports"
+              aria-label="Open reports"
+            >
+              📊 Reports
             </button>
             <button
               onClick={undo}
