@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
+    "fflate": "^0.8.2",
     "nanoid": "^5.1.11",
     "peerjs": "^1.5.5",
     "qrcode.react": "^4.2.0",

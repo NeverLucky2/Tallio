@@ -1389,6 +1389,57 @@
   border-color: var(--border);
 }
 
+.sub-badge-auto {
+  color: #d4a853;
+  background: rgba(212, 168, 83, 0.12);
+  border: 1px solid rgba(212, 168, 83, 0.45);
+}
+
+.btn-end-recurring,
+.btn-promote-recurring {
+  background: transparent;
+  border: 1px solid rgba(176, 178, 195, 0.30);
+  color: rgba(184, 186, 195, 0.90);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  margin-left: 8px;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-end-recurring:hover {
+  border-color: rgba(224, 146, 138, 0.50);
+  color: rgba(224, 146, 138, 1);
+}
+
+.btn-promote-recurring:hover {
+  border-color: rgba(212, 168, 83, 0.50);
+  color: rgba(212, 168, 83, 1);
+}
+
+.bill-badge-recurring {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4a853;
+  background: rgba(212, 168, 83, 0.10);
+  border: 1px solid rgba(212, 168, 83, 0.40);
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: 'Outfit', sans-serif;
+  white-space: nowrap;
+}
+
+.bill-badge-glyph {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
 /* ---- Format Tags ---- */
 
 .formats-panel {
@@ -1971,6 +2022,30 @@
   margin-bottom: 4px;
 }
 
+/* ---- Duplicate item button ---- */
+
+.btn-duplicate-item {
+  background: transparent;
+  border: 1px solid rgba(212, 168, 83, 0.30);
+  color: rgba(212, 168, 83, 0.85);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-right: 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.btn-duplicate-item:hover {
+  background: rgba(212, 168, 83, 0.12);
+  color: rgba(212, 168, 83, 1);
+}
+
 .settings-label {
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -2358,7 +2433,21 @@
   padding: 14px;
 }
 
-.dialog-card {
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 14px;
+}
+
+.dialog-card,
+.dialog {
   background: rgba(20, 22, 28, 0.95);
   border: 1px solid rgba(240, 230, 210, 0.12);
   border-radius: 12px;
@@ -2860,4 +2949,317 @@
 .flow-control-option.active {
   background: rgba(212, 168, 83, 0.12);
   color: #d4a853;
+}
+
+/* ---- Recurring toggle button ---- */
+
+.btn-recurring {
+  background: transparent;
+  border: 1px solid rgba(91, 141, 255, 0.40);
+  color: rgba(155, 184, 255, 0.95);
+}
+
+.btn-recurring:hover {
+  background: rgba(91, 141, 255, 0.10);
+}
+
+.btn-recurring-on {
+  background: rgba(91, 141, 255, 0.15);
+  color: rgba(180, 200, 255, 1);
+  border-color: rgba(91, 141, 255, 0.65);
+}
+
+/* ---- Recurring tip dialog body ---- */
+
+.dialog-tip .dialog-body p {
+  margin: 0 0 0.8rem 0;
+  line-height: 1.55;
+}
+
+.dialog-tip .dialog-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Duplicate Bill button ---- */
+
+.btn-duplicate-bill {
+  background: transparent;
+  border: 1px solid rgba(212, 168, 83, 0.40);
+  color: rgba(212, 168, 83, 0.95);
+}
+
+.btn-duplicate-bill:hover {
+  background: rgba(212, 168, 83, 0.10);
+}
+
+/* ---- Secondary button (used in dialogs) ---- */
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(176, 178, 195, 0.30);
+  color: rgba(184, 186, 195, 0.90);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(176, 178, 195, 0.55);
+  color: rgba(220, 222, 230, 1);
+}
+
+/* ---- DuplicateBillDialog label ---- */
+
+.dialog-duplicate .dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #8a8c98);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dialog-duplicate .dialog-label .input {
+  margin-top: 0.2rem;
+}
+
+/* ---- RecurringConflictDialog ---- */
+
+.dialog-conflict .conflict-options {
+  margin: 0.8rem 0 0;
+  padding-left: 1.2rem;
+  line-height: 1.55;
+}
+
+.dialog-conflict .conflict-options li {
+  margin-bottom: 0.4rem;
+}
+
+.spent-split-bar {
+  margin-top: 8px;
+  height: 4px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+.spent-split-recurring {
+  background: #5b8dff;
+  height: 100%;
+}
+.spent-split-oneoff {
+  background: #a47dea;
+  height: 100%;
+}
+.spent-split-labels {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #9aa3b2;
+  font-family: 'JetBrains Mono', monospace;
+}
+.spent-split-dot-recurring,
+.spent-split-dot-oneoff {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.spent-split-dot-recurring { background: #5b8dff; }
+.spent-split-dot-oneoff    { background: #a47dea; }
+
+.reports-screen {
+  position: fixed;
+  inset: 0;
+  background: #0b0e16;
+  z-index: 100;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+.reports-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.reports-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 32px;
+  margin: 0;
+}
+.reports-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 20px;
+}
+.reports-tab {
+  background: transparent;
+  border: 0;
+  color: #9aa3b2;
+  font-size: 13px;
+  padding: 10px 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-family: 'Outfit', sans-serif;
+}
+.reports-tab:hover { color: #d4a853; }
+.reports-tab.active {
+  color: #d4a853;
+  border-bottom-color: #d4a853;
+}
+.reports-tab-content {
+  font-family: 'Outfit', sans-serif;
+}
+.btn-reports {
+  background: rgba(212, 168, 83, 0.12);
+  color: #d4a853;
+  border-color: rgba(212, 168, 83, 0.35);
+}
+.reports-subtitle {
+  color: #9aa3b2;
+  font-size: 12px;
+  font-family: 'Outfit', sans-serif;
+  margin: 0 0 16px;
+}
+.reports-empty {
+  color: #9aa3b2;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 0;
+  font-family: 'Outfit', sans-serif;
+}
+.yoy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+}
+.yoy-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa3b2;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.yoy-table th.num,
+.yoy-table td.num {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
+}
+.yoy-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.yoy-table .yoy-flow-header td {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #d4a853;
+  padding-top: 16px;
+  padding-bottom: 4px;
+  border: 0;
+}
+.yoy-table .delta-up    { color: #e0928a; }
+.yoy-table .delta-down  { color: #6BD49A; }
+.yoy-table .delta-flat  { color: #9aa3b2; }
+.yoy-table .delta-good  { color: #6BD49A; }
+.yoy-table .delta-bad   { color: #e0928a; }
+
+/* ── Month trend tab ─────────────────────────────────────── */
+.month-trend-picker {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.month-trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 200px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.month-trend-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+.month-trend-bar-fill {
+  width: 100%;
+  background: #a47dea;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.month-trend-bar-label {
+  font-size: 10px;
+  color: #9aa3b2;
+  margin-top: 4px;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* ── Recurring breakdown tab ─────────────────────────────── */
+.recurring-partition-bar {
+  display: flex;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.recurring-partition-recurring {
+  background: #5b8dff;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #0b0e16;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.recurring-partition-oneoff {
+  background: #a47dea;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #0b0e16;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.recurring-partition-legend {
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  color: #9aa3b2;
+  margin-bottom: 16px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.flow-chips {
+  margin-bottom: 8px;
+}
+.flow-chip.active {
+  background: #d4a853;
+  color: #0b0e16;
 }

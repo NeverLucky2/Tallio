@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { initializeFromStorage } from './initializeFromStorage.js';
 
 function makeFakeStorage(initial = {}) {
@@ -173,5 +173,47 @@ describe('initializeFromStorage', () => {
     expect(cats.some(c => c.flow === 'income')).toBe(true);
     expect(cats.some(c => c.flow === 'savings')).toBe(true);
     expect(storage.getItem('billtracker-categories-v2-backup')).toBeNull();
+  });
+});
+
+describe('initializeFromStorage — catch-up integration', () => {
+  it('returns conflicts: [] when there are no chains', () => {
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([]),
+      'billtracker-categories':      JSON.stringify([{ id: 'c1', name: 'Other', icon: '📋', color: '#6B7280', flow: 'expense', keywords: [], templates: [], builtin: true }]),
+      'billtracker-schema-version':  '3',
+    });
+    const out = initializeFromStorage(storage, '2026-07');
+    expect(out.migrationError).toBeNull();
+    expect(out.conflicts).toEqual([]);
+  });
+
+  it('catch-up spawns missed months for an active chain', () => {
+    const apr = {
+      id: 'b_apr', vendor: 'Honda', month: '2026-04',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', description: 'Auto', amount: 452, categoryId: 'c_other', date: '2026-04-15' }],
+    };
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([apr]),
+      'billtracker-categories':      JSON.stringify([{ id: 'c_other', name: 'Other', icon: '📋', color: '#6B7280', flow: 'expense', keywords: [], templates: [], builtin: true }]),
+      'billtracker-schema-version':  '3',
+    });
+    const out = initializeFromStorage(storage, '2026-07');
+    expect(out.migrationError).toBeNull();
+    expect(out.conflicts).toEqual([]);
+    expect(out.bills).toHaveLength(4);
+    const months = out.bills.map(b => b.month).sort();
+    expect(months).toEqual(['2026-04', '2026-05', '2026-06', '2026-07']);
+  });
+
+  it('schema version stays at 3 (no bump for sub-project C)', () => {
+    const storage = makeFakeStorage({
+      'billtracker-bills':           JSON.stringify([]),
+      'billtracker-categories':      JSON.stringify([{ id: 'c1', name: 'Other', icon: '📋', color: '#6B7280', flow: 'expense', keywords: [], templates: [], builtin: true }]),
+      'billtracker-schema-version':  '3',
+    });
+    initializeFromStorage(storage, '2026-07');
+    expect(storage.getItem('billtracker-schema-version')).toBe('3');
   });
 });

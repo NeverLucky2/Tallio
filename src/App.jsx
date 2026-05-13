@@ -6,13 +6,21 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, aggregateByKeyword, getMonthItems, getBillNet } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp } from './spendingMath.js';
+import { partitionSpentByRecurring } from './reportingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
+import RecurringTipDialog from './RecurringTipDialog.jsx';
+import RecurringConflictDialog from './RecurringConflictDialog.jsx';
+import DuplicateBillDialog from './DuplicateBillDialog.jsx';
+import { nanoid } from 'nanoid';
 import './App.css';
+import ReportsScreen from './ReportsScreen.jsx';
+import { buildArchive } from './exportArchive.js';
+import pkg from '../package.json';
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-US', {
@@ -180,7 +188,7 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
   const billNet = getBillNet(bill, categoriesById);
   const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
@@ -199,6 +207,16 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
   };
 
   const deleteItem = (itemId) => onDeleteItem(bill.id, itemId);
+
+  const duplicateItem = (sourceItem) => {
+    const twin = { ...sourceItem, id: crypto.randomUUID() };
+    const idx = bill.items.findIndex(i => i.id === sourceItem.id);
+    if (idx < 0) return;
+    onUpdate({
+      ...bill,
+      items: [...bill.items.slice(0, idx + 1), twin, ...bill.items.slice(idx + 1)],
+    });
+  };
 
   const initial = (bill.vendor || "?").charAt(0).toUpperCase();
 
@@ -220,6 +238,11 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
           </div>
         </div>
         <div className="bill-right">
+          {bill.recurring && (
+            <span className="bill-badge-recurring" aria-label="Recurring bill">
+              <span className="bill-badge-glyph">↻</span> RECURRING
+            </span>
+          )}
           <span className={`bill-total bill-total-${direction}`}>
             {direction === 'in' ? '↑' : direction === 'out' ? '↓' : ''}
             {formatCurrency(displayAmount)}
@@ -258,6 +281,7 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
                 otherCategoryId={otherCategoryId}
                 onUpdate={updateItem}
                 onDelete={() => deleteItem(item.id)}
+                onDuplicate={duplicateItem}
                 isMobile={isMobile}
               />
             ))}
@@ -265,6 +289,20 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
           <div className="bill-footer">
             <button className="btn btn-add" onClick={addItem}>+ Add Item</button>
+            <button
+              type="button"
+              className="btn btn-duplicate-bill"
+              onClick={() => onDuplicateBill(bill)}
+            >
+              ⧉ Duplicate Bill
+            </button>
+            <button
+              type="button"
+              className={`btn btn-recurring${bill.recurring ? ' btn-recurring-on' : ''}`}
+              onClick={() => onMakeRecurring(!bill.recurring)}
+            >
+              ↻ {bill.recurring ? 'Recurring · on' : 'Make Recurring'}
+            </button>
             <button className="btn btn-danger" onClick={() => onDelete(bill.id)}>Delete Bill</button>
           </div>
         </div>
@@ -276,23 +314,39 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
 // ---- Summary Card ----
 
-const SummaryCard = ({ title, amount, isCount, colorKey, delta }) => (
-  <div className={`stat-card stat-card-${colorKey}`}>
-    <div className="stat-label">
-      <div className={`stat-dot stat-dot-${colorKey}`} />
-      {title}
-    </div>
-    <div className="stat-value">
-      {isCount ? amount : formatCurrency(amount)}
-    </div>
-    {delta && (
-      <div className={`stat-delta stat-delta-${delta.direction}`}>
-        {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
-        <span className="stat-delta-ref"> vs {delta.prevLabel}</span>
+const SummaryCard = ({ title, amount, isCount, colorKey, delta, split }) => {
+  const showSplit = split && split.total > 0;
+  const recPct = showSplit ? (split.recurring / split.total) * 100 : 0;
+  return (
+    <div className={`stat-card stat-card-${colorKey}`}>
+      <div className="stat-label">
+        <div className={`stat-dot stat-dot-${colorKey}`} />
+        {title}
       </div>
-    )}
-  </div>
-);
+      <div className="stat-value">
+        {isCount ? amount : formatCurrency(amount)}
+      </div>
+      {delta && (
+        <div className={`stat-delta stat-delta-${delta.direction}`}>
+          {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
+          <span className="stat-delta-ref"> vs {delta.prevLabel}</span>
+        </div>
+      )}
+      {showSplit && (
+        <>
+          <div className="spent-split-bar">
+            <div className="spent-split-recurring" style={{ width: `${recPct}%` }} />
+            <div className="spent-split-oneoff" style={{ width: `${100 - recPct}%` }} />
+          </div>
+          <div className="spent-split-labels">
+            <span><span className="spent-split-dot-recurring" /> recurring {formatCurrency(split.recurring)}</span>
+            <span><span className="spent-split-dot-oneoff" /> one-off {formatCurrency(split.oneOff)}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 
 // ---- Tracked Keywords Panel ----
@@ -387,9 +441,9 @@ const TrackedPanel = ({ bills, keywords, onAdd, onRemove, selectedMonth, categor
 
 // ---- Recurring Panels (split by flow) ----
 
-const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallbackCategory }) => {
-  if (charges.length === 0) return null;
-  const total = charges.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
+const RecurringSection = ({ title, entries, totalLabel, categoriesById, fallbackCategory, onEndRecurring, onPromoteInferred }) => {
+  if (entries.length === 0) return null;
+  const total = entries.filter(c => c.active).reduce((s, c) => s + Math.abs(c.lastAmount), 0);
   return (
     <div className="panel">
       <div className="panel-header">
@@ -397,10 +451,12 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
         <span className="panel-sub">~{formatCurrency(total)}/mo {totalLabel}</span>
       </div>
       <div className="sub-list">
-        {charges.map(c => {
+        {entries.map(c => {
           const cat = categoriesById.get(c.categoryId) || fallbackCategory;
+          const key = c.kind === 'auto' ? `auto-${c.chainId}` : `${c.vendor}-${c.description}`;
+          const isAuto = c.kind === 'auto';
           return (
-            <div key={`${c.vendor}-${c.description}`} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
+            <div key={key} className={`sub-row${c.active ? '' : ' sub-row-inactive'}`}>
               <div className="sub-row-main">
                 <span className="sub-icon" style={{ background: `${cat.color}18`, border: `1px solid ${cat.color}28` }}>
                   {cat.icon}
@@ -408,7 +464,9 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
                 <div className="sub-row-text">
                   <div className="sub-row-desc">{c.description}</div>
                   <div className="sub-row-meta">
-                    {c.vendor} · {c.monthCount} mo · last {c.lastDate}
+                    {isAuto
+                      ? `${c.monthCount} mo · last ${c.lastDate.slice(0, 7)}`
+                      : `${c.vendor} · ${c.monthCount} mo · last ${c.lastDate}`}
                   </div>
                 </div>
               </div>
@@ -417,9 +475,33 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
                   {formatCurrency(Math.abs(c.lastAmount))}
                   {c.varies && <span className="sub-varies" title={`Avg ${formatCurrency(Math.abs(c.avgAmount))}`}>varies</span>}
                 </div>
-                <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
-                  {c.active ? 'ACTIVE' : 'INACTIVE'}
-                </span>
+                {isAuto ? (
+                  <>
+                    <span className="sub-badge sub-badge-auto">✓ AUTO</span>
+                    <button
+                      type="button"
+                      className="btn-end-recurring"
+                      onClick={() => onEndRecurring(c.chainId)}
+                      aria-label={`End recurring for ${c.vendor}`}
+                    >
+                      End
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className={`sub-badge${c.active ? ' sub-badge-active' : ' sub-badge-inactive'}`}>
+                      {c.active ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-promote-recurring"
+                      onClick={() => onPromoteInferred(c)}
+                      aria-label={`Make ${c.description} recurring`}
+                    >
+                      ↻ Make recurring
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           );
@@ -429,39 +511,50 @@ const RecurringSection = ({ title, charges, totalLabel, categoriesById, fallback
   );
 };
 
-const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory }) => {
-  const all = findRecurringCharges(bills, today, categoriesById);
-  const filtered = all.filter(c => !trackedKeywords.some(kw =>
-    c.description.toUpperCase().includes(kw.toUpperCase())
-  ));
-  if (filtered.length === 0) return null;
+const RecurringPanels = ({ bills, today, trackedKeywords = [], categoriesById, fallbackCategory, onEndRecurring, onPromoteInferred }) => {
+  const inferred = findRecurringCharges(bills, today, categoriesById).map(e => ({ ...e, kind: 'inferred' }));
+  const auto     = findAutoRecurringChains(bills, categoriesById);
 
-  const income   = filtered.filter(c => c.flow === 'income');
-  const expense  = filtered.filter(c => c.flow === 'expense');
-  const savings  = filtered.filter(c => c.flow === 'savings');
+  // Filter inferred: exclude tracked-keyword matches AND vendors covered by an auto chain.
+  const autoVendorsLower = new Set(auto.map(a => (a.vendor || '').toLowerCase()));
+  const filteredInferred = inferred.filter(c => {
+    if ((c.vendor || '').toLowerCase() && autoVendorsLower.has((c.vendor || '').toLowerCase())) return false;
+    return !trackedKeywords.some(kw => c.description.toUpperCase().includes(kw.toUpperCase()));
+  });
+
+  const allEntries = [...auto, ...filteredInferred];
+  if (allEntries.length === 0) return null;
+
+  const byFlow = (flow) => allEntries.filter(e => e.flow === flow);
 
   return (
     <>
       <RecurringSection
         title="Recurring · Income"
-        charges={income}
+        entries={byFlow('income')}
         totalLabel="in"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
       <RecurringSection
         title="Recurring · Expenses"
-        charges={expense}
+        entries={byFlow('expense')}
         totalLabel="out"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
       <RecurringSection
         title="Recurring · Savings"
-        charges={savings}
+        entries={byFlow('savings')}
         totalLabel="saved"
         categoriesById={categoriesById}
         fallbackCategory={fallbackCategory}
+        onEndRecurring={onEndRecurring}
+        onPromoteInferred={onPromoteInferred}
       />
     </>
   );
@@ -474,9 +567,10 @@ function BillTracker() {
   // One-time schema-v1 → v2 migration: items.category (string) → items.categoryId (id ref).
   // Extracted to initializeFromStorage.js for testability. Writes a backup before transforming
   // so the user can recover if migration throws.
-  const [{ bills: initialBills, migrationError }] = useState(() => initializeFromStorage(window.localStorage));
+  const [{ bills: initialBills, migrationError, conflicts: initialConflicts }] = useState(() => initializeFromStorage(window.localStorage));
   const [bills, setBills] = useState(initialBills);
   const [migrationBanner, setMigrationBanner] = useState(migrationError);
+  const [pendingConflictQueue, setPendingConflictQueue] = useState(initialConflicts || []);
 
   const cats = useCategories();
   const [screen, setScreen] = useState('main');
@@ -502,6 +596,9 @@ function BillTracker() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [newlyAddedBillId, setNewlyAddedBillId] = useState(null);
   const [pendingDeleteBillId, setPendingDeleteBillId] = useState(null);
+  const [pendingDuplicateBillId, setPendingDuplicateBillId] = useState(null);
+  const [pendingPromoteEntry, setPendingPromoteEntry] = useState(null);
+  const [pendingRecurringTip, setPendingRecurringTip] = useState(false);
   const [showUndoTip, setShowUndoTip] = useState(false);
   const [undoTipSeen, setUndoTipSeen] = useState(() => {
     try { return localStorage.getItem('billtracker-undo-tip-seen') === 'true'; } catch { return false; }
@@ -638,6 +735,11 @@ function BillTracker() {
   const selectedMonthSpent  = sumByFlow(selectedMonthItems, 'expense');
   const selectedMonthSaved  = sumByFlow(selectedMonthItems, 'savings');
   const selectedMonthNet    = selectedMonthIncome - selectedMonthSpent - selectedMonthSaved;
+
+  const spentSplit = useMemo(
+    () => partitionSpentByRecurring(bills, selectedMonth, categoriesById),
+    [bills, selectedMonth, categoriesById]
+  );
 
   const previousMonth = shiftMonth(selectedMonth, -1);
   const previousMonthItems = getMonthItems(bills, previousMonth);
@@ -788,6 +890,75 @@ function BillTracker() {
     if (!undoTipSeen) setShowUndoTip(true);
   };
 
+  const markRecurring = (billId, makeRecurring) => {
+    pushHistory(bills);
+    setBills(prev => prev.map(b => {
+      if (b.id !== billId) return b;
+      if (makeRecurring) {
+        return {
+          ...b,
+          recurring: true,
+          recurringChainId: b.recurringChainId || nanoid(8),
+        };
+      }
+      return { ...b, recurring: false };  // keep recurringChainId for history
+    }));
+    try {
+      if (makeRecurring && localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
+        setPendingRecurringTip(true);
+      }
+    } catch {
+      // storage unavailable — silently skip the tip
+    }
+    maybeShowUndoTip();
+  };
+
+  const endRecurringChain = (chainId) => {
+    pushHistory(bills);
+    setBills(prev => {
+      const chainBills = prev.filter(b => b.recurringChainId === chainId && b.recurring === true);
+      if (chainBills.length === 0) return prev;
+      const latest = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month)).pop();
+      return prev.map(b => b.id === latest.id ? { ...b, recurring: false } : b);
+    });
+    maybeShowUndoTip();
+  };
+
+  const promoteToAuto = (entry) => {
+    if (!entry) return;
+    pushHistory(bills);
+    const newBill = {
+      id: crypto.randomUUID(),
+      vendor: entry.vendor || entry.description,
+      month: todayMonth,
+      items: [{
+        id: crypto.randomUUID(),
+        description: entry.description,
+        amount: entry.lastAmount,
+        categoryId: entry.categoryId || cats.otherId(),
+        date: shiftItemDate(entry.lastDate, todayMonth),
+      }],
+      recurring: true,
+      recurringChainId: nanoid(8),
+    };
+    setBills(prev => [newBill, ...prev]);
+    setSelectedMonth(todayMonth);
+    setSearchTerm('');
+    setNewlyAddedBillId(newBill.id);
+    setPendingPromoteEntry(null);
+    try {
+      if (localStorage.getItem('billtracker-recurring-tip-seen') !== 'true') {
+        setPendingRecurringTip(true);
+      }
+    } catch { /* storage unavailable */ }
+    maybeShowUndoTip();
+  };
+
+  const dismissRecurringTip = () => {
+    setPendingRecurringTip(false);
+    try { localStorage.setItem('billtracker-recurring-tip-seen', 'true'); } catch { /* quota */ }
+  };
+
   const dismissUndoTip = () => {
     setShowUndoTip(false);
     setUndoTipSeen(true);
@@ -807,6 +978,76 @@ function BillTracker() {
 
   const cancelDeleteBill = () => setPendingDeleteBillId(null);
 
+  const duplicateBill = (sourceBill, targetMonth) => {
+    pushHistory(bills);
+    const copy = {
+      ...sourceBill,
+      id: crypto.randomUUID(),
+      month: targetMonth,
+      items: (sourceBill.items || []).map(i => ({
+        ...i,
+        id: crypto.randomUUID(),
+        date: shiftItemDate(i.date, targetMonth),
+      })),
+      recurring: false,
+      recurringChainId: null,
+    };
+    setBills(prev => [copy, ...prev]);
+    setSelectedMonth(targetMonth);
+    setSearchTerm('');
+    setNewlyAddedBillId(copy.id);
+    setPendingDuplicateBillId(null);
+    maybeShowUndoTip();
+  };
+
+  const resolveConflictLink = (conflict) => {
+    pushHistory(bills);
+    // Apply Link locally, then re-run catch-up on the linked state.
+    const linked = bills.map(b => b.id === conflict.existingBillId
+      ? { ...b, recurringChainId: conflict.chainId, recurring: true }
+      : b);
+    const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(linked, todayMonth);
+    setBills(caughtUp);
+    setPendingConflictQueue(qPrev => [
+      ...qPrev.filter(c => c.chainId !== conflict.chainId).slice(1),
+      ...newConflicts,
+    ]);
+  };
+
+  const resolveConflictDuplicate = (conflict) => {
+    pushHistory(bills);
+    const source = bills.find(b => b.id === conflict.chainSourceBillId);
+    if (!source) {
+      setPendingConflictQueue(q => q.slice(1));
+      return;
+    }
+    const spawn = {
+      ...source,
+      id: crypto.randomUUID(),
+      month: conflict.targetMonth,
+      items: (source.items || []).map(i => ({
+        ...i,
+        id: crypto.randomUUID(),
+        date: shiftItemDate(i.date, conflict.targetMonth),
+      })),
+      recurring: true,
+      recurringChainId: conflict.chainId,
+    };
+    const withSpawn = [...bills, spawn];
+    const { bills: caughtUp, conflicts: newConflicts } = computeCatchUp(withSpawn, todayMonth);
+    setBills(caughtUp);
+    setPendingConflictQueue(qPrev => [
+      ...qPrev.filter(c => c.chainId !== conflict.chainId).slice(1),
+      ...newConflicts,
+    ]);
+  };
+
+  const resolveConflictSkip = () => {
+    // No bill changes. Pop head; don't re-run catch-up. The skipped month
+    // re-prompts on next app load (intentional per spec).
+    setPendingConflictQueue(q => q.slice(1));
+  };
+
   const handleDeleteItem = (billId, itemId) => {
     pushHistory(bills);
     setBills(prev =>
@@ -816,12 +1057,19 @@ function BillTracker() {
   };
 
   const exportData = () => {
-    const dataStr = JSON.stringify(bills, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const bytes = buildArchive({
+      bills,
+      categories: cats.categories,
+      trackedKeywords,
+      schemaVersion: 3,
+      appVersion: pkg.version,
+      now: new Date(),
+    });
+    const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `billtracker-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `billtracker-${new Date().toISOString().split('T')[0]}.zip`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -854,6 +1102,16 @@ function BillTracker() {
             pushHistory(bills);
             setBills(prev => cats.applyCategoryToItems(prev, itemRefs, toId));
           }}
+        />
+      )}
+
+      {screen === 'reports' && (
+        <ReportsScreen
+          bills={bills}
+          categories={cats.categories}
+          categoriesById={categoriesById}
+          selectedMonth={selectedMonth}
+          onClose={() => setScreen('main')}
         />
       )}
 
@@ -899,6 +1157,42 @@ function BillTracker() {
         />
       )}
 
+      {pendingRecurringTip && <RecurringTipDialog onDismiss={dismissRecurringTip} />}
+
+      {pendingDuplicateBillId && (() => {
+        const source = bills.find(b => b.id === pendingDuplicateBillId);
+        if (!source) return null;
+        return (
+          <DuplicateBillDialog
+            sourceBill={source}
+            onConfirm={(targetMonth) => duplicateBill(source, targetMonth)}
+            onCancel={() => setPendingDuplicateBillId(null)}
+          />
+        );
+      })()}
+
+      {pendingConflictQueue && pendingConflictQueue.length > 0 && (() => {
+        const head = pendingConflictQueue[0];
+        const source = bills.find(b => b.id === head.chainSourceBillId);
+        const existing = bills.find(b => b.id === head.existingBillId);
+        if (!source || !existing) {
+          // Stale conflict (bills changed) — defer drop to a microtask via setTimeout
+          // so we don't setState during render.
+          setTimeout(() => setPendingConflictQueue(q => q.slice(1)), 0);
+          return null;
+        }
+        return (
+          <RecurringConflictDialog
+            conflict={head}
+            sourceBill={source}
+            existingBill={existing}
+            onLink={resolveConflictLink}
+            onDuplicate={resolveConflictDuplicate}
+            onSkip={resolveConflictSkip}
+          />
+        );
+      })()}
+
       {showUndoTip && (
         <ConfirmDialog
           title="Tip: you can undo deletes"
@@ -921,6 +1215,17 @@ function BillTracker() {
             setPendingKeywordApply(null);
           }}
           onCancel={() => setPendingKeywordApply(null)}
+        />
+      )}
+
+      {pendingPromoteEntry && (
+        <ConfirmDialog
+          title={`Make "${pendingPromoteEntry.description}" auto-managed?`}
+          message={`BillTracker will create a new monthly recurring bill for ${pendingPromoteEntry.vendor || pendingPromoteEntry.description} starting in ${formatMonthCompact(todayMonth)} (${formatCurrency(Math.abs(pendingPromoteEntry.lastAmount))}). The historical occurrences in your existing bills stay where they are; future months will get a dedicated auto-managed bill.`}
+          confirmLabel="Make Recurring"
+          variant="default"
+          onConfirm={() => promoteToAuto(pendingPromoteEntry)}
+          onCancel={() => setPendingPromoteEntry(null)}
         />
       )}
 
@@ -987,6 +1292,14 @@ function BillTracker() {
               ☰ Categories
             </button>
             <button
+              type="button"
+              onClick={() => setScreen('reports')}
+              className="btn btn-reports"
+              aria-label="Open reports"
+            >
+              📊 Reports
+            </button>
+            <button
               onClick={undo}
               disabled={history.length === 0}
               className={`btn btn-undo${history.length > 0 ? ' active' : ''}`}
@@ -1002,7 +1315,7 @@ function BillTracker() {
         {/* Stats */}
         <div className="stats-grid">
           <SummaryCard title="Income" amount={selectedMonthIncome} colorKey="green" />
-          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} />
+          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} split={spentSplit} />
           <SummaryCard title="Saved"  amount={selectedMonthSaved}  colorKey="blue"  />
           <SummaryCard title="Net"    amount={selectedMonthNet}    colorKey="amber" />
         </div>
@@ -1116,6 +1429,8 @@ function BillTracker() {
                   onUpdate={updateBill}
                   onDelete={deleteBill}
                   onDeleteItem={handleDeleteItem}
+                  onMakeRecurring={(makeRecurring) => markRecurring(bill.id, makeRecurring)}
+                  onDuplicateBill={(b) => setPendingDuplicateBillId(b.id)}
                   isMobile={isMobile}
                   highlighted={bill.id === newlyAddedBillId}
                   cardRef={bill.id === newlyAddedBillId ? newBillRef : null}
@@ -1148,6 +1463,8 @@ function BillTracker() {
               trackedKeywords={trackedKeywords}
               categoriesById={categoriesById}
               fallbackCategory={fallbackCategory}
+              onEndRecurring={endRecurringChain}
+              onPromoteInferred={(entry) => setPendingPromoteEntry(entry)}
             />
 
             <div className="formats-panel">

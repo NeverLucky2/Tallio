@@ -77,7 +77,7 @@ function CategorySelect({ value, onChange, categories }) {
   );
 }
 
-export default function BillItem({ item, bill, categories, otherCategoryId, onUpdate, onDelete, isMobile }) {
+export default function BillItem({ item, bill, categories, otherCategoryId, onUpdate, onDelete, onDuplicate, isMobile }) {
   const category = lookup(categories, item.categoryId, otherCategoryId);
   const itemDate = item.date || getItemDate(bill, item);
   const isCredit = Number.isFinite(item.amount) && item.amount < 0;
@@ -101,6 +101,17 @@ export default function BillItem({ item, bill, categories, otherCategoryId, onUp
               rows={1}
             />
           </div>
+          {onDuplicate && (
+            <button
+              type="button"
+              className="btn-duplicate-item"
+              onClick={() => onDuplicate(item)}
+              aria-label="Duplicate item"
+              title="Duplicate item"
+            >
+              ⧉
+            </button>
+          )}
           <button className="btn-delete" onClick={onDelete}>×</button>
         </div>
         <div className="item-row-mobile-bottom">
@@ -171,6 +182,17 @@ export default function BillItem({ item, bill, categories, otherCategoryId, onUp
             step="0.01"
           />
         </div>
+        {onDuplicate && (
+          <button
+            type="button"
+            className="btn-duplicate-item"
+            onClick={() => onDuplicate(item)}
+            aria-label="Duplicate item"
+            title="Duplicate item"
+          >
+            ⧉
+          </button>
+        )}
         <button className="btn-delete" onClick={onDelete}>×</button>
       </div>
       <TemplateChips templates={category.templates} item={item} onUpdate={onUpdate} />
