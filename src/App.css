@@ -3253,3 +3253,11 @@
   margin-bottom: 16px;
   font-family: 'Outfit', sans-serif;
 }
+
+.flow-chips {
+  margin-bottom: 8px;
+}
+.flow-chip.active {
+  background: #d4a853;
+  color: #0b0e16;
+}

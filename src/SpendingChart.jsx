@@ -54,6 +54,7 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     }
   }, [vendorColors]);
 
+  const [flow, setFlow] = useState('spent');
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === 'true'; } catch { return false; }
   });
@@ -104,6 +105,7 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
   }, [selectedMonth]);
 
   const enterDrill = (month) => {
+    if (flow !== 'spent') return; // drill-down is expense-only
     if (drillMonth === null) previousMonthRef.current = selectedMonth;
     setDrillMonth(month);
     if (onSelectMonth) onSelectMonth(month);
@@ -136,29 +138,46 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     );
   }
 
-  const renderChips = () => (
-    <div className="spending-chips">
-      <button
-        className={`spending-chip${isAll ? ' active' : ''}`}
-        onClick={() => setVendorFilter(null)}
-      >
-        All
-      </button>
-      {vendors.map(v => (
+  const renderFlowChips = () => (
+    <div className="spending-chips flow-chips">
+      {['spent', 'income', 'saved', 'net'].map(f => (
         <button
-          key={v}
-          className={`spending-chip${effectiveFilter === v ? ' active' : ''}`}
-          onClick={() => setVendorFilter(v)}
-          style={effectiveFilter === v ? { background: resolveVendorColor(v), color: '#0b0e16' } : null}
+          key={f}
+          className={`spending-chip flow-chip${flow === f ? ' active' : ''}`}
+          onClick={() => { setFlow(f); setDrillMonth(null); }}
         >
-          {v}
+          {f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
       ))}
     </div>
   );
 
+  const renderVendorChips = () => {
+    if (flow !== 'spent') return null;
+    return (
+      <div className="spending-chips">
+        <button
+          className={`spending-chip${isAll ? ' active' : ''}`}
+          onClick={() => setVendorFilter(null)}
+        >
+          All
+        </button>
+        {vendors.map(v => (
+          <button
+            key={v}
+            className={`spending-chip${effectiveFilter === v ? ' active' : ''}`}
+            onClick={() => setVendorFilter(v)}
+            style={effectiveFilter === v ? { background: resolveVendorColor(v), color: '#0b0e16' } : null}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   const renderLegend = () => {
-    if (!isAll || vendors.length === 0) return null;
+    if (flow !== 'spent' || !isAll || vendors.length === 0) return null;
     return (
       <div className="spending-legend">
         {vendors.map(v => (
@@ -182,11 +201,18 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
     if (effectiveFilter && monthly.every(m => m.spent === 0)) {
       return <div className="spending-empty">No spending recorded for {effectiveFilter}.</div>;
     }
-    const max = Math.max(...monthly.map(m => m.spent), 1);
+    const value = (m) => {
+      if (flow === 'income') return m.income;
+      if (flow === 'saved')  return m.saved;
+      if (flow === 'net')    return m.income - m.spent - m.saved;
+      return m.spent;
+    };
+    const max = Math.max(...monthly.map(m => Math.abs(value(m))), 1);
     return (
       <div className="spending-bars">
         {monthly.map(m => {
-          const pct = (m.spent / max) * STACK_HEADROOM_PCT;
+          const v = value(m);
+          const pct = (Math.abs(v) / max) * STACK_HEADROOM_PCT;
           const isCurrent = m.month === selectedMonth;
           return (
             <button
@@ -195,14 +221,17 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
               onClick={() => enterDrill(m.month)}
               title={`${formatMonthLong(m.month)} — ${formatCurrency(m.spent)}`}
             >
-              <span className="spending-bar-total">{formatCurrencyShort(m.spent)}</span>
+              <span className="spending-bar-total">{formatCurrencyShort(Math.abs(value(m)))}</span>
               <div className="spending-bar-stack" style={{ height: `${pct}%` }}>
-                {isAll ? renderStack(m) : (
+                {flow === 'spent' && isAll ? renderStack(m) : (
                   <div
                     className="spending-bar-segment"
                     style={{
-                      background: effectiveFilter
-                        ? resolveVendorColor(effectiveFilter)
+                      background:
+                        flow === 'income' ? '#6BD49A'
+                        : flow === 'saved' ? '#5B8DFF'
+                        : flow === 'net'   ? '#D4A853'
+                        : effectiveFilter ? resolveVendorColor(effectiveFilter)
                         : '#5b8dff',
                       height: '100%',
                     }}
@@ -329,7 +358,8 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
       </div>
       {!collapsed && (
         <>
-          {renderChips()}
+          {renderFlowChips()}
+          {renderVendorChips()}
           {renderLegend()}
           {drillMonth ? (
             <>
