@@ -1305,4 +1305,8 @@ describe('getPrimaryMonth', () => {
   it('handles a bill with no items array (returns bill.month)', () => {
     expect(getPrimaryMonth({ month: '2026-09' })).toBe('2026-09');
   });
+
+  it('falls back to currentMonth when bill.month is a malformed string', () => {
+    expect(getPrimaryMonth({ month: 'not-a-month', items: [] })).toMatch(/^\d{4}-\d{2}$/);
+  });
 });
