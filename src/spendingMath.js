@@ -47,6 +47,16 @@ export function getPrimaryMonth(bill) {
   return currentMonth();
 }
 
+export function getBillMonths(bill) {
+  const months = new Set([getPrimaryMonth(bill)]);
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      months.add(item.date.slice(0, 7));
+    }
+  }
+  return months;
+}
+
 export function getMonthItems(bills, month) {
   const out = [];
   for (const bill of bills || []) {

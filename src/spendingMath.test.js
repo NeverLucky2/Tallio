@@ -1310,3 +1310,69 @@ describe('getPrimaryMonth', () => {
     expect(getPrimaryMonth({ month: 'not-a-month', items: [] })).toMatch(/^\d{4}-\d{2}$/);
   });
 });
+
+import { getBillMonths } from './spendingMath.js';
+
+describe('getBillMonths', () => {
+  it('returns a single month when all items are in one month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-03' },
+        { date: '2026-04-22' },
+      ],
+    };
+    const months = getBillMonths(bill);
+    expect([...months].sort()).toEqual(['2026-04']);
+  });
+
+  it('returns two months when items span them', () => {
+    const bill = {
+      month: '2026-02',
+      items: [
+        { date: '2026-02-15' },
+        { date: '2026-03-04' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-02', '2026-03']);
+  });
+
+  it('returns three months when items span them', () => {
+    const bill = {
+      month: '2026-01',
+      items: [
+        { date: '2026-01-30' },
+        { date: '2026-02-14' },
+        { date: '2026-03-02' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-01', '2026-02', '2026-03']);
+  });
+
+  it('returns bill.month when no items are dated', () => {
+    const bill = { month: '2026-06', items: [{ date: null }, { date: null }] };
+    expect([...getBillMonths(bill)]).toEqual(['2026-06']);
+  });
+
+  it('returns bill.month when items array is empty', () => {
+    expect([...getBillMonths({ month: '2026-08', items: [] })]).toEqual(['2026-08']);
+  });
+
+  it('includes the primary month plus every dated item month (dateless do not add)', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-15' },
+        { date: null },
+        { date: '2026-05-03' },
+      ],
+    };
+    expect([...getBillMonths(bill)].sort()).toEqual(['2026-04', '2026-05']);
+  });
+
+  it('handles null bill gracefully', () => {
+    const months = getBillMonths(null);
+    expect(months.size).toBe(1);
+    expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
+  });
+});
