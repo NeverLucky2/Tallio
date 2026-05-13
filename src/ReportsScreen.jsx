@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { aggregateYoYByCategory, aggregateMonthByCategory } from './reportingMath.js';
+import { aggregateYoYByCategory, aggregateMonthByCategory, partitionSpentByRecurring } from './reportingMath.js';
+import { findAutoRecurringChains } from './spendingMath.js';
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
@@ -131,6 +132,65 @@ function MonthTrendTab({ bills, categories, categoriesById }) {
   );
 }
 
+function RecurringBreakdownTab({ bills, categoriesById, selectedMonth }) {
+  const partition = partitionSpentByRecurring(bills, selectedMonth, categoriesById);
+  const chains = findAutoRecurringChains(bills, categoriesById);
+  const recPct = partition.total > 0 ? (partition.recurring / partition.total) * 100 : 0;
+
+  const byFlow = { income: [], expense: [], savings: [] };
+  for (const c of chains) (byFlow[c.flow] || byFlow.expense).push(c);
+
+  return (
+    <div className="reports-tab-content" data-testid="tab-recurring">
+      <p className="reports-subtitle">Spent breakdown for {selectedMonth}</p>
+      <div className="recurring-partition-bar">
+        <div className="recurring-partition-recurring" style={{ width: `${recPct}%` }}>
+          {recPct > 12 && <span>{formatCurrency(partition.recurring)}</span>}
+        </div>
+        <div className="recurring-partition-oneoff" style={{ width: `${100 - recPct}%` }}>
+          {100 - recPct > 12 && <span>{formatCurrency(partition.oneOff)}</span>}
+        </div>
+      </div>
+      <div className="recurring-partition-legend">
+        <span><span className="spent-split-dot-recurring" /> recurring {formatCurrency(partition.recurring)}</span>
+        <span><span className="spent-split-dot-oneoff" /> one-off {formatCurrency(partition.oneOff)}</span>
+      </div>
+
+      {chains.length === 0 ? (
+        <p className="reports-empty">No active recurring bills yet — toggle a bill to recurring or click Make recurring on an inferred pattern.</p>
+      ) : (
+        <table className="yoy-table" style={{ marginTop: 24 }}>
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th className="num">Months</th>
+              <th className="num">Last</th>
+              <th className="num">Avg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {['income', 'expense', 'savings'].map(flow => (
+              byFlow[flow].length > 0 ? (
+                <React.Fragment key={flow}>
+                  <tr className="yoy-flow-header"><td colSpan={4}>{FLOW_LABELS[flow]}</td></tr>
+                  {byFlow[flow].map(c => (
+                    <tr key={c.chainId}>
+                      <td>{c.vendor}</td>
+                      <td className="num">{c.monthCount}</td>
+                      <td className="num">{formatCurrency(c.lastAmount)}</td>
+                      <td className="num">{formatCurrency(c.avgAmount)}</td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ) : null
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'yoy',       label: 'Year-over-year' },
   { id: 'month',     label: 'Month trend' },
@@ -170,7 +230,7 @@ export default function ReportsScreen({ bills, categories, categoriesById, selec
       <div className="reports-body">
         {activeTab === 'yoy' && <YoyTab bills={bills} categoriesById={categoriesById} />}
         {activeTab === 'month' && <MonthTrendTab bills={bills} categories={categories} categoriesById={categoriesById} />}
-        {activeTab === 'recurring' && <div className="reports-tab-content" data-testid="tab-recurring">Recurring breakdown content placeholder</div>}
+        {activeTab === 'recurring' && <RecurringBreakdownTab bills={bills} categoriesById={categoriesById} selectedMonth={selectedMonth} />}
       </div>
     </div>
   );

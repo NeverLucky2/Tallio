@@ -126,3 +126,42 @@ describe('ReportsScreen — Month trend tab', () => {
     expect(picker.value).toBe('c_util');
   });
 });
+
+describe('ReportsScreen — Recurring breakdown tab', () => {
+  it('shows the partition header bar with recurring + one-off totals', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Honda', month: '2026-05', recurringChainId: 'rec_x',
+        items: [{ id: 'i1', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-05-15' }] },
+      { id: 'b2', vendor: 'Coffee', month: '2026-05',
+        items: [{ id: 'i2', description: 'L', amount: 30, categoryId: 'c_food', date: '2026-05-02' }] },
+    ];
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Recurring breakdown' }));
+    const tab = screen.getByTestId('tab-recurring');
+    expect(tab.textContent).toContain('$470');
+    expect(tab.textContent).toContain('$30');
+  });
+
+  it('lists active recurring chains with vendor name', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Honda', month: '2026-04', recurring: true, recurringChainId: 'rec_x',
+        items: [{ id: 'i1', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-04-15' }] },
+      { id: 'b2', vendor: 'Honda', month: '2026-05', recurring: true, recurringChainId: 'rec_x',
+        items: [{ id: 'i2', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-05-15' }] },
+    ];
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Recurring breakdown' }));
+    const tab = screen.getByTestId('tab-recurring');
+    expect(tab.textContent).toContain('Honda');
+  });
+
+  it('shows empty-state message when there are no active chains', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Coffee', month: '2026-05',
+        items: [{ id: 'i1', description: 'L', amount: 5, categoryId: 'c_food', date: '2026-05-02' }] },
+    ];
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Recurring breakdown' }));
+    expect(screen.getByText(/No active recurring bills yet/i)).toBeTruthy();
+  });
+});

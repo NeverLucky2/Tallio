@@ -3213,3 +3213,43 @@
   margin-top: 4px;
   font-family: 'Outfit', sans-serif;
 }
+
+/* ── Recurring breakdown tab ─────────────────────────────── */
+.recurring-partition-bar {
+  display: flex;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.recurring-partition-recurring {
+  background: #5b8dff;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #0b0e16;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.recurring-partition-oneoff {
+  background: #a47dea;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #0b0e16;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.recurring-partition-legend {
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  color: #9aa3b2;
+  margin-bottom: 16px;
+  font-family: 'Outfit', sans-serif;
+}
