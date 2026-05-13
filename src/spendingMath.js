@@ -594,7 +594,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
   const results = [];
   for (const [chainId, chainBills] of byChain) {
     // Sort all chain bills chronologically (null-safe, mirrors computeCatchUp).
-    const sorted = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
+    const sorted = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b)));
     const latest = sorted[sorted.length - 1];
     // Chain is dormant if the latest (chronologically) bill is not recurring=true.
     if (!latest || latest.recurring !== true) continue;
@@ -624,7 +624,7 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
     );
     const avgAmount = totalAmount / sorted.length;
 
-    const uniqueMonths = new Set(sorted.map(b => b.month));
+    const uniqueMonths = new Set(sorted.flatMap(b => [...getBillMonths(b)]));
 
     results.push({
       kind: 'auto',
@@ -637,8 +637,8 @@ export function findAutoRecurringChains(bills, categoriesById = null) {
       avgAmount,
       monthCount: uniqueMonths.size,
       occurrences: sorted.length,
-      firstDate: `${sorted[0].month}-01`,
-      lastDate: `${latest.month}-01`,
+      firstDate: `${getPrimaryMonth(sorted[0])}-01`,
+      lastDate: `${getLatestMonth(latest)}-01`,
       active: true,
     });
   }

@@ -1327,6 +1327,44 @@ describe('findAutoRecurringChains', () => {
     expect(out[0].monthCount).toBe(2);
     expect(out[0].occurrences).toBe(2);
   });
+
+  it('multi-month bills contribute every spanned month to monthCount', () => {
+    const aprMay = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i1', description: 'Auto', amount: 100, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'i2', description: 'tail', amount: 50,  categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const jun = makeBill({
+      id: 'b_jun', month: '2026-06', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'i3', description: 'Auto', amount: 150, categoryId: 'c_auto', date: '2026-06-15' }],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprMay, jun], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].monthCount).toBe(3);   // Apr, May, Jun
+    expect(chains[0].occurrences).toBe(2);  // two bill rows
+  });
+
+  it('multi-month chain lastDate reflects the latest spanned month, not bill.month', () => {
+    // Single chain bill spanning Apr–May; "latest" should be May not Apr.
+    const aprMay = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'i1', description: 'Auto', amount: 100, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'i2', description: 'tail', amount: 50,  categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const catsById = new Map([['c_auto', { id: 'c_auto', name: 'Auto', flow: 'expense' }]]);
+    const chains = findAutoRecurringChains([aprMay], catsById);
+    expect(chains).toHaveLength(1);
+    expect(chains[0].lastDate).toBe('2026-05-01');
+    expect(chains[0].firstDate).toBe('2026-04-01');
+  });
 });
 
 import { getPrimaryMonth } from './spendingMath.js';
