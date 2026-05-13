@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { aggregateYoYByCategory } from './reportingMath.js';
+import { aggregateYoYByCategory, aggregateMonthByCategory } from './reportingMath.js';
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
@@ -80,6 +80,57 @@ function YoyTab({ bills, categoriesById }) {
   );
 }
 
+const formatMonthShort = (month) => {
+  const [y, m] = month.split('-').map(n => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+};
+
+function MonthTrendTab({ bills, categories, categoriesById }) {
+  const firstExpense = (categories || []).find(c => c.flow === 'expense');
+  const defaultCatId = firstExpense ? firstExpense.id : (categories && categories[0] && categories[0].id) || null;
+  const [categoryId, setCategoryId] = React.useState(defaultCatId);
+
+  const endMonth = currentMonth();
+  const series = aggregateMonthByCategory(bills, endMonth, categoryId);
+  const max = Math.max(...series.map(b => b.total), 1);
+  const avg = series.reduce((s, b) => s + b.total, 0) / 12;
+
+  // Group categories by flow for the picker.
+  const groups = { income: [], expense: [], savings: [] };
+  for (const c of categories || []) (groups[c.flow] || groups.expense).push(c);
+
+  return (
+    <div className="reports-tab-content" data-testid="tab-month">
+      <select
+        data-testid="month-trend-picker"
+        className="month-trend-picker"
+        value={categoryId || ''}
+        onChange={(e) => setCategoryId(e.target.value)}
+      >
+        {['income', 'expense', 'savings'].map(flow => (
+          groups[flow].length > 0 ? (
+            <optgroup key={flow} label={FLOW_LABELS[flow]}>
+              {groups[flow].map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </optgroup>
+          ) : null
+        ))}
+      </select>
+      <div className="month-trend-chart">
+        {series.map(b => {
+          const pct = (b.total / max) * 88;
+          return (
+            <div key={b.month} className="month-trend-bar" title={`${b.month} — ${formatCurrency(b.total)}`}>
+              <div className="month-trend-bar-fill" style={{ height: `${pct}%` }} />
+              <span className="month-trend-bar-label">{formatMonthShort(b.month)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="reports-subtitle">avg {formatCurrency(avg)}/mo · last 12 months</p>
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'yoy',       label: 'Year-over-year' },
   { id: 'month',     label: 'Month trend' },
@@ -118,7 +169,7 @@ export default function ReportsScreen({ bills, categories, categoriesById, selec
 
       <div className="reports-body">
         {activeTab === 'yoy' && <YoyTab bills={bills} categoriesById={categoriesById} />}
-        {activeTab === 'month' && <div className="reports-tab-content" data-testid="tab-month">Month trend content placeholder</div>}
+        {activeTab === 'month' && <MonthTrendTab bills={bills} categories={categories} categoriesById={categoriesById} />}
         {activeTab === 'recurring' && <div className="reports-tab-content" data-testid="tab-recurring">Recurring breakdown content placeholder</div>}
       </div>
     </div>

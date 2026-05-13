@@ -47,6 +47,7 @@ const cats = [
   { id: 'c_food', name: 'Groceries', flow: 'expense' },
   { id: 'c_util', name: 'Utilities', flow: 'expense' },
   { id: 'c_pay',  name: 'Paycheck',  flow: 'income'  },
+  { id: 'c_401k', name: '401(k)',    flow: 'savings'  },
 ];
 const catsById = new Map(cats.map(c => [c.id, c]));
 
@@ -92,5 +93,36 @@ describe('ReportsScreen — Year-over-year tab', () => {
     render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
     const tab = screen.getByTestId('tab-yoy');
     expect(tab.textContent).toContain('—');
+  });
+});
+
+describe('ReportsScreen — Month trend tab', () => {
+  const bills = [
+    { id: 'b1', vendor: 'V', month: '2026-04', items: [
+      { id: 'i1', description: 'F', amount: 100, categoryId: 'c_food', date: '2026-04-10' },
+      { id: 'i2', description: 'U', amount:  50, categoryId: 'c_util', date: '2026-04-15' },
+    ]},
+  ];
+
+  it('renders the category picker grouped by flow', () => {
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Month trend' }));
+    const picker = screen.getByTestId('month-trend-picker');
+    expect(picker.querySelectorAll('optgroup').length).toBe(3);
+  });
+
+  it('defaults to the first expense-flow category', () => {
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Month trend' }));
+    const picker = screen.getByTestId('month-trend-picker');
+    expect(picker.value).toBe('c_food');
+  });
+
+  it('changing the picker updates the chart', () => {
+    render(<ReportsScreen bills={bills} categories={cats} categoriesById={catsById} selectedMonth="2026-05" onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Month trend' }));
+    const picker = screen.getByTestId('month-trend-picker');
+    fireEvent.change(picker, { target: { value: 'c_util' } });
+    expect(picker.value).toBe('c_util');
   });
 });

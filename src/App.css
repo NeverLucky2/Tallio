@@ -3171,3 +3171,45 @@
 .yoy-table .delta-up    { color: #e0928a; }
 .yoy-table .delta-down  { color: #6BD49A; }
 .yoy-table .delta-flat  { color: #9aa3b2; }
+
+/* ── Month trend tab ─────────────────────────────────────── */
+.month-trend-picker {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+.month-trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 200px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.month-trend-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+.month-trend-bar-fill {
+  width: 100%;
+  background: #a47dea;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+.month-trend-bar-label {
+  font-size: 10px;
+  color: #9aa3b2;
+  margin-top: 4px;
+  font-family: 'Outfit', sans-serif;
+}
