@@ -8,41 +8,26 @@
 
 **Tech Stack:** React 19, Vite 7, Vitest. Existing modules: `src/spendingMath.js`, `src/App.jsx`, `src/SpendingChart.jsx`. No new dependencies.
 
-**Branch:** Work happens on a new branch `feat/multi-month-bills`, cut off the current branch (`feat/reporting-and-export`) which has the spec commit `eec977b` as its head.
+**Branch:** Work happens on the branch `multi-month-bills` (already cut off `feat/reporting-and-export`). The spec commit `eec977b` and this plan commit are already on it.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-13-multi-month-bills-design.md` is the source of truth if any task feels under-specified.
 
 ---
 
-## Task 1: Cut the feature branch
+## Task 1: Verify branch setup
 
 **Files:** none
 
-- [ ] **Step 1: Verify clean working tree on the spec branch**
-
-```bash
-git status
-```
-
-Expected: `On branch feat/reporting-and-export ... nothing to commit, working tree clean`.
-
-- [ ] **Step 2: Cut the new branch**
-
-```bash
-git checkout -b feat/multi-month-bills
-```
-
-Expected: `Switched to a new branch 'feat/multi-month-bills'`. The spec commit (`eec977b`) is the new branch's first inherited commit.
-
-- [ ] **Step 3: Verify**
+- [ ] **Step 1: Confirm we're on the correct branch with a clean tree**
 
 ```bash
 git branch --show-current
+git status
 ```
 
-Expected: `feat/multi-month-bills`.
+Expected: branch is `multi-month-bills`, working tree clean. The spec (`eec977b`) and this plan (`ef85129`) are already committed on it.
 
-No commit for this task — it's just branch setup.
+No commit for this task — it's just verification.
 
 ---
 
@@ -1162,7 +1147,7 @@ git commit -m "test(multi-month): smoke test for cross-month bill attribution"
 
 ## Notes for the implementer
 
-- **Branch:** Work happens on `feat/multi-month-bills`, cut from `feat/reporting-and-export` (Task 1).
+- **Branch:** Work happens on `multi-month-bills`, already cut from `feat/reporting-and-export`. Task 1 just verifies this.
 - **Stop on failure:** If any TDD step's "verify it fails" doesn't fail for the expected reason, stop and check the test code. Tests should fail with a clear "not defined" / "not exported" / assertion-mismatch message — never a syntax error.
 - **Order matters:** Tasks 2-5 (the four helpers) are independent of each other but all four must come before Tasks 6-11 (which consume them). Tasks 8 and 9 must come before Task 10 (Task 10 depends on `selectedMonth` being wired into `BillCard`).
 - **Manual smoke matters:** Vitest doesn't catch CSS layout or visual regressions. The browser smoke steps in Tasks 8, 9, 10, 11, and 12 are the real verification for UI work.
