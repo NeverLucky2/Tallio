@@ -1,4 +1,4 @@
-import { getItemDate } from './spendingMath.js';
+import { getItemDate, getMonthWindow } from './spendingMath.js';
 
 const FLOW_ORDER = { income: 0, expense: 1, savings: 2 };
 
@@ -57,4 +57,23 @@ export function aggregateYoYByCategory(bills, today, categoriesById) {
     return Math.abs(b.currentYTD) - Math.abs(a.currentYTD);
   });
   return rows;
+}
+
+export function aggregateMonthByCategory(bills, endMonth, categoryId) {
+  const window = getMonthWindow(endMonth);
+  const buckets = window.map(m => ({ month: m, total: 0 }));
+  const byMonth = new Map(buckets.map(b => [b.month, b]));
+
+  for (const bill of bills || []) {
+    if (!bill || !Array.isArray(bill.items)) continue;
+    for (const item of bill.items) {
+      if (!item || !Number.isFinite(item.amount) || item.amount === 0) continue;
+      if (item.categoryId !== categoryId) continue;
+      const date = getItemDate(bill, item);
+      const m = date.slice(0, 7);
+      const bucket = byMonth.get(m);
+      if (bucket) bucket.total += item.amount;
+    }
+  }
+  return buckets;
 }

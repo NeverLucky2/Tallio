@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateYoYByCategory } from './reportingMath.js';
+import { aggregateYoYByCategory, aggregateMonthByCategory } from './reportingMath.js';
 
 const cats = [
   { id: 'c_food', name: 'Groceries', flow: 'expense' },
@@ -95,5 +95,62 @@ describe('aggregateYoYByCategory', () => {
 
   it('returns [] for empty bills array', () => {
     expect(aggregateYoYByCategory([], '2026-05-12', catsById)).toEqual([]);
+  });
+});
+
+describe('aggregateMonthByCategory', () => {
+  it('returns exactly 12 buckets matching the 12-month window ending at endMonth', () => {
+    const buckets = aggregateMonthByCategory([], '2026-05', 'c_food');
+    expect(buckets.length).toBe(12);
+    expect(buckets[0].month).toBe('2025-06');
+    expect(buckets[11].month).toBe('2026-05');
+  });
+
+  it('all months zero when category has no items', () => {
+    const bills = [mkBill('2026-04', [{ description: 'A', amount: 100, categoryId: 'c_util', date: '2026-04-15' }])];
+    const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
+    expect(buckets.every(b => b.total === 0)).toBe(true);
+  });
+
+  it('sums amounts in the matching month', () => {
+    const bills = [
+      mkBill('2026-03', [
+        { description: 'A', amount: 100, categoryId: 'c_food', date: '2026-03-15' },
+        { description: 'B', amount:  50, categoryId: 'c_food', date: '2026-03-20' },
+      ]),
+      mkBill('2026-04', [{ description: 'C', amount: 80, categoryId: 'c_food', date: '2026-04-15' }]),
+    ];
+    const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
+    expect(buckets.find(b => b.month === '2026-03').total).toBe(150);
+    expect(buckets.find(b => b.month === '2026-04').total).toBe(80);
+    expect(buckets.find(b => b.month === '2026-05').total).toBe(0);
+  });
+
+  it('refunds (negative amounts) subtract within their month', () => {
+    const bills = [mkBill('2026-04', [
+      { description: 'A', amount: 100, categoryId: 'c_food', date: '2026-04-10' },
+      { description: 'R', amount: -30, categoryId: 'c_food', date: '2026-04-20' },
+    ])];
+    const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
+    expect(buckets.find(b => b.month === '2026-04').total).toBe(70);
+  });
+
+  it('items in the same month from multiple bills sum together', () => {
+    const bills = [
+      { id: 'b1', vendor: 'A', month: '2026-04', items: [{ id: 'i1', description: 'X', amount: 50, categoryId: 'c_food', date: '2026-04-10' }] },
+      { id: 'b2', vendor: 'B', month: '2026-04', items: [{ id: 'i2', description: 'Y', amount: 60, categoryId: 'c_food', date: '2026-04-20' }] },
+    ];
+    const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
+    expect(buckets.find(b => b.month === '2026-04').total).toBe(110);
+  });
+
+  it('ignores months outside the 12-month window', () => {
+    const bills = [
+      mkBill('2024-05', [{ description: 'A', amount: 999, categoryId: 'c_food', date: '2024-05-10' }]),
+      mkBill('2026-04', [{ description: 'B', amount: 100, categoryId: 'c_food', date: '2026-04-10' }]),
+    ];
+    const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
+    expect(buckets.find(b => b.month === '2026-04').total).toBe(100);
+    expect(buckets.find(b => b.month === '2024-05')).toBeUndefined();
   });
 });
