@@ -198,7 +198,11 @@ const BillCard = ({ bill, selectedMonth, defaultCategoryId, categories, categori
   const displayAmount = Math.abs(billNet.net);
 
   const addItem = () => {
-    const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date: null };
+    const primary = getPrimaryMonth(bill);
+    const date = (selectedMonth && selectedMonth !== primary)
+      ? `${selectedMonth}-01`
+      : null;
+    const newItem = { id: Date.now(), description: "", amount: 0, categoryId: defaultCategoryId, date };
     onUpdate({ ...bill, items: [...bill.items, newItem] });
   };
 
