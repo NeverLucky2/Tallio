@@ -77,3 +77,23 @@ export function aggregateMonthByCategory(bills, endMonth, categoryId) {
   }
   return buckets;
 }
+
+export function partitionSpentByRecurring(bills, month, categoriesById) {
+  let recurring = 0;
+  let oneOff = 0;
+  for (const bill of bills || []) {
+    if (!bill || !Array.isArray(bill.items)) continue;
+    const isRecurring = !!bill.recurringChainId;
+    for (const item of bill.items) {
+      if (!item || !Number.isFinite(item.amount) || item.amount === 0) continue;
+      const date = getItemDate(bill, item);
+      if (date.slice(0, 7) !== month) continue;
+      const cat = categoriesById && categoriesById.get(item.categoryId);
+      const flow = (cat && cat.flow) || 'expense';
+      if (flow !== 'expense') continue;
+      if (isRecurring) recurring += item.amount;
+      else oneOff += item.amount;
+    }
+  }
+  return { recurring, oneOff, total: recurring + oneOff };
+}

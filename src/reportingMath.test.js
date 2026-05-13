@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateYoYByCategory, aggregateMonthByCategory } from './reportingMath.js';
+import { aggregateYoYByCategory, aggregateMonthByCategory, partitionSpentByRecurring } from './reportingMath.js';
 
 const cats = [
   { id: 'c_food', name: 'Groceries', flow: 'expense' },
@@ -152,5 +152,79 @@ describe('aggregateMonthByCategory', () => {
     const buckets = aggregateMonthByCategory(bills, '2026-05', 'c_food');
     expect(buckets.find(b => b.month === '2026-04').total).toBe(100);
     expect(buckets.find(b => b.month === '2024-05')).toBeUndefined();
+  });
+});
+
+describe('partitionSpentByRecurring', () => {
+  it('puts bills with recurringChainId into recurring', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Honda', month: '2026-05', recurringChainId: 'rec_x',
+        items: [{ id: 'i1', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-05-15' }] },
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.recurring).toBe(470);
+    expect(result.oneOff).toBe(0);
+    expect(result.total).toBe(470);
+  });
+
+  it('puts bills without recurringChainId into oneOff', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Coffee', month: '2026-05',
+        items: [{ id: 'i1', description: 'Latte', amount: 5, categoryId: 'c_food', date: '2026-05-02' }] },
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.recurring).toBe(0);
+    expect(result.oneOff).toBe(5);
+    expect(result.total).toBe(5);
+  });
+
+  it('excludes income and savings flows', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Acme', month: '2026-05', items: [
+        { id: 'i1', description: 'Pay',  amount: 5000, categoryId: 'c_pay',  date: '2026-05-15' },
+        { id: 'i2', description: '401k', amount:  260, categoryId: 'c_401k', date: '2026-05-15' },
+        { id: 'i3', description: 'Food', amount:  100, categoryId: 'c_food', date: '2026-05-10' },
+      ]},
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.oneOff).toBe(100);
+    expect(result.recurring).toBe(0);
+  });
+
+  it('refunds reduce within the matching bucket', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
+        { id: 'i1', description: 'Whole Foods',        amount: 100, categoryId: 'c_food', date: '2026-05-02' },
+        { id: 'i2', description: 'Whole Foods refund', amount: -30, categoryId: 'c_food', date: '2026-05-12' },
+      ]},
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.oneOff).toBe(70);
+  });
+
+  it('only includes items in the specified month', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Coffee', month: '2026-05',
+        items: [{ id: 'i1', description: 'L', amount: 5, categoryId: 'c_food', date: '2026-05-02' }] },
+      { id: 'b2', vendor: 'Coffee', month: '2026-04',
+        items: [{ id: 'i2', description: 'L', amount: 99, categoryId: 'c_food', date: '2026-04-02' }] },
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.total).toBe(5);
+  });
+
+  it('empty input returns zero buckets', () => {
+    expect(partitionSpentByRecurring([], '2026-05', catsById)).toEqual({ recurring: 0, oneOff: 0, total: 0 });
+  });
+
+  it('total invariant: total === recurring + oneOff', () => {
+    const bills = [
+      { id: 'b1', vendor: 'Honda', month: '2026-05', recurringChainId: 'rec_x',
+        items: [{ id: 'i1', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-05-15' }] },
+      { id: 'b2', vendor: 'Coffee', month: '2026-05',
+        items: [{ id: 'i2', description: 'Latte', amount: 5, categoryId: 'c_food', date: '2026-05-02' }] },
+    ];
+    const result = partitionSpentByRecurring(bills, '2026-05', catsById);
+    expect(result.total).toBe(result.recurring + result.oneOff);
   });
 });
