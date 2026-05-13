@@ -57,6 +57,17 @@ export function getBillMonths(bill) {
   return months;
 }
 
+export function getLatestMonth(bill) {
+  let latest = getPrimaryMonth(bill);
+  for (const item of (bill && bill.items) || []) {
+    if (item && typeof item.date === 'string' && DATE_RE.test(item.date)) {
+      const m = item.date.slice(0, 7);
+      if (m > latest) latest = m;
+    }
+  }
+  return latest;
+}
+
 export function getMonthItems(bills, month) {
   const out = [];
   for (const bill of bills || []) {

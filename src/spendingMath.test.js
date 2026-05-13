@@ -1312,6 +1312,49 @@ describe('getPrimaryMonth', () => {
 });
 
 import { getBillMonths } from './spendingMath.js';
+import { getLatestMonth } from './spendingMath.js';
+
+describe('getLatestMonth', () => {
+  it('returns the latest dated item month', () => {
+    const bill = {
+      month: '2026-04',
+      items: [
+        { date: '2026-04-15' },
+        { date: '2026-05-04' },
+        { date: '2026-04-22' },
+      ],
+    };
+    expect(getLatestMonth(bill)).toBe('2026-05');
+  });
+
+  it('equals primary month when bill is single-month', () => {
+    const bill = { month: '2026-03', items: [{ date: '2026-03-10' }] };
+    expect(getLatestMonth(bill)).toBe('2026-03');
+  });
+
+  it('falls back to bill.month when no items are dated', () => {
+    expect(getLatestMonth({ month: '2026-07', items: [{ date: null }] })).toBe('2026-07');
+  });
+
+  it('handles null bill gracefully', () => {
+    expect(getLatestMonth(null)).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it('handles three-month spans', () => {
+    const bill = {
+      month: '2026-01',
+      items: [
+        { date: '2026-01-30' },
+        { date: '2026-03-02' },
+      ],
+    };
+    expect(getLatestMonth(bill)).toBe('2026-03');
+  });
+
+  it('falls back to currentMonth when bill.month is malformed and no items are dated', () => {
+    expect(getLatestMonth({ month: 'bad', items: [] })).toMatch(/^\d{4}-\d{2}$/);
+  });
+});
 
 describe('getBillMonths', () => {
   it('returns a single month when all items are in one month', () => {
