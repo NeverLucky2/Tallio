@@ -457,8 +457,8 @@ export function shiftItemDate(date, targetMonth) {
 //   2. For each chain:
 //      a. Find the chronologically latest instance where recurring === true.
 //         If none, the chain is dormant — skip.
-//      b. Walk target months strictly after source.month up to and including
-//         todayMonth. For each:
+//      b. Walk target months strictly after getLatestMonth(source) up to and
+//         including todayMonth. For each:
 //           - If a bill in the chain already exists in that month, skip.
 //           - Else if a same-vendor non-chain bill exists, push a conflict
 //             entry and stop iterating further months for this chain.
@@ -500,7 +500,7 @@ export function computeCatchUp(bills, todayMonth) {
     // so there's no need for a separate activeInstances filter/sort/pop.
     const source = latestOverall;
 
-    // Iterate target months strictly after source.month, up to todayMonth.
+    // Iterate target months strictly after getLatestMonth(source), up to todayMonth.
     const targets = monthsBetweenExclusiveInclusive(getLatestMonth(source), todayMonth);
     for (const targetMonth of targets) {
       const alreadyInChain = working.some(b =>
