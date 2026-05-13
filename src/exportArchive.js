@@ -48,3 +48,15 @@ export function buildItemsCsv(bills, categoriesById) {
   }
   return '﻿' + lines.join('\n');
 }
+
+export function buildDataJson(bills, categories, trackedKeywords, schemaVersion, appVersion, now) {
+  const payload = {
+    schemaVersion,
+    exportedAt: now.toISOString(),
+    appVersion,
+    bills: bills || [],
+    categories: categories || [],
+    trackedKeywords: trackedKeywords || [],
+  };
+  return JSON.stringify(payload, null, 2);
+}

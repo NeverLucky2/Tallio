@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildItemsCsv } from './exportArchive.js';
+import { buildItemsCsv, buildDataJson } from './exportArchive.js';
 
 const cats = [
   { id: 'c_food', name: 'Groceries',  flow: 'expense' },
@@ -90,5 +90,47 @@ describe('buildItemsCsv', () => {
     const lines = buildItemsCsv(bills, catsById).split('\n').filter(Boolean);
     expect(lines.length).toBe(2); // header + 1 row
     expect(lines[1]).toContain('Real');
+  });
+});
+
+describe('buildDataJson', () => {
+  const fixedNow = new Date('2026-05-12T18:42:01.234Z');
+  const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [], recurring: true, recurringChainId: 'rec_x' }];
+  const categories = [{ id: 'c_food', name: 'Groceries', flow: 'expense', keywords: ['WHOLE'], templates: [], icon: '🛒', color: '#10B981', builtin: true }];
+  const trackedKeywords = ['CHURCH'];
+
+  it('returns parseable JSON with top-level keys in declared order', () => {
+    const str = buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow);
+    const parsed = JSON.parse(str);
+    expect(Object.keys(parsed)).toEqual([
+      'schemaVersion', 'exportedAt', 'appVersion', 'bills', 'categories', 'trackedKeywords',
+    ]);
+  });
+
+  it('uses the input schemaVersion as an integer', () => {
+    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
+    expect(parsed.schemaVersion).toBe(3);
+  });
+
+  it('formats exportedAt as ISO 8601 UTC', () => {
+    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
+    expect(parsed.exportedAt).toBe('2026-05-12T18:42:01.234Z');
+  });
+
+  it('preserves bills, categories, and trackedKeywords byte-identically', () => {
+    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
+    expect(parsed.bills).toEqual(bills);
+    expect(parsed.categories).toEqual(categories);
+    expect(parsed.trackedKeywords).toEqual(trackedKeywords);
+  });
+
+  it('handles empty trackedKeywords array', () => {
+    const parsed = JSON.parse(buildDataJson(bills, categories, [], 3, '1.0.0', fixedNow));
+    expect(parsed.trackedKeywords).toEqual([]);
+  });
+
+  it('serializes with 2-space indent (human-readable)', () => {
+    const str = buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow);
+    expect(str).toContain('\n  "schemaVersion"');
   });
 });
