@@ -1188,24 +1188,30 @@ describe('computeCatchUp', () => {
   });
 
   it('conflict check considers spans: a same-vendor multi-month non-chain bill blocks catch-up', () => {
+    // Chain source is April. Catch-up targets are May, June, July.
+    // The stray bill has month='2026-04' (so OLD logic's `b.month === targetMonth` would never match May)
+    // but has an item dated 2026-05-02 (so NEW logic's `getBillMonths(b).has('2026-05')` matches).
+    // This test only passes under span-aware conflict logic.
     const chainSource = makeBill({
       id: 'b_apr', month: '2026-04', vendor: 'Honda',
       recurring: true, recurringChainId: 'rec_h',
       items: [{ id: 'it1', amount: 452, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' }],
     });
-    // A non-chain Honda bill that spans May–June.
     const stray = makeBill({
-      id: 'b_stray', month: '2026-05', vendor: 'Honda',
+      id: 'b_stray', month: '2026-04', vendor: 'Honda',
       items: [
-        { id: 'it_a', amount: 100, description: 'something', categoryId: 'c_auto', date: '2026-05-20' },
-        { id: 'it_b', amount: 50,  description: 'leak',      categoryId: 'c_auto', date: '2026-06-02' },
+        { id: 'it_a', amount: 100, description: 'late Apr',  categoryId: 'c_auto', date: '2026-04-30' },
+        { id: 'it_b', amount: 50,  description: 'early May', categoryId: 'c_auto', date: '2026-05-02' },
       ],
     });
     const out = computeCatchUp([chainSource, stray], '2026-07');
-    // Conflict should be reported on May (the first target month covered by the stray bill).
+    // Span-aware conflict: stray covers May → conflict on May → stops further targets.
     expect(out.conflicts).toHaveLength(1);
     expect(out.conflicts[0].targetMonth).toBe('2026-05');
     expect(out.conflicts[0].existingBillId).toBe('b_stray');
+    // No catch-up spawns produced because the chain halted at the May conflict.
+    const chainSpawns = out.bills.filter(b => b.recurringChainId === 'rec_h' && b.id !== 'b_apr');
+    expect(chainSpawns).toHaveLength(0);
   });
 });
 
