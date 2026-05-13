@@ -3171,6 +3171,8 @@
 .yoy-table .delta-up    { color: #e0928a; }
 .yoy-table .delta-down  { color: #6BD49A; }
 .yoy-table .delta-flat  { color: #9aa3b2; }
+.yoy-table .delta-good  { color: #6BD49A; }
+.yoy-table .delta-bad   { color: #e0928a; }
 
 /* ── Month trend tab ─────────────────────────────────────── */
 .month-trend-picker {

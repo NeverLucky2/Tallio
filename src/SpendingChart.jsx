@@ -144,7 +144,7 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
         <button
           key={f}
           className={`spending-chip flow-chip${flow === f ? ' active' : ''}`}
-          onClick={() => { setFlow(f); setDrillMonth(null); }}
+          onClick={() => { setFlow(f); setDrillMonth(null); setVendorFilter(null); }}
         >
           {f.charAt(0).toUpperCase() + f.slice(1)}
         </button>
@@ -219,7 +219,7 @@ export default function SpendingChart({ bills, selectedMonth, onSelectMonth, cat
               key={m.month}
               className={`spending-bar${isCurrent ? ' current' : ''}`}
               onClick={() => enterDrill(m.month)}
-              title={`${formatMonthLong(m.month)} — ${formatCurrency(m.spent)}`}
+              title={`${formatMonthLong(m.month)} — ${formatCurrency(value(m))}`}
             >
               <span className="spending-bar-total">{formatCurrencyShort(Math.abs(value(m)))}</span>
               <div className="spending-bar-stack" style={{ height: `${pct}%` }}>

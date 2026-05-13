@@ -67,9 +67,18 @@ function YoyTab({ bills, categoriesById }) {
                     <td>{r.name}</td>
                     <td className="num">{formatCurrency(r.currentYTD)}</td>
                     <td className="num">{formatCurrency(r.priorYTD)}</td>
-                    <td className={`num delta-${r.deltaPct == null ? 'flat' : r.deltaPct > 0 ? 'up' : 'down'}`}>
-                      {r.deltaPct == null ? '—' : `${r.deltaPct > 0 ? '+' : ''}${r.deltaPct}%`}
-                    </td>
+                    {(() => {
+                      const goodWhenUp = r.flow === 'income' || r.flow === 'savings';
+                      const cls =
+                        r.deltaPct == null ? 'delta-flat'
+                        : ((r.deltaPct > 0) === goodWhenUp) ? 'delta-good'
+                        : 'delta-bad';
+                      return (
+                        <td className={`num ${cls}`}>
+                          {r.deltaPct == null ? '—' : `${r.deltaPct > 0 ? '+' : ''}${r.deltaPct}%`}
+                        </td>
+                      );
+                    })()}
                   </tr>
                 ))}
               </React.Fragment>
@@ -142,7 +151,11 @@ function RecurringBreakdownTab({ bills, categoriesById, selectedMonth }) {
 
   return (
     <div className="reports-tab-content" data-testid="tab-recurring">
-      <p className="reports-subtitle">Spent breakdown for {selectedMonth}</p>
+      <p className="reports-subtitle">Spent breakdown for {
+        /^\d{4}-\d{2}$/.test(selectedMonth)
+          ? new Date(`${selectedMonth}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : selectedMonth
+      }</p>
       <div className="recurring-partition-bar">
         <div className="recurring-partition-recurring" style={{ width: `${recPct}%` }}>
           {recPct > 12 && <span>{formatCurrency(partition.recurring)}</span>}
