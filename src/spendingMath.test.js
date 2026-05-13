@@ -1375,4 +1375,10 @@ describe('getBillMonths', () => {
     expect(months.size).toBe(1);
     expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
   });
+
+  it('falls back to currentMonth when bill.month is malformed and no items are dated', () => {
+    const months = getBillMonths({ month: 'bad', items: [] });
+    expect(months.size).toBe(1);
+    expect([...months][0]).toMatch(/^\d{4}-\d{2}$/);
+  });
 });
