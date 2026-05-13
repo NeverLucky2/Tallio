@@ -244,9 +244,7 @@ const BillCard = ({ bill, selectedMonth, defaultCategoryId, categories, categori
             })()}
             <div className="bill-meta-dot" />
             {(() => {
-              const sliceCount = selectedMonth
-                ? getBillItemsForMonth(bill, selectedMonth).length
-                : bill.items.length;
+              const sliceCount = slicedItems.length;
               return <>{sliceCount} item{sliceCount !== 1 ? 's' : ''}</>;
             })()}
           </div>
