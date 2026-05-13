@@ -492,7 +492,7 @@ export function computeCatchUp(bills, todayMonth) {
 
   for (const [chainId, chainBills] of byChain) {
     // Find the chronologically latest bill in the chain overall.
-    const sortedChain = chainBills.slice().sort((a, b) => (a.month ?? '').localeCompare(b.month ?? ''));
+    const sortedChain = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b)));
     const latestOverall = sortedChain[sortedChain.length - 1];
     // If the latest bill has recurring=false (or chain is empty), the chain is dormant — skip.
     if (!latestOverall || latestOverall.recurring !== true) continue;
@@ -501,15 +501,15 @@ export function computeCatchUp(bills, todayMonth) {
     const source = latestOverall;
 
     // Iterate target months strictly after source.month, up to todayMonth.
-    const targets = monthsBetweenExclusiveInclusive(source.month, todayMonth);
+    const targets = monthsBetweenExclusiveInclusive(getLatestMonth(source), todayMonth);
     for (const targetMonth of targets) {
       const alreadyInChain = working.some(b =>
-        b.recurringChainId === chainId && b.month === targetMonth
+        b.recurringChainId === chainId && getBillMonths(b).has(targetMonth)
       );
       if (alreadyInChain) continue;
 
       const conflictBill = working.find(b =>
-        b.month === targetMonth &&
+        getBillMonths(b).has(targetMonth) &&
         b.vendor === source.vendor &&
         b.recurringChainId !== chainId
       );

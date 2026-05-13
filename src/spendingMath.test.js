@@ -1150,6 +1150,63 @@ describe('computeCatchUp', () => {
     const may = out.bills.find(b => b.month === '2026-05');
     expect(may.items).toEqual([]);
   });
+
+  it('multi-month source: next catch-up target is after the source\'s latest month', () => {
+    // Source spans Apr–May (recurring=true). Today is July. Expect spawns for June, July only.
+    const source = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'it1', description: 'Auto loan', amount: 452, categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'it2', description: 'Auto loan tail', amount: 0, categoryId: 'c_auto', date: '2026-05-03' },
+      ],
+    });
+    const out = computeCatchUp([source], '2026-07');
+    expect(out.conflicts).toEqual([]);
+    const spawns = out.bills.filter(b => b.id !== 'b_aprmay');
+    const months = spawns.map(b => b.month).sort();
+    expect(months).toEqual(['2026-06', '2026-07']);
+  });
+
+  it('multi-month bill in the chain already covers a target month → no spawn for that month', () => {
+    // Source bill spans Apr–May. Today July. June + July should still spawn; April and May are covered.
+    const source = makeBill({
+      id: 'b_aprmay', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [
+        { id: 'it1', amount: 452, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' },
+        { id: 'it2', amount: 0,   description: 'tail', categoryId: 'c_auto', date: '2026-05-04' },
+      ],
+    });
+    const out = computeCatchUp([source], '2026-07');
+    const aprMay = out.bills.filter(b => b.recurringChainId === 'rec_h' && b.id === 'b_aprmay');
+    expect(aprMay).toHaveLength(1);  // source unchanged
+    const spawnMonths = out.bills
+      .filter(b => b.recurringChainId === 'rec_h' && b.id !== 'b_aprmay')
+      .map(b => b.month).sort();
+    expect(spawnMonths).toEqual(['2026-06', '2026-07']);
+  });
+
+  it('conflict check considers spans: a same-vendor multi-month non-chain bill blocks catch-up', () => {
+    const chainSource = makeBill({
+      id: 'b_apr', month: '2026-04', vendor: 'Honda',
+      recurring: true, recurringChainId: 'rec_h',
+      items: [{ id: 'it1', amount: 452, description: 'Auto', categoryId: 'c_auto', date: '2026-04-15' }],
+    });
+    // A non-chain Honda bill that spans May–June.
+    const stray = makeBill({
+      id: 'b_stray', month: '2026-05', vendor: 'Honda',
+      items: [
+        { id: 'it_a', amount: 100, description: 'something', categoryId: 'c_auto', date: '2026-05-20' },
+        { id: 'it_b', amount: 50,  description: 'leak',      categoryId: 'c_auto', date: '2026-06-02' },
+      ],
+    });
+    const out = computeCatchUp([chainSource, stray], '2026-07');
+    // Conflict should be reported on May (the first target month covered by the stray bill).
+    expect(out.conflicts).toHaveLength(1);
+    expect(out.conflicts[0].targetMonth).toBe('2026-05');
+    expect(out.conflicts[0].existingBillId).toBe('b_stray');
+  });
 });
 
 describe('findAutoRecurringChains', () => {
