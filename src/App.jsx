@@ -6,7 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
-import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp, getBillMonths } from './spendingMath.js';
+import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp, getBillMonths, getBillItemsForMonth, getPrimaryMonth, getLatestMonth } from './spendingMath.js';
 import { partitionSpentByRecurring } from './reportingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
@@ -188,9 +188,12 @@ const ConfirmDialog = ({ title, message, confirmLabel = "OK", variant = "default
 
 // ---- Bill Card ----
 
-const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
+const BillCard = ({ bill, selectedMonth, defaultCategoryId, categories, categoriesById, otherCategoryId, onUpdate, onDelete, onDeleteItem, onMakeRecurring, onDuplicateBill, isMobile, highlighted = false, cardRef = null }) => {
   const [isExpanded, setIsExpanded] = useState(highlighted);
-  const billNet = getBillNet(bill, categoriesById);
+  const slicedItems = selectedMonth
+    ? getBillItemsForMonth(bill, selectedMonth)
+    : (bill.items || []);
+  const billNet = getBillNet({ ...bill, items: slicedItems }, categoriesById);
   const direction = billNet.net > 0 ? 'in' : billNet.net < 0 ? 'out' : 'flat';
   const displayAmount = Math.abs(billNet.net);
 
@@ -232,9 +235,20 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
         <div className="bill-info">
           <h3 className="bill-vendor">{bill.vendor || "Untitled Bill"}</h3>
           <div className="bill-meta">
-            {formatMonth(bill.month)}
+            {(() => {
+              const primary = getPrimaryMonth(bill);
+              const latest = getLatestMonth(bill);
+              return primary === latest
+                ? formatMonth(primary)
+                : <>{formatMonth(primary)} <span className="bill-meta-arrow">→</span> {formatMonth(latest)}</>;
+            })()}
             <div className="bill-meta-dot" />
-            {bill.items.length} item{bill.items.length !== 1 ? 's' : ''}
+            {(() => {
+              const sliceCount = selectedMonth
+                ? getBillItemsForMonth(bill, selectedMonth).length
+                : bill.items.length;
+              return <>{sliceCount} item{sliceCount !== 1 ? 's' : ''}</>;
+            })()}
           </div>
         </div>
         <div className="bill-right">
@@ -1422,6 +1436,7 @@ function BillTracker() {
                 <BillCard
                   key={bill.id}
                   bill={bill}
+                  selectedMonth={selectedMonth}
                   defaultCategoryId={cats.otherId()}
                   categories={cats.categories}
                   categoriesById={categoriesById}
