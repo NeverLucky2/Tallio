@@ -284,6 +284,7 @@ const BillCard = ({ bill, selectedMonth, defaultCategoryId, categories, categori
               onChange={(e) => onUpdate({ ...bill, month: e.target.value })}
               className="input"
               style={{ width: isMobile ? '100%' : '160px', flex: isMobile ? '1 1 auto' : '0 0 auto' }}
+              title="Anchor month — where items without dates live, and the bill's home month when no items are dated."
             />
           </div>
 
@@ -934,7 +935,7 @@ function BillTracker() {
     setBills(prev => {
       const chainBills = prev.filter(b => b.recurringChainId === chainId && b.recurring === true);
       if (chainBills.length === 0) return prev;
-      const latest = chainBills.slice().sort((a, b) => a.month.localeCompare(b.month)).pop();
+      const latest = chainBills.slice().sort((a, b) => getLatestMonth(a).localeCompare(getLatestMonth(b))).pop();
       return prev.map(b => b.id === latest.id ? { ...b, recurring: false } : b);
     });
     maybeShowUndoTip();
@@ -1438,7 +1439,7 @@ function BillTracker() {
                 <BillCard
                   key={bill.id}
                   bill={bill}
-                  selectedMonth={selectedMonth}
+                  selectedMonth={searchActive ? null : selectedMonth}
                   defaultCategoryId={cats.otherId()}
                   categories={cats.categories}
                   categoriesById={categoriesById}
