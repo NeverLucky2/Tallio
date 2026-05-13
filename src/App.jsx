@@ -17,6 +17,8 @@ import RecurringConflictDialog from './RecurringConflictDialog.jsx';
 import DuplicateBillDialog from './DuplicateBillDialog.jsx';
 import { nanoid } from 'nanoid';
 import './App.css';
+import { buildArchive } from './exportArchive.js';
+import pkg from '../package.json';
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-US', {
@@ -1032,12 +1034,19 @@ function BillTracker() {
   };
 
   const exportData = () => {
-    const dataStr = JSON.stringify(bills, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const bytes = buildArchive({
+      bills,
+      categories: cats.categories,
+      trackedKeywords,
+      schemaVersion: 3,
+      appVersion: pkg.version,
+      now: new Date(),
+    });
+    const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `billtracker-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `billtracker-${new Date().toISOString().split('T')[0]}.zip`;
     a.click();
     URL.revokeObjectURL(url);
   };
