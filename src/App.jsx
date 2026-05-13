@@ -7,6 +7,7 @@ import SettingsPanel from './SettingsPanel.jsx';
 import SpendingChart from './SpendingChart.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import { migrateBills, getItemDate, findRecurringCharges, findAutoRecurringChains, aggregateByKeyword, getMonthItems, getBillNet, shiftItemDate, computeCatchUp } from './spendingMath.js';
+import { partitionSpentByRecurring } from './reportingMath.js';
 import useCategories from './useCategories.js';
 import BillItem from './BillItem.jsx';
 import CategoryBreakdown from './CategoryBreakdown.jsx';
@@ -312,23 +313,39 @@ const BillCard = ({ bill, defaultCategoryId, categories, categoriesById, otherCa
 
 // ---- Summary Card ----
 
-const SummaryCard = ({ title, amount, isCount, colorKey, delta }) => (
-  <div className={`stat-card stat-card-${colorKey}`}>
-    <div className="stat-label">
-      <div className={`stat-dot stat-dot-${colorKey}`} />
-      {title}
-    </div>
-    <div className="stat-value">
-      {isCount ? amount : formatCurrency(amount)}
-    </div>
-    {delta && (
-      <div className={`stat-delta stat-delta-${delta.direction}`}>
-        {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
-        <span className="stat-delta-ref"> vs {delta.prevLabel}</span>
+const SummaryCard = ({ title, amount, isCount, colorKey, delta, split }) => {
+  const showSplit = split && split.total > 0;
+  const recPct = showSplit ? (split.recurring / split.total) * 100 : 0;
+  return (
+    <div className={`stat-card stat-card-${colorKey}`}>
+      <div className="stat-label">
+        <div className={`stat-dot stat-dot-${colorKey}`} />
+        {title}
       </div>
-    )}
-  </div>
-);
+      <div className="stat-value">
+        {isCount ? amount : formatCurrency(amount)}
+      </div>
+      {delta && (
+        <div className={`stat-delta stat-delta-${delta.direction}`}>
+          {delta.direction === 'up' ? '↑' : delta.direction === 'down' ? '↓' : '·'} {delta.pct}%
+          <span className="stat-delta-ref"> vs {delta.prevLabel}</span>
+        </div>
+      )}
+      {showSplit && (
+        <>
+          <div className="spent-split-bar">
+            <div className="spent-split-recurring" style={{ width: `${recPct}%` }} />
+            <div className="spent-split-oneoff" style={{ width: `${100 - recPct}%` }} />
+          </div>
+          <div className="spent-split-labels">
+            <span><span className="spent-split-dot-recurring" /> recurring {formatCurrency(split.recurring)}</span>
+            <span><span className="spent-split-dot-oneoff" /> one-off {formatCurrency(split.oneOff)}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 
 // ---- Tracked Keywords Panel ----
@@ -717,6 +734,11 @@ function BillTracker() {
   const selectedMonthSpent  = sumByFlow(selectedMonthItems, 'expense');
   const selectedMonthSaved  = sumByFlow(selectedMonthItems, 'savings');
   const selectedMonthNet    = selectedMonthIncome - selectedMonthSpent - selectedMonthSaved;
+
+  const spentSplit = useMemo(
+    () => partitionSpentByRecurring(bills, selectedMonth, categoriesById),
+    [bills, selectedMonth, categoriesById]
+  );
 
   const previousMonth = shiftMonth(selectedMonth, -1);
   const previousMonthItems = getMonthItems(bills, previousMonth);
@@ -1274,7 +1296,7 @@ function BillTracker() {
         {/* Stats */}
         <div className="stats-grid">
           <SummaryCard title="Income" amount={selectedMonthIncome} colorKey="green" />
-          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} />
+          <SummaryCard title="Spent"  amount={selectedMonthSpent}  colorKey="red"   delta={monthDelta} split={spentSplit} />
           <SummaryCard title="Saved"  amount={selectedMonthSaved}  colorKey="blue"  />
           <SummaryCard title="Net"    amount={selectedMonthNet}    colorKey="amber" />
         </div>

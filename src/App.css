@@ -3033,3 +3033,40 @@
 .dialog-conflict .conflict-options li {
   margin-bottom: 0.4rem;
 }
+
+.spent-split-bar {
+  margin-top: 8px;
+  height: 4px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+.spent-split-recurring {
+  background: #5b8dff;
+  height: 100%;
+}
+.spent-split-oneoff {
+  background: #a47dea;
+  height: 100%;
+}
+.spent-split-labels {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: #9aa3b2;
+  font-family: 'JetBrains Mono', monospace;
+}
+.spent-split-dot-recurring,
+.spent-split-dot-oneoff {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+.spent-split-dot-recurring { background: #5b8dff; }
+.spent-split-dot-oneoff    { background: #a47dea; }
