@@ -2293,6 +2293,16 @@
   gap: 7px;
   height: 191px;
   padding-top: 7px;
+  padding-bottom: 18px;
+  position: relative;
+}
+
+.spending-bars::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 18px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2334,6 +2344,12 @@
 }
 
 .spending-bar-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  white-space: nowrap;
   font-size: 10px;
   color: var(--text-muted);
   font-family: var(--font-mono);
