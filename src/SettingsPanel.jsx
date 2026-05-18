@@ -1,21 +1,45 @@
 import React, { useEffect, useState } from 'react';
 
-const MODELS = [
+const ANTHROPIC_MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', cost: '~$0.005/receipt' },
   { id: 'claude-sonnet-4-6',         label: 'Sonnet 4.6', cost: '~$0.025/receipt' },
   { id: 'claude-opus-4-7',           label: 'Opus 4.7',   cost: '~$0.10/receipt' },
+];
+
+const XAI_MODELS = [
+  { id: 'grok-2-vision-1212',        label: 'Grok 2 Vision', cost: '~$0.002/receipt' },
+];
+
+const PROVIDERS = [
+  { id: 'anthropic', label: 'Anthropic (Claude)', keyPrefix: 'sk-ant-', helpUrl: 'console.anthropic.com' },
+  { id: 'xai',       label: 'xAI (Grok)',        keyPrefix: 'xai-',    helpUrl: 'console.x.ai' },
 ];
 
 function maskKey(key) {
   if (!key) return '';
   if (key.length < 8) return key;
   const tail = key.slice(-4);
-  return `sk-ant-•••••…${tail}`;
+  return `${key.slice(0, 6)}•••••…${tail}`;
+}
+
+function getModelsForProvider(provider) {
+  return provider === 'xai' ? XAI_MODELS : ANTHROPIC_MODELS;
+}
+
+function getKeyPrefixForProvider(provider) {
+  const p = PROVIDERS.find(prov => prov.id === provider);
+  return p ? p.keyPrefix : 'sk-ant-';
+}
+
+function getHelpUrlForProvider(provider) {
+  const p = PROVIDERS.find(prov => prov.id === provider);
+  return p ? p.helpUrl : 'console.anthropic.com';
 }
 
 export default function SettingsPanel({ settings, onClose, banner }) {
-  const { apiKey, model, save } = settings;
+  const { apiKey, provider, model, save } = settings;
   const [draftKey, setDraftKey] = useState(apiKey);
+  const [draftProvider, setDraftProvider] = useState(provider);
   const [draftModel, setDraftModel] = useState(model);
   const [editing, setEditing] = useState(!apiKey);
 
@@ -25,14 +49,24 @@ export default function SettingsPanel({ settings, onClose, banner }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const isValid = draftKey.startsWith('sk-ant-');
-  const dirty = draftKey !== apiKey || draftModel !== model;
+  // When provider changes, update model to the first model of that provider
+  const handleProviderChange = (newProvider) => {
+    setDraftProvider(newProvider);
+    const models = getModelsForProvider(newProvider);
+    setDraftModel(models[0].id);
+  };
 
-  // Save commits the draft AND closes. Done closes without committing.
+  const keyPrefix = getKeyPrefixForProvider(draftProvider);
+  const isValid = draftKey.startsWith(keyPrefix);
+  const dirty = draftKey !== apiKey || draftProvider !== provider || draftModel !== model;
+
   const handleSave = () => {
-    save({ apiKey: draftKey, model: draftModel });
+    save({ apiKey: draftKey, provider: draftProvider, model: draftModel });
     onClose();
   };
+
+  const availableModels = getModelsForProvider(draftProvider);
+  const helpUrl = getHelpUrlForProvider(draftProvider);
 
   return (
     <div className="pair-overlay" onClick={onClose}>
@@ -51,7 +85,24 @@ export default function SettingsPanel({ settings, onClose, banner }) {
         <div className="pair-body settings-body">
           {banner && <div className="settings-banner">{banner}</div>}
 
-          <label className="settings-label" htmlFor="settings-key">Anthropic API Key</label>
+          <label className="settings-label" htmlFor="settings-provider">AI Provider</label>
+          <select
+            id="settings-provider"
+            value={draftProvider}
+            onChange={(e) => handleProviderChange(e.target.value)}
+            className="settings-select"
+          >
+            {PROVIDERS.map(p => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
+          <p className="settings-help">
+            Choose which AI provider to use for bill extraction.
+          </p>
+
+          <label className="settings-label" htmlFor="settings-key">
+            {draftProvider === 'anthropic' ? 'Anthropic API Key' : 'xAI API Key'}
+          </label>
           {editing ? (
             <input
               id="settings-key"
@@ -60,7 +111,7 @@ export default function SettingsPanel({ settings, onClose, banner }) {
               spellCheck={false}
               value={draftKey}
               onChange={(e) => setDraftKey(e.target.value)}
-              placeholder="sk-ant-..."
+              placeholder={keyPrefix + '...'}
               className="settings-input"
             />
           ) : (
@@ -70,7 +121,7 @@ export default function SettingsPanel({ settings, onClose, banner }) {
             </div>
           )}
           <p className="settings-help">
-            Get a key at console.anthropic.com → Settings → API Keys
+            Get a key at {helpUrl} → Settings → API Keys
           </p>
 
           <label className="settings-label" htmlFor="settings-model">Model</label>
@@ -80,7 +131,7 @@ export default function SettingsPanel({ settings, onClose, banner }) {
             onChange={(e) => setDraftModel(e.target.value)}
             className="settings-select"
           >
-            {MODELS.map(m => (
+            {availableModels.map(m => (
               <option key={m.id} value={m.id}>{m.label} — {m.cost}</option>
             ))}
           </select>
