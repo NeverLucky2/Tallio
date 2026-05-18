@@ -1,33 +1,57 @@
 import { useState, useCallback } from 'react';
 
-const KEY_STORAGE = 'billtracker-anthropic-key';
-const MODEL_STORAGE = 'billtracker-anthropic-model';
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const KEY_STORAGE = 'billtracker-api-key';
+const PROVIDER_STORAGE = 'billtracker-api-provider';
+const MODEL_STORAGE = 'billtracker-api-model';
+
+const DEFAULT_PROVIDER = 'anthropic';
+const DEFAULT_MODEL_ANTHROPIC = 'claude-haiku-4-5-20251001';
+const DEFAULT_MODEL_XAI = 'grok-2-vision-1212';
 
 function loadInitial() {
-  if (typeof window === 'undefined') return { apiKey: '', model: DEFAULT_MODEL };
+  if (typeof window === 'undefined') {
+    return {
+      apiKey: '',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL_ANTHROPIC,
+    };
+  }
   try {
+    const provider = window.localStorage.getItem(PROVIDER_STORAGE) || DEFAULT_PROVIDER;
+    const model = window.localStorage.getItem(MODEL_STORAGE) || (provider === 'xai' ? DEFAULT_MODEL_XAI : DEFAULT_MODEL_ANTHROPIC);
     return {
       apiKey: window.localStorage.getItem(KEY_STORAGE) || '',
-      model: window.localStorage.getItem(MODEL_STORAGE) || DEFAULT_MODEL,
+      provider,
+      model,
     };
   } catch {
-    return { apiKey: '', model: DEFAULT_MODEL };
+    return {
+      apiKey: '',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL_ANTHROPIC,
+    };
   }
 }
 
 export default function useSettings() {
   const [state, setState] = useState(loadInitial);
 
-  const save = useCallback(({ apiKey, model } = {}) => {
+  const save = useCallback(({ apiKey, provider, model } = {}) => {
     setState((prev) => {
+      const nextProvider = provider !== undefined ? provider : prev.provider;
+      const nextModel = model !== undefined ? model : prev.model;
+      const nextApiKey = apiKey !== undefined ? apiKey.trim() : prev.apiKey;
+
       const next = {
-        apiKey: apiKey !== undefined ? apiKey.trim() : prev.apiKey,
-        model: model !== undefined ? (model || DEFAULT_MODEL) : prev.model,
+        apiKey: nextApiKey,
+        provider: nextProvider,
+        model: nextModel,
       };
+
       try {
-        if (apiKey !== undefined) window.localStorage.setItem(KEY_STORAGE, next.apiKey);
-        if (model !== undefined) window.localStorage.setItem(MODEL_STORAGE, next.model);
+        if (apiKey !== undefined) window.localStorage.setItem(KEY_STORAGE, nextApiKey);
+        if (provider !== undefined) window.localStorage.setItem(PROVIDER_STORAGE, nextProvider);
+        if (model !== undefined) window.localStorage.setItem(MODEL_STORAGE, nextModel);
       } catch {
         // ignore quota / privacy-mode errors; in-memory state still updates
       }
@@ -35,10 +59,21 @@ export default function useSettings() {
     });
   }, []);
 
+  // Determine if API key is valid based on provider
+  const hasValidKey = () => {
+    if (state.provider === 'anthropic') {
+      return state.apiKey.startsWith('sk-ant-');
+    } else if (state.provider === 'xai') {
+      return state.apiKey.startsWith('xai-');
+    }
+    return false;
+  };
+
   return {
     apiKey: state.apiKey,
+    provider: state.provider,
     model: state.model,
-    hasKey: state.apiKey.startsWith('sk-ant-'),
+    hasKey: hasValidKey(),
     save,
   };
 }
