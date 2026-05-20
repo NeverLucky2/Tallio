@@ -3318,3 +3318,11 @@
 .register-table th { text-align: left; font-size: 0.66rem; text-transform: uppercase; color: var(--muted, #8a8a9a); padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border, #2a2a3a); }
 .register-table th.right { text-align: right; }
 .register-empty { text-align: center; color: var(--muted, #8a8a9a); padding: 1.5rem; }
+
+/* Transaction editor */
+.field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.6rem; }
+.field > span { font-size: 0.72rem; color: var(--muted, #8a8a9a); }
+.amount-row { display: flex; gap: 0.5rem; align-items: center; }
+.dir-toggle { display: flex; border: 1px solid var(--border, #2a2a3a); border-radius: 8px; overflow: hidden; }
+.dir-btn { background: transparent; border: none; padding: 0.45rem 0.7rem; color: inherit; cursor: pointer; }
+.dir-btn.active { background: rgba(91,141,255,0.18); }
