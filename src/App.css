@@ -3334,3 +3334,9 @@
 .accounts-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.25rem; align-items: start; }
 @media (max-width: 860px) { .accounts-layout { grid-template-columns: 1fr; } }
 .account-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+
+/* Sortable register headers */
+.th-sort { background: transparent; border: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; padding: 0; }
+.register-table th.right .th-sort { width: 100%; text-align: right; }
+.th-sort:hover { color: #5b8dff; }
+.th-sort-active { color: #5b8dff; }

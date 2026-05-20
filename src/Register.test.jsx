@@ -36,4 +36,27 @@ describe('Register', () => {
     await userEvent.click(screen.getByRole('button', { name: /add transaction/i }));
     expect(onAdd).toHaveBeenCalled();
   });
+
+  it('defaults to date-descending (newest first)', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const descCells = screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent);
+    expect(descCells[0]).toBe('Walmart'); // May 5 before Apr 2
+  });
+
+  it('clicking the Date header reverses to oldest-first, and again restores newest-first', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /date/i }));
+    expect(screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent)[0]).toBe('Netflix'); // asc → Apr first
+    await userEvent.click(screen.getByRole('button', { name: /date/i }));
+    expect(screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent)[0]).toBe('Walmart'); // desc again
+  });
+
+  it('clicking the Amount header sorts by amount (desc first, then asc)', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /amount/i }));
+    // amounts: Walmart -96.20, Netflix -15.99 → desc puts the larger (-15.99) first
+    expect(screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent)[0]).toBe('Netflix');
+    await userEvent.click(screen.getByRole('button', { name: /amount/i }));
+    expect(screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent)[0]).toBe('Walmart');
+  });
 });

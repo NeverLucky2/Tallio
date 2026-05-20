@@ -1,24 +1,54 @@
 // src/Register.jsx
 import React, { useMemo, useState } from 'react';
-import { computeRegister, filterTransactions, layoutFor, accountClass, accountBalance } from './accountsModel.js';
+import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-export default function Register({ account, transactions, categories, categoriesById, onEditTransaction, onAddTransaction }) {
+// Column definitions per layout. `key` is the sortRows key; `defaultDir` is the
+// direction used the first time a column is clicked.
+const COLUMNS = {
+  compact: [
+    { key: 'date',        label: 'Date',        defaultDir: 'desc' },
+    { key: 'description', label: 'Description', defaultDir: 'asc'  },
+    { key: 'category',    label: 'Category',    defaultDir: 'asc'  },
+    { key: 'amount',      label: 'Amount',      defaultDir: 'desc', right: true },
+    { key: 'balance',     label: 'Balance',     defaultDir: 'desc', right: true },
+  ],
+  bank: [
+    { key: 'date',        label: 'Date',    defaultDir: 'desc' },
+    { key: 'checkNumber', label: 'Chk#',    defaultDir: 'asc'  },
+    { key: 'payee',       label: 'Payee',   defaultDir: 'asc'  },
+    { key: 'category',    label: 'Category',defaultDir: 'asc'  },
+    { key: 'description', label: 'Notes',   defaultDir: 'asc'  },
+    { key: 'amount',      label: 'Payment', defaultDir: 'asc',  right: true },
+    { key: 'amount',      label: 'Deposit', defaultDir: 'desc', right: true },
+    { key: 'balance',     label: 'Balance', defaultDir: 'desc', right: true },
+  ],
+};
+
+export default function Register({ account, transactions, categories, categoriesById, typesById, onEditTransaction, onAddTransaction }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
 
-  const layout = layoutFor(account.type);
-  const klass = accountClass(account.type);
+  const layout = layoutFor(account.type, typesById);
+  const klass = accountClass(account.type, typesById);
   const balance = accountBalance(account, transactions);
+  const columns = COLUMNS[layout] || COLUMNS.compact;
 
   const rows = useMemo(() => {
-    const computed = computeRegister(account, transactions); // oldest→newest w/ balance
+    const computed = computeRegister(account, transactions);
     const filtered = filterTransactions(computed, { search, month: month || null, categoryId: categoryId || null }, categoriesById);
-    return filtered.slice().reverse(); // newest-first for display
-  }, [account, transactions, search, month, categoryId, categoriesById]);
+    return sortRows(filtered, sort, categoriesById);
+  }, [account, transactions, search, month, categoryId, categoriesById, sort]);
+
+  const onHeaderClick = (col) => {
+    setSort(prev => prev.key === col.key
+      ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key: col.key, dir: col.defaultDir });
+  };
 
   const balanceLabel = klass === 'liability' ? `Owed: ${money(Math.abs(Math.min(0, balance)))}` : `Balance: ${money(balance)}`;
 
@@ -41,15 +71,23 @@ export default function Register({ account, transactions, categories, categories
 
       <table className="register-table">
         <thead>
-          {layout === 'bank' ? (
-            <tr><th>Date</th><th>Chk#</th><th>Payee</th><th>Category</th><th>Notes</th><th className="right">Payment</th><th className="right">Deposit</th><th className="right">Balance</th></tr>
-          ) : (
-            <tr><th>Date</th><th>Description</th><th>Category</th><th className="right">Amount</th><th className="right">Balance</th></tr>
-          )}
+          <tr>
+            {columns.map((col, idx) => {
+              const active = sort.key === col.key;
+              const arrow = active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+              return (
+                <th key={`${col.key}-${idx}`} className={col.right ? 'right' : undefined}>
+                  <button type="button" className={`th-sort${active ? ' th-sort-active' : ''}`} onClick={() => onHeaderClick(col)}>
+                    {col.label}{arrow}
+                  </button>
+                </th>
+              );
+            })}
+          </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={layout === 'bank' ? 8 : 5} className="register-empty">No transactions.</td></tr>
+            <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
               <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} onEdit={onEditTransaction} />
