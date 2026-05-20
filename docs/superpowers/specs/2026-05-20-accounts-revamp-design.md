@@ -57,7 +57,7 @@ Account {
 | Type | Class | Balance meaning |
 |------|-------|-----------------|
 | `bank` | asset (on balance sheet) | money you have (positive) |
-| `investment` | asset (on balance sheet) | account value (positive) |
+| `investment` | asset (on balance sheet) | account value (positive); supports point-in-time **value snapshots** |
 | `credit_card` | liability (on balance sheet) | amount owed (negative balance) |
 | `loan` | liability (on balance sheet) | amount owed (negative balance) |
 | `mortgage` | liability (on balance sheet) | amount owed (negative balance) |
@@ -101,6 +101,10 @@ Existing shape: `{ id, name, icon, color, flow: 'income'|'expense'|'savings', ke
 **Running balance** of a transaction = `openingBalance + Σ amount` of all transactions in that account up to and including it, ordered by `date` then insertion order for same-day ties.
 
 **Household net worth** = Σ balances of all on-balance-sheet accounts (`bank`, `investment`, `credit_card`, `loan`, `mortgage`). `person` and `untyped` are excluded.
+
+### Investment value snapshots
+
+An `investment` account's value moves with the market, not transactions, so entering every gain/loss is impractical. Instead, `investment` accounts support a **"Set value as of date"** entry: a balance-adjustment transaction that sets the running balance to a stated value on a given date (stored as the delta needed to reach that value, with the Transfer-neutral / a reserved "Adjustment" category so it is excluded from spending reports). These snapshots are what power the account-balance **Trend** report (e.g. watching the brokerage grow month over month). Built in Phase 3.
 
 ---
 
@@ -189,7 +193,7 @@ Each phase is independently usable and reviewable.
 
 - **Phase 1 — Accounts & registers.** Account entity + types + management UI; migration; primary screen (account list + household strip); both register layouts with running balances; manual transaction add/edit/delete; scan flattens into a chosen account; filters (search/month/category). Removes the monthly dashboard, stat cards, home spending chart, tracked-keywords sidebar, and recurring auto-spawn.
 - **Phase 2 — Transfers.** Transfer entry form; linked-pair create/edit/delete with sync; Transfer In/Out coloring; pay-card and send-to-person shortcuts; person-account expense-categorization rule; net-worth roll-up correctness.
-- **Phase 3 — Reports.** Trend report (category spend / account balance over a range); Composition pie (by category / by account-payee, with timeframe). Apply the reports counting rule.
+- **Phase 3 — Reports.** Trend report (category spend / account balance over a range); Composition pie (by category / by account-payee, with timeframe). Apply the reports counting rule. Investment **value snapshots** ("set value as of date") that feed the account-balance trend.
 
 ---
 
@@ -210,5 +214,5 @@ Each phase is independently usable and reviewable.
 
 - Exact sidebar presentation of a `person` account's tally ("$1,100 sent" vs. signed) — pick the least-confusing wording.
 - Mobile/responsive collapse of the 8-column bank register.
-- Whether `investment` accounts should support a manual "set balance as of date" entry (useful for brokerage value that changes via market, not transactions) — likely a Phase 3 nicety.
+- Exact category/labeling of investment value-snapshot adjustments (reserved "Adjustment" category vs. reusing Transfer-neutral).
 - Where the migration backup is surfaced for recovery in the UI.
