@@ -1,20 +1,22 @@
 // src/AccountList.jsx
 import React, { useMemo } from 'react';
-import { GROUP_ORDER, groupFor, accountClass, accountBalance, householdTotals } from './accountsModel.js';
+import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-export default function AccountList({ accounts, transactions, selectedId, onSelect, onAddAccount }) {
-  const totals = useMemo(() => householdTotals(accounts, transactions), [accounts, transactions]);
+export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onAddAccount }) {
+  const typesById = useMemo(() => new Map(types.map(t => [t.id, t])), [types]);
+  const order = useMemo(() => groupOrder(types), [types]);
+  const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
 
   const grouped = useMemo(() => {
-    const map = new Map(GROUP_ORDER.map(g => [g, []]));
+    const map = new Map(order.map(g => [g, []]));
     for (const a of accounts) {
-      const g = groupFor(a.type);
+      const g = groupFor(a.type, typesById);
       (map.get(g) || map.get('Unassigned')).push(a);
     }
     return map;
-  }, [accounts]);
+  }, [accounts, order, typesById]);
 
   return (
     <div className="account-list">
@@ -33,7 +35,7 @@ export default function AccountList({ accounts, transactions, selectedId, onSele
         </div>
       </div>
 
-      {GROUP_ORDER.map(group => {
+      {order.map(group => {
         const list = grouped.get(group) || [];
         if (list.length === 0) return null;
         return (
@@ -41,7 +43,7 @@ export default function AccountList({ accounts, transactions, selectedId, onSele
             <div className="account-group-label">{group}</div>
             {list.map(a => {
               const bal = accountBalance(a, transactions);
-              const klass = accountClass(a.type);
+              const klass = accountClass(a.type, typesById);
               const display = klass === 'liability' ? -Math.abs(bal) : bal;
               return (
                 <button

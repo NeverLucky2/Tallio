@@ -39,4 +39,14 @@ describe('AccountList', () => {
     await userEvent.click(screen.getByRole('button', { name: /add account/i }));
     expect(onAddAccount).toHaveBeenCalled();
   });
+
+  it('groups accounts under a custom type using the provided types registry', () => {
+    const customTypes = [
+      { id: 'hsa', label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health', icon: '🏥', builtin: false },
+    ];
+    const accts = [{ id: 'a_h', name: 'Fidelity HSA', type: 'hsa', icon: '🏥', openingBalance: 500 }];
+    render(<AccountList accounts={accts} transactions={[]} types={customTypes} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(screen.getByText('Health')).toBeTruthy();
+    expect(screen.getByText('Fidelity HSA')).toBeTruthy();
+  });
 });

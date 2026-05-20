@@ -1,10 +1,10 @@
 // src/TransactionEditor.jsx
 import React, { useState } from 'react';
-import { layoutFor } from './accountsModel.js';
+import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, onSave, onDelete, onClose }) {
+export default function TransactionEditor({ account, transaction, categories, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
   const isEdit = !!transaction;
   const initialAmount = transaction ? Math.abs(transaction.amount) : '';
   const initialDir = transaction ? (transaction.amount >= 0 ? 'in' : 'out') : 'out';
@@ -17,7 +17,7 @@ export default function TransactionEditor({ account, transaction, categories, on
   const [payee, setPayee] = useState(transaction?.payee || '');
   const [checkNumber, setCheckNumber] = useState(transaction?.checkNumber || '');
 
-  const isBank = layoutFor(account.type) === 'bank';
+  const isBank = layoutFor(account.type, typesById) === 'bank';
 
   const save = () => {
     const mag = Math.abs(parseFloat(magnitude) || 0);

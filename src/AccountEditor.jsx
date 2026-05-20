@@ -1,10 +1,8 @@
 // src/AccountEditor.jsx
 import React, { useState } from 'react';
-import { ACCOUNT_TYPES } from './accountsModel.js';
+import { DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 
-const TYPE_OPTIONS = ['bank', 'investment', 'credit_card', 'loan', 'mortgage', 'person', 'untyped'];
-
-export default function AccountEditor({ account, onSave, onDelete, onClose }) {
+export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose }) {
   const isEdit = !!account;
   const [name, setName] = useState(account?.name || '');
   const [type, setType] = useState(account?.type || 'untyped');
@@ -34,7 +32,7 @@ export default function AccountEditor({ account, onSave, onDelete, onClose }) {
         </label>
         <label className="field"><span>Type</span>
           <select aria-label="Type" value={type} onChange={(e) => setType(e.target.value)} className="select">
-            {TYPE_OPTIONS.map(t => <option key={t} value={t}>{ACCOUNT_TYPES[t].label}</option>)}
+            {types.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </label>
         <label className="field"><span>Opening balance</span>
