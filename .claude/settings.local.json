@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(npm test *)"
+      "PowerShell(npm test *)",
+      "Skill(superpowers:systematic-debugging)",
+      "Skill(schedule)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(bash *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'docs: accounts revamp design spec *)",
+      "Bash(git commit -m 'docs: confirm investment value snapshots from spec review *)",
+      "Bash(git commit -m 'docs: Phase 1 implementation plan for accounts revamp *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git symbolic-ref *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell(Stop-Process *)"
     ]
   }
 }

@@ -3207,6 +3207,15 @@
   border-radius: 4px;
   margin-bottom: 16px;
 }
+.month-trend-picker option {
+  background: var(--bg-card);
+  color: #e8eaed;
+}
+.month-trend-picker optgroup {
+  background: var(--bg-raised);
+  color: #d4a853;
+  font-weight: 600;
+}
 .month-trend-chart {
   display: flex;
   align-items: flex-end;
