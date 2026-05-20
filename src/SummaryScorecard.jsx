@@ -7,7 +7,7 @@ const pct = (r) => `${Math.round((r || 0) * 100)}%`;
 export default function SummaryScorecard({ summary }) {
   const { income = 0, spending = 0, savings = 0, savingsRate = 0, earmarked = 0 } = summary || {};
   return (
-    <div className="panel scorecard">
+    <div className="scorecard">
       <div className="scorecard-row">
         <div className="scorecard-item">
           <span className="scorecard-label">Income</span>
