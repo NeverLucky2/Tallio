@@ -1,0 +1,36 @@
+// src/TransactionRow.test.jsx
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import TransactionRow from './TransactionRow.jsx';
+
+const cat = { id: 'c_util', name: 'Utilities', icon: '⚡', color: '#F59E0B' };
+const catsById = new Map([[cat.id, cat]]);
+
+const baseRow = { id: 't1', date: '2026-04-15', amount: -96.30, categoryId: 'c_util', description: 'Electricity', payee: 'ComEd', checkNumber: '1042', balance: 903.70 };
+
+describe('TransactionRow', () => {
+  afterEach(() => cleanup());
+
+  it('compact layout shows description, category, signed amount, balance', () => {
+    render(<table><tbody><TransactionRow layout="compact" row={baseRow} categoriesById={catsById} onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('Electricity')).toBeTruthy();
+    expect(screen.getByText('Utilities')).toBeTruthy();
+    expect(screen.getByText('-$96.30')).toBeTruthy();
+    expect(screen.getByText('$903.70')).toBeTruthy();
+  });
+
+  it('bank layout splits into payment/deposit and shows payee + check #', () => {
+    render(<table><tbody><TransactionRow layout="bank" row={baseRow} categoriesById={catsById} onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('ComEd')).toBeTruthy();
+    expect(screen.getByText('1042')).toBeTruthy();
+    expect(screen.getByText('96.30')).toBeTruthy(); // payment column, unsigned
+  });
+
+  it('clicking the row calls onEdit with the row', async () => {
+    const onEdit = vi.fn();
+    render(<table><tbody><TransactionRow layout="compact" row={baseRow} categoriesById={catsById} onEdit={onEdit} /></tbody></table>);
+    await userEvent.click(screen.getByText('Electricity'));
+    expect(onEdit).toHaveBeenCalledWith(baseRow);
+  });
+});

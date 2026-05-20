@@ -3298,3 +3298,13 @@
 .account-row-balance.neg, .household-stat .neg { color: #e06c6c; }
 .household-stat .pos { color: #3ddba0; }
 .account-add { margin-top: 0.5rem; background: transparent; border: 1px dashed var(--border, #2a2a3a); border-radius: 8px; padding: 0.5rem; color: #5b8dff; cursor: pointer; }
+
+/* Register rows */
+.txn-row { cursor: pointer; }
+.txn-row:hover { background: rgba(255,255,255,0.03); }
+.txn-row td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border, #2a2a3a); font-size: 0.82rem; }
+.txn-amt { text-align: right; font-variant-numeric: tabular-nums; }
+.txn-bal { text-align: right; font-variant-numeric: tabular-nums; }
+.txn-amt.neg, .txn-bal.neg { color: #e06c6c; }
+.txn-amt.pos { color: #3ddba0; }
+.txn-cat-none { color: var(--muted, #8a8a9a); }
