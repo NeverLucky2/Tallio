@@ -70,4 +70,12 @@ describe('export v4', () => {
     const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
     expect(data.transactions.every(t => t.transferId === 'x')).toBe(true);
   });
+
+  it('includes reportAcks in data.json when provided', () => {
+    const reportAcks = { subscriptions: { NETFLIX: { status: 'ongoing' } }, dismissedDuplicates: ['d1|d2'] };
+    const bytes = buildArchive({ accounts, transactions, categories, reportAcks, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12T00:00:00Z') });
+    const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
+    expect(data.reportAcks.subscriptions.NETFLIX.status).toBe('ongoing');
+    expect(data.reportAcks.dismissedDuplicates).toEqual(['d1|d2']);
+  });
 });

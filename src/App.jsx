@@ -8,6 +8,7 @@ import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
 import useAccountTypes from './useAccountTypes.js';
+import useReportAcks from './useReportAcks.js';
 import AccountTypesScreen from './AccountTypesScreen.jsx';
 import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
@@ -114,6 +115,7 @@ function BillTracker() {
   const ledger = useLedger({ accounts: initAccounts, transactions: initTransactions });
   const cats = useCategories();
   const accountTypes = useAccountTypes();
+  const acks = useReportAcks();
   const categoriesById = useMemo(() => new Map(cats.categories.map(c => [c.id, c])), [cats.categories]);
 
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
@@ -213,6 +215,7 @@ function BillTracker() {
     const bytes = buildArchive({
       accounts: ledger.accounts, transactions: ledger.transactions,
       categories: cats.categories, accountTypes: accountTypes.types,
+      reportAcks: acks.exportSnapshot(),
       schemaVersion: 4, appVersion: pkg.version, now: new Date(),
     });
     const blob = new Blob([bytes], { type: 'application/zip' });
@@ -321,6 +324,11 @@ function BillTracker() {
           categories={cats.categories}
           types={accountTypes.types}
           typesById={accountTypes.typesById}
+          subscriptions={acks.subscriptions}
+          dismissedDuplicates={acks.dismissedDuplicates}
+          onSetStatus={acks.setStatus}
+          onClearStatus={acks.clearStatus}
+          onDismissDuplicate={acks.dismissDuplicate}
           onClose={() => setScreen('main')}
         />
       )}
@@ -367,6 +375,11 @@ function BillTracker() {
       {ledger.storageError && (
         <div className="toast toast-error">{ledger.storageError.message}
           <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={ledger.clearStorageError}>×</button>
+        </div>
+      )}
+      {acks.storageError && (
+        <div className="toast toast-error">{acks.storageError.message}
+          <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={acks.clearStorageError}>×</button>
         </div>
       )}
 
