@@ -174,7 +174,7 @@ export function transferCounterpart(leg, transactions) {
 // (out = money left this account → '→'; in = money arrived → '←'). null when the leg
 // is not a resolvable transfer or the counterpart account is missing → caller renders
 // it as a plain row.
-export function transferInfo(leg, transactions, accountsById) {
+export function transferInfo(leg, transactions, accountsById, typesById) {
   const partner = transferCounterpart(leg, transactions);
   if (!partner) return null;
   const acct = accountsById && accountsById.get(partner.accountId);
@@ -182,6 +182,7 @@ export function transferInfo(leg, transactions, accountsById) {
   return {
     counterpartName: acct.name,
     direction: (Number.isFinite(leg.amount) && leg.amount < 0) ? 'out' : 'in',
+    counterpartClass: accountClass(acct.type, typesById),
   };
 }
 

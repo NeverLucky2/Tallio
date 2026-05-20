@@ -14,8 +14,9 @@ function CategoryCell({ categoriesById, categoryId }) {
 // '⇄ → Savings' (money out) / '⇄ ← Checking' (money in). The glyph/arrow stays in
 // its own aria-hidden span so getByText still matches the counterpart name.
 function TransferChip({ info }) {
+  const cls = info.counterpartClass ? ` txn-transfer--${info.counterpartClass}` : '';
   return (
-    <span className="txn-cat txn-transfer">
+    <span className={`txn-cat txn-transfer${cls}`}>
       <span className="txn-transfer-glyph" aria-hidden="true">⇄ {info.direction === 'out' ? '→' : '←'}</span> {info.counterpartName}
     </span>
   );

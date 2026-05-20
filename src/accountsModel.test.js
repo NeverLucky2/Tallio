@@ -242,8 +242,8 @@ describe('transfers', () => {
   });
 
   it('transferInfo gives direction + counterpart name; null when unresolved', () => {
-    expect(transferInfo(txns[0], txns, accountsById)).toEqual({ counterpartName: 'Savings', direction: 'out' });
-    expect(transferInfo(txns[1], txns, accountsById)).toEqual({ counterpartName: 'Checking', direction: 'in' });
+    expect(transferInfo(txns[0], txns, accountsById)).toMatchObject({ counterpartName: 'Savings', direction: 'out' });
+    expect(transferInfo(txns[1], txns, accountsById)).toMatchObject({ counterpartName: 'Checking', direction: 'in' });
     expect(transferInfo(txns[2], txns, accountsById)).toBeNull(); // not a transfer
     const orphan = { id: 'o', accountId: 'a1', amount: -10, transferId: 'gone' };
     expect(transferInfo(orphan, [orphan], accountsById)).toBeNull(); // partner missing
@@ -256,6 +256,19 @@ describe('transfers', () => {
     expect(pair.fromLeg.id).toBe('tf'); // negative leg
     expect(pair.toLeg.id).toBe('tt');   // positive leg
     expect(resolveTransfer(txns[2], txns)).toBeNull();
+  });
+
+  it('transferInfo includes the counterpart money-class for color coding', () => {
+    const typed = [
+      { id: 'tf', accountId: 'a1', amount: -500, transferId: 'x' },
+      { id: 'tt', accountId: 'a2', amount:  500, transferId: 'x' },
+    ];
+    const accts = new Map([
+      ['a1', { id: 'a1', name: 'Checking', type: 'bank' }],        // asset
+      ['a2', { id: 'a2', name: 'Visa',     type: 'credit_card' }], // liability
+    ]);
+    expect(transferInfo(typed[0], typed, accts).counterpartClass).toBe('liability'); // counterpart = Visa
+    expect(transferInfo(typed[1], typed, accts).counterpartClass).toBe('asset');     // counterpart = Checking
   });
 });
 

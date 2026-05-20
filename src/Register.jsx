@@ -93,7 +93,7 @@ export default function Register({ account, transactions, accounts = [], categor
             <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
-              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} transfer={transferInfo(r, transactions, accountsById)} onEdit={onEditTransaction} />
+              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} transfer={transferInfo(r, transactions, accountsById, typesById)} onEdit={onEditTransaction} />
             ))
           )}
         </tbody>

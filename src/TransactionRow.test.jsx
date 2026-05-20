@@ -53,4 +53,10 @@ describe('TransactionRow', () => {
     render(<table><tbody><TransactionRow layout="compact" row={baseRow} categoriesById={catsById} onEdit={() => {}} /></tbody></table>);
     expect(screen.getByText('Utilities')).toBeTruthy();
   });
+
+  it('tints the transfer chip by counterpart money-class', () => {
+    const row = { ...baseRow, categoryId: null };
+    render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={catsById} transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset' }} onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('Savings').className).toContain('txn-transfer--asset');
+  });
 });

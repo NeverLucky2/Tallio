@@ -3309,6 +3309,13 @@
 .txn-amt.pos { color: #3ddba0; }
 .txn-cat-none { color: var(--muted, #8a8a9a); }
 
+/* Transfer chip — tinted by the counterpart account's money-class */
+.txn-transfer { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--border-strong); }
+.txn-transfer-glyph { opacity: 0.85; }
+.txn-transfer--asset     { color: var(--green);  border-color: var(--green-border);  background: var(--green-dim); }
+.txn-transfer--liability { color: var(--red);    border-color: var(--red-border);    background: var(--red-dim); }
+.txn-transfer--offsheet  { color: var(--purple); border-color: var(--purple-border); background: var(--purple-dim); }
+
 /* Register */
 .register-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
 .register-title { font-size: 1.1rem; margin: 0; }
