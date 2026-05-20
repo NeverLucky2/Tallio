@@ -96,3 +96,30 @@ describe('balance math', () => {
     expect(totals.netWorth).toBeCloseTo(4103.70 - 112.19, 2); // mom + untyped excluded
   });
 });
+
+import { filterTransactions } from './accountsModel.js';
+
+describe('filterTransactions', () => {
+  const catsById = new Map([['c_util', { id: 'c_util', name: 'Utilities' }]]);
+  const rows = [
+    { id: 'r1', date: '2026-05-05', description: 'Walmart',  payee: '',        categoryId: 'c_shop', amount: -96.20 },
+    { id: 'r2', date: '2026-04-15', description: 'Electric', payee: 'ComEd',   categoryId: 'c_util', amount: -96.30 },
+    { id: 'r3', date: '2026-04-02', description: 'Netflix',  payee: '',        categoryId: 'c_sub',  amount: -15.99 },
+  ];
+
+  it('no filters → all rows', () => {
+    expect(filterTransactions(rows, {}, catsById)).toHaveLength(3);
+  });
+  it('month filter keeps only that YYYY-MM', () => {
+    expect(filterTransactions(rows, { month: '2026-04' }, catsById).map(r => r.id)).toEqual(['r2', 'r3']);
+  });
+  it('category filter matches categoryId', () => {
+    expect(filterTransactions(rows, { categoryId: 'c_util' }, catsById).map(r => r.id)).toEqual(['r2']);
+  });
+  it('search matches description, payee, category name, or amount', () => {
+    expect(filterTransactions(rows, { search: 'comed' }, catsById).map(r => r.id)).toEqual(['r2']);
+    expect(filterTransactions(rows, { search: 'utilities' }, catsById).map(r => r.id)).toEqual(['r2']);
+    expect(filterTransactions(rows, { search: 'walmart' }, catsById).map(r => r.id)).toEqual(['r1']);
+    expect(filterTransactions(rows, { search: '15.99' }, catsById).map(r => r.id)).toEqual(['r3']);
+  });
+});

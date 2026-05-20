@@ -80,3 +80,21 @@ export function householdTotals(accounts, transactions) {
   }
   return { netWorth, assets, owed };
 }
+
+// Filter register rows by search term, month (YYYY-MM), and/or categoryId.
+// Search matches description, payee, category name, or (approx) amount.
+export function filterTransactions(rows, { search = '', month = null, categoryId = null } = {}, categoriesById = null) {
+  const term = (search || '').trim().toLowerCase();
+  const num = parseFloat(term);
+  return (rows || []).filter(r => {
+    if (month && (r.date || '').slice(0, 7) !== month) return false;
+    if (categoryId && r.categoryId !== categoryId) return false;
+    if (!term) return true;
+    if ((r.description || '').toLowerCase().includes(term)) return true;
+    if ((r.payee || '').toLowerCase().includes(term)) return true;
+    const cat = categoriesById && categoriesById.get(r.categoryId);
+    if (cat && (cat.name || '').toLowerCase().includes(term)) return true;
+    if (Number.isFinite(num) && Math.abs(Math.abs(r.amount || 0) - Math.abs(num)) < 0.01) return true;
+    return false;
+  });
+}
