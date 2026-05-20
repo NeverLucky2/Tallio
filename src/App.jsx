@@ -12,6 +12,8 @@ import AccountTypesScreen from './AccountTypesScreen.jsx';
 import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
+import TransferEditor from './TransferEditor.jsx';
+import { resolveTransfer } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
@@ -116,6 +118,7 @@ function BillTracker() {
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
   const [selectedAccountId, setSelectedAccountId] = useState(initAccounts[0]?.id ?? null);
   const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction? }
+  const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
 
   // Undo: snapshots of the whole ledger.
@@ -195,6 +198,15 @@ function BillTracker() {
     setEditingTxn(null);
   };
   const deleteTransaction = (id) => { pushHistory(); ledger.deleteTransaction(id); setEditingTxn(null); };
+
+  // Transfer CRUD — one pushHistory() per op so a single undo reverts the whole pair.
+  const saveTransfer = (data) => {
+    pushHistory();
+    if (data.transferId) ledger.updateTransfer(data.transferId, data);
+    else ledger.addTransfer(data);
+    setEditingTransfer(null);
+  };
+  const deleteTransfer = (transferId) => { pushHistory(); ledger.deleteTransfer(transferId); setEditingTransfer(null); };
 
   const exportData = () => {
     const bytes = buildArchive({
@@ -324,6 +336,14 @@ function BillTracker() {
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
         />
       )}
+      {editingTransfer && (
+        <TransferEditor
+          accounts={ledger.accounts}
+          fromAccountId={editingTransfer.fromAccountId || null}
+          transfer={editingTransfer.transfer || null}
+          onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
+        />
+      )}
 
       {migrationBanner && (
         <div className="toast toast-error">{migrationBanner.message}
@@ -382,11 +402,17 @@ function BillTracker() {
                 <Register
                   account={selectedAccount}
                   transactions={ledger.transactions}
+                  accounts={ledger.accounts}
                   categories={cats.categories}
                   categoriesById={categoriesById}
                   typesById={accountTypes.typesById}
-                  onEditTransaction={(t) => setEditingTxn({ mode: 'edit', accountId: selectedAccount.id, transaction: t })}
+                  onEditTransaction={(t) => {
+                    const pair = resolveTransfer(t, ledger.transactions);
+                    if (pair) setEditingTransfer({ mode: 'edit', transfer: pair });
+                    else setEditingTxn({ mode: 'edit', accountId: selectedAccount.id, transaction: t });
+                  }}
                   onAddTransaction={(accountId) => setEditingTxn({ mode: 'new', accountId })}
+                  onTransfer={(accountId) => setEditingTransfer({ mode: 'new', fromAccountId: accountId })}
                 />
               </>
             )}
