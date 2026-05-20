@@ -16,6 +16,7 @@ import TransferEditor from './TransferEditor.jsx';
 import { resolveTransfer } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
 import './App.css';
@@ -313,6 +314,17 @@ function BillTracker() {
         />
       )}
 
+      {screen === 'reports' && (
+        <ReportsScreen
+          accounts={ledger.accounts}
+          transactions={ledger.transactions}
+          categories={cats.categories}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
+          onClose={() => setScreen('main')}
+        />
+      )}
+
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
@@ -368,6 +380,7 @@ function BillTracker() {
             <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">⚙</button>
             <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
             <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
+            <button type="button" onClick={() => setScreen('reports')} className="btn">📊 Reports</button>
             <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan</button>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
