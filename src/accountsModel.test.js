@@ -123,3 +123,44 @@ describe('filterTransactions', () => {
     expect(filterTransactions(rows, { search: '15.99' }, catsById).map(r => r.id)).toEqual(['r3']);
   });
 });
+
+import { sortRows } from './accountsModel.js';
+
+describe('sortRows', () => {
+  const catsById = new Map([
+    ['c_a', { id: 'c_a', name: 'Apples' }],
+    ['c_z', { id: 'c_z', name: 'Zebra' }],
+  ]);
+  // computeRegister output shape: chronological order, each with a running balance.
+  const rows = [
+    { id: 'r1', date: '2026-04-02', description: 'Netflix', payee: '',      checkNumber: '',     categoryId: 'c_z', amount: -15.99, balance: 84.01 },
+    { id: 'r2', date: '2026-04-15', description: 'Apple',   payee: 'ComEd', checkNumber: '1042', categoryId: 'c_a', amount: -96.30, balance: -12.29 },
+    { id: 'r3', date: '2026-05-01', description: 'Zelle',   payee: '',      checkNumber: '',     categoryId: 'c_a', amount: 3200,   balance: 3187.71 },
+  ];
+
+  it('date descending is the default and reverses chronological order', () => {
+    expect(sortRows(rows, { key: 'date', dir: 'desc' }).map(r => r.id)).toEqual(['r3', 'r2', 'r1']);
+  });
+  it('date ascending keeps chronological order', () => {
+    expect(sortRows(rows, { key: 'date', dir: 'asc' }).map(r => r.id)).toEqual(['r1', 'r2', 'r3']);
+  });
+  it('amount sorts numerically by signed value', () => {
+    expect(sortRows(rows, { key: 'amount', dir: 'desc' }).map(r => r.id)).toEqual(['r3', 'r1', 'r2']); // 3200, -15.99, -96.30
+    expect(sortRows(rows, { key: 'amount', dir: 'asc' }).map(r => r.id)).toEqual(['r2', 'r1', 'r3']);
+  });
+  it('description sorts case-insensitively; ascending A→Z', () => {
+    expect(sortRows(rows, { key: 'description', dir: 'asc' }).map(r => r.id)).toEqual(['r2', 'r1', 'r3']); // Apple, Netflix, Zelle
+  });
+  it('category sorts by category name via categoriesById', () => {
+    expect(sortRows(rows, { key: 'category', dir: 'asc' }, catsById).map(r => r.id)).toEqual(['r2', 'r3', 'r1']); // Apples, Apples, Zebra (stable)
+  });
+  it('empty payee/check values sort last when ascending', () => {
+    expect(sortRows(rows, { key: 'payee', dir: 'asc' }).map(r => r.id)).toEqual(['r2', 'r1', 'r3']); // ComEd, then empties in chronological order
+  });
+  it('does not mutate the input array and leaves each row balance untouched', () => {
+    const copy = rows.slice();
+    const out = sortRows(rows, { key: 'amount', dir: 'asc' });
+    expect(rows).toEqual(copy);
+    expect(out.find(r => r.id === 'r2').balance).toBe(-12.29);
+  });
+});

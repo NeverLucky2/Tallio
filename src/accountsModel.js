@@ -98,3 +98,45 @@ export function filterTransactions(rows, { search = '', month = null, categoryId
     return false;
   });
 }
+
+// Reorder already-computed register rows by one column. Pure; returns a new
+// array; stable (ties fall back to the input's chronological order). Each row's
+// `balance` is left untouched — sorting never recomputes the running balance.
+export function sortRows(rows, { key = 'date', dir = 'desc' } = {}, categoriesById = null) {
+  const indexed = (rows || []).map((r, i) => ({ r, i }));
+
+  const compare = (a, b) => {
+    let cmp;
+    if (key === 'amount' || key === 'balance') {
+      const na = Number.isFinite(a[key]) ? a[key] : 0;
+      const nb = Number.isFinite(b[key]) ? b[key] : 0;
+      cmp = na - nb;
+    } else {
+      let sa, sb;
+      if (key === 'category') {
+        const ca = categoriesById && categoriesById.get(a.categoryId);
+        const cb = categoriesById && categoriesById.get(b.categoryId);
+        sa = (ca && ca.name ? ca.name : '').toLowerCase();
+        sb = (cb && cb.name ? cb.name : '').toLowerCase();
+      } else if (key === 'payee' || key === 'checkNumber' || key === 'description') {
+        sa = (a[key] || '').toLowerCase();
+        sb = (b[key] || '').toLowerCase();
+      } else { // 'date' (default)
+        sa = a.date || '';
+        sb = b.date || '';
+      }
+      if (sa === sb) cmp = 0;
+      else if (sa === '') cmp = 1;   // empty/missing sorts last when ascending
+      else if (sb === '') cmp = -1;
+      else cmp = sa < sb ? -1 : 1;
+    }
+    return cmp;
+  };
+
+  indexed.sort((a, b) => {
+    let cmp = compare(a.r, b.r);
+    if (cmp === 0) cmp = a.i - b.i; // stable tie-break on chronological index
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return indexed.map(({ r }) => r);
+}
