@@ -1,7 +1,8 @@
 // src/exportArchive.js
 import { zipSync } from 'fflate';
+import { transferCounterpart } from './accountsModel.js';
 
-const CSV_HEADER = 'date,account,description,amount,category,flow,payee,check';
+const CSV_HEADER = 'date,account,description,amount,category,flow,payee,check,transfer';
 
 function escapeCsv(value) {
   const str = value == null ? '' : String(value);
@@ -17,16 +18,20 @@ export function buildTransactionsCsv(accounts, transactions, categoriesById) {
     .filter(t => t && Number.isFinite(t.amount))
     .map(t => {
       const acct = acctById.get(t.accountId);
+      const partner = transferCounterpart(t, transactions);
+      const partnerAcct = partner && acctById.get(partner.accountId);
+      const isTransfer = !!partnerAcct;
       const cat = categoriesById && categoriesById.get(t.categoryId);
       return {
         date: t.date || '',
         account: acct ? acct.name : '',
         description: t.description || '',
         amount: t.amount.toFixed(2),
-        category: cat ? cat.name : 'Uncategorized',
-        flow: (cat && cat.flow) || 'expense',
+        category: isTransfer ? '' : (cat ? cat.name : 'Uncategorized'),
+        flow: isTransfer ? '' : ((cat && cat.flow) || 'expense'),
         payee: t.payee || '',
         check: t.checkNumber || '',
+        transfer: isTransfer ? partnerAcct.name : '',
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -35,7 +40,7 @@ export function buildTransactionsCsv(accounts, transactions, categoriesById) {
   for (const r of rows) {
     lines.push([
       escapeCsv(r.date), escapeCsv(r.account), escapeCsv(r.description),
-      r.amount, escapeCsv(r.category), r.flow, escapeCsv(r.payee), escapeCsv(r.check),
+      r.amount, escapeCsv(r.category), r.flow, escapeCsv(r.payee), escapeCsv(r.check), escapeCsv(r.transfer),
     ].join(','));
   }
   return '﻿' + lines.join('\n');
