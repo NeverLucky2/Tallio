@@ -204,7 +204,7 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
     });
   }
   const results = [];
-  for (const occ of groups.values()) {
+  for (const [key, occ] of groups) {
     const monthsSet = new Set(occ.map(o => o.month));
     if (monthsSet.size < 2) continue;
     const amounts = occ.map(o => o.amount);
@@ -214,6 +214,7 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
     const lastMonth = sorted[sorted.length - 1].month;
     const gap = monthsBetween(lastMonth, nowMonth);
     results.push({
+      key,
       label: mode(occ.map(o => o.label)),
       categoryId: mode(occ.map(o => o.categoryId)),
       avgAmount: avg,
@@ -232,6 +233,7 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
 
 // Likely dual charges: same account + date + amount + normalized label, ≥2 rows. Transfers excluded.
 export function findDuplicates(transactions, opts = {}) {
+  const dismissed = opts.dismissed || null;
   const groups = new Map();
   for (const t of filterRows(transactions, opts)) {
     if (t.transferId != null) continue;
@@ -246,12 +248,16 @@ export function findDuplicates(transactions, opts = {}) {
   for (const list of groups.values()) {
     if (list.length < 2) continue;
     const t0 = list[0];
+    const ids = list.map(t => t.id);
+    const signature = [...ids].sort().join('|');
+    if (dismissed && dismissed.has(signature)) continue;
     out.push({
       accountId: t0.accountId,
       label: (t0.payee || t0.description || '').trim(),
       amount: t0.amount,
       date: t0.date,
-      ids: list.map(t => t.id),
+      ids,
+      signature,
     });
   }
   return out;
@@ -271,6 +277,29 @@ export function sparklinePath(values, { width = 100, height = 30, pad = 2 } = {}
   }));
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
   return { d, points };
+}
+
+// Bucket recurringCharges rows by user-set status; flag zombies (charged after cancellation).
+// `now` is intentionally NOT needed: a zombie is purely lastDate-month > cancelledAsOf.
+export function classifyRecurring(rows, subscriptions = {}) {
+  const alerts = [], ongoing = [], cancelled = [], review = [];
+  for (const r of rows || []) {
+    const ack = subscriptions && subscriptions[r.key];
+    if (ack && ack.status === 'ongoing') {
+      ongoing.push(r);
+    } else if (ack && ack.status === 'cancelled') {
+      const cancelledAsOf = ack.cancelledAsOf || '';
+      const lastMonth = (r.lastDate || '').slice(0, 7);
+      if (cancelledAsOf && lastMonth > cancelledAsOf) {
+        alerts.push({ ...r, alert: 'zombie', cancelledAsOf });
+      } else {
+        cancelled.push({ ...r, cancelledAsOf });
+      }
+    } else {
+      review.push(r);
+    }
+  }
+  return { alerts, ongoing, cancelled, review };
 }
 
 // Rect geometry for a +/- bar chart with the zero baseline at mid-height.

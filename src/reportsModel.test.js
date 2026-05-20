@@ -244,3 +244,57 @@ describe('barLayout', () => {
     expect(barLayout([], {})).toEqual([]);
   });
 });
+
+import { classifyRecurring } from './reportsModel.js';
+
+describe('recurringCharges key', () => {
+  const cats4 = new Map([['exp', { flow: 'expense' }]]);
+  const now2 = new Date(2026, 4, 20);
+  const t = [
+    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+  ];
+  it('exposes a normalized key for acknowledgments', () => {
+    const rows = recurringCharges(t, cats4, { now: now2 });
+    expect(rows[0].key).toBe('NETFLIX');
+  });
+});
+
+describe('classifyRecurring', () => {
+  const rows = [
+    { key: 'NETFLIX', label: 'Netflix', lastDate: '2026-05-04' },
+    { key: 'SPOTIFY', label: 'Spotify', lastDate: '2026-03-10' },
+    { key: 'OLDGYM', label: 'OldGym', lastDate: '2026-01-15' },
+    { key: 'NEWCHARGE', label: 'NewCharge', lastDate: '2026-05-01' },
+  ];
+  const subs = {
+    NETFLIX: { status: 'ongoing' },
+    SPOTIFY: { status: 'cancelled', cancelledAsOf: '2026-01' }, // last charge Mar > Jan → zombie
+    OLDGYM: { status: 'cancelled', cancelledAsOf: '2026-01' },  // last charge in Jan == cancel month → clean
+  };
+  it('buckets by status; zombie only when charged strictly after the cancel month', () => {
+    const { alerts, ongoing, cancelled, review } = classifyRecurring(rows, subs);
+    expect(ongoing.map(r => r.key)).toEqual(['NETFLIX']);
+    expect(alerts.map(r => r.key)).toEqual(['SPOTIFY']);
+    expect(alerts[0].alert).toBe('zombie');
+    expect(alerts[0].cancelledAsOf).toBe('2026-01');
+    expect(cancelled.map(r => r.key)).toEqual(['OLDGYM']);
+    expect(review.map(r => r.key)).toEqual(['NEWCHARGE']);
+  });
+  it('no subscriptions → everything is review', () => {
+    expect(classifyRecurring(rows, {}).review).toHaveLength(4);
+  });
+});
+
+describe('findDuplicates signature + dismissed', () => {
+  const txns = [
+    { id: 'd1', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' },
+    { id: 'd2', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' },
+  ];
+  it('emits a sorted-id signature', () => {
+    expect(findDuplicates(txns, {})[0].signature).toBe('d1|d2');
+  });
+  it('excludes dismissed signatures', () => {
+    expect(findDuplicates(txns, { dismissed: new Set(['d1|d2']) })).toHaveLength(0);
+  });
+});
