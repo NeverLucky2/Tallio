@@ -32,4 +32,12 @@ describe('export v4', () => {
     expect(csv.split('\n')[0]).toContain('date,account,description,amount,category');
     expect(csv).toContain('Mastercard');
   });
+
+  it('includes accountTypes in data.json when provided', () => {
+    const accountTypes = [{ id: 'hsa', label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health', icon: '🏥', builtin: false }];
+    const bytes = buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12T00:00:00Z') });
+    const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
+    expect(data.accountTypes).toHaveLength(1);
+    expect(data.accountTypes[0].id).toBe('hsa');
+  });
 });

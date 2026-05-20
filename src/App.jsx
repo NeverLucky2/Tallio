@@ -7,6 +7,8 @@ import SettingsPanel from './SettingsPanel.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
+import useAccountTypes from './useAccountTypes.js';
+import AccountTypesScreen from './AccountTypesScreen.jsx';
 import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
@@ -108,9 +110,10 @@ function BillTracker() {
 
   const ledger = useLedger({ accounts: initAccounts, transactions: initTransactions });
   const cats = useCategories();
+  const accountTypes = useAccountTypes();
   const categoriesById = useMemo(() => new Map(cats.categories.map(c => [c.id, c])), [cats.categories]);
 
-  const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories'
+  const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
   const [selectedAccountId, setSelectedAccountId] = useState(initAccounts[0]?.id ?? null);
   const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
@@ -169,6 +172,21 @@ function BillTracker() {
     setEditingAccount(null);
   };
 
+  // Account-type CRUD (reassign-then-delete coordinated here since App holds ledger.updateAccount)
+  const saveAccountType = (data) => {
+    if (data.id) accountTypes.updateType(data.id, data);
+    else accountTypes.addType(data);
+  };
+  const deleteAccountType = (id, reassignToId) => {
+    pushHistory();
+    if (reassignToId) {
+      for (const a of ledger.accounts) {
+        if (a.type === id) ledger.updateAccount(a.id, { type: reassignToId });
+      }
+    }
+    accountTypes.deleteType(id);
+  };
+
   // Transaction CRUD
   const saveTransaction = (data) => {
     pushHistory();
@@ -181,7 +199,8 @@ function BillTracker() {
   const exportData = () => {
     const bytes = buildArchive({
       accounts: ledger.accounts, transactions: ledger.transactions,
-      categories: cats.categories, schemaVersion: 4, appVersion: pkg.version, now: new Date(),
+      categories: cats.categories, accountTypes: accountTypes.types,
+      schemaVersion: 4, appVersion: pkg.version, now: new Date(),
     });
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
@@ -272,6 +291,16 @@ function BillTracker() {
         />
       )}
 
+      {screen === 'account-types' && (
+        <AccountTypesScreen
+          types={accountTypes.types}
+          accounts={ledger.accounts}
+          onClose={() => setScreen('main')}
+          onSaveType={saveAccountType}
+          onDeleteType={deleteAccountType}
+        />
+      )}
+
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
@@ -282,6 +311,7 @@ function BillTracker() {
       {editingAccount && (
         <AccountEditor
           account={editingAccount.account || null}
+          types={accountTypes.types}
           onSave={saveAccount} onDelete={deleteAccount} onClose={() => setEditingAccount(null)}
         />
       )}
@@ -290,6 +320,7 @@ function BillTracker() {
           account={selectedAccount}
           transaction={editingTxn.transaction || null}
           categories={cats.categories}
+          typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
         />
       )}
@@ -314,6 +345,7 @@ function BillTracker() {
           <div className="header-actions">
             <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">⚙</button>
             <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
+            <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
             <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan</button>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
@@ -328,6 +360,7 @@ function BillTracker() {
             <AccountList
               accounts={ledger.accounts}
               transactions={ledger.transactions}
+              types={accountTypes.types}
               selectedId={selectedAccount?.id ?? null}
               onSelect={setSelectedAccountId}
               onAddAccount={() => setEditingAccount({ mode: 'new' })}
@@ -351,6 +384,7 @@ function BillTracker() {
                   transactions={ledger.transactions}
                   categories={cats.categories}
                   categoriesById={categoriesById}
+                  typesById={accountTypes.typesById}
                   onEditTransaction={(t) => setEditingTxn({ mode: 'edit', accountId: selectedAccount.id, transaction: t })}
                   onAddTransaction={(accountId) => setEditingTxn({ mode: 'new', accountId })}
                 />
