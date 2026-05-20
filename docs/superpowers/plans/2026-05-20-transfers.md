@@ -852,6 +852,213 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 ---
 
+## Task 8: Grouped account pickers in TransferEditor
+
+**Files:**
+- Modify: `src/accountsModel.js` (add `groupAccounts`), `src/accountsModel.test.js`
+- Modify: `src/TransferEditor.jsx`, `src/TransferEditor.test.jsx`
+
+- [ ] **Step 1 (model): failing test** — append to `src/accountsModel.test.js` (uses `DEFAULT_ACCOUNT_TYPES`/`groupOrder` already imported at line 168; add `groupAccounts` to that import or a new import):
+
+```javascript
+import { groupAccounts } from './accountsModel.js';
+
+describe('groupAccounts', () => {
+  it('groups accounts by type group in groupOrder, omitting empty groups', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank' },
+      { id: 'a_cc',  name: 'Visa',     type: 'credit_card' },
+      { id: 'a_chk2',name: 'Savings',  type: 'bank' },
+    ];
+    const out = groupAccounts(accts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID);
+    expect(out.map(g => g.group)).toEqual(['Cash & Bank', 'Credit cards & loans']);
+    expect(out[0].accounts.map(a => a.id)).toEqual(['a_chk', 'a_chk2']);
+    expect(out[1].accounts.map(a => a.id)).toEqual(['a_cc']);
+  });
+
+  it('puts accounts with unknown types under the Unassigned fallback group', () => {
+    const out = groupAccounts([{ id: 'x', name: 'Mystery', type: 'gone' }], DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID);
+    expect(out.map(g => g.group)).toEqual(['Unassigned']);
+  });
+});
+```
+
+(`DEFAULT_ACCOUNT_TYPES_BY_ID` must be imported in the test — add it to the existing `accountsModel.js` import group near the top of the file.)
+
+- [ ] **Step 2: run red** — `npx vitest run src/accountsModel.test.js` → FAIL (`groupAccounts is not a function`).
+
+- [ ] **Step 3 (model): implement** — append to `src/accountsModel.js`:
+
+```javascript
+// Accounts bucketed by their type group, in groupOrder(types) order, empty groups
+// omitted. Used by the transfer pickers to render <optgroup> sections.
+export function groupAccounts(accounts, types, typesById) {
+  const order = groupOrder(types);
+  const byGroup = new Map(order.map(g => [g, []]));
+  for (const a of accounts || []) {
+    const g = groupFor(a.type, typesById);
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(a);
+  }
+  return [...byGroup.entries()].filter(([, list]) => list.length > 0).map(([group, list]) => ({ group, accounts: list }));
+}
+```
+
+- [ ] **Step 4: run green** — `npx vitest run src/accountsModel.test.js` → PASS.
+
+- [ ] **Step 5 (component): failing test** — append inside `describe('TransferEditor', ...)` in `src/TransferEditor.test.jsx`. Add imports at top: `import { DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';`
+
+```jsx
+  it('groups the From options by account-type group in sidebar order', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank' },
+      { id: 'a_cc',  name: 'Visa',     type: 'credit_card' },
+    ];
+    render(<TransferEditor accounts={accts} types={DEFAULT_ACCOUNT_TYPES} typesById={DEFAULT_ACCOUNT_TYPES_BY_ID} fromAccountId="a_chk" onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    const fromSel = screen.getByLabelText(/from account/i);
+    expect([...fromSel.querySelectorAll('optgroup')].map(g => g.label)).toEqual(['Cash & Bank', 'Credit cards & loans']);
+  });
+```
+
+- [ ] **Step 6: run red** — `npx vitest run src/TransferEditor.test.jsx` → FAIL (no `<optgroup>` elements).
+
+- [ ] **Step 7 (component): implement** — in `src/TransferEditor.jsx`:
+  (a) Import the model bits: `import { groupAccounts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';`
+  (b) Add `types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID` to the props.
+  (c) Compute `const groups = groupAccounts(accounts, types, typesById);`
+  (d) Replace the From `<select>` option list with optgroups, and the To `<select>` keeps its leading empty option then optgroups:
+
+```jsx
+        {/* From */}
+          <select aria-label="From account" value={fromId} onChange={(e) => setFromId(e.target.value)} className="select">
+            {groups.map(({ group, accounts: list }) => (
+              <optgroup key={group} label={group}>
+                {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+```
+
+```jsx
+        {/* To */}
+          <select aria-label="To account" value={toId} onChange={(e) => setToId(e.target.value)} className="select">
+            <option value="">Select account…</option>
+            {groups.map(({ group, accounts: list }) => (
+              <optgroup key={group} label={group}>
+                {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+```
+
+- [ ] **Step 8: run green** — `npx vitest run src/TransferEditor.test.jsx` → PASS (existing 4 + new 1).
+
+- [ ] **Step 9: commit**
+
+```bash
+git add src/accountsModel.js src/accountsModel.test.js src/TransferEditor.jsx src/TransferEditor.test.jsx
+git commit -m "feat(transfers): group account pickers by type via optgroups
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 9: Color-coded transfer chip (by counterpart money-class)
+
+**Files:**
+- Modify: `src/accountsModel.js` (extend `transferInfo`), `src/accountsModel.test.js`
+- Modify: `src/TransactionRow.jsx`, `src/TransactionRow.test.jsx`
+- Modify: `src/Register.jsx` (pass `typesById` into `transferInfo`)
+- Modify: `src/App.css` (color rules)
+
+- [ ] **Step 1: failing test (model)** — append inside the `describe('transfers', ...)` block in `src/accountsModel.test.js`, and change the two `transferInfo(...)` `toEqual` assertions in the existing test to `toMatchObject` (so the added `counterpartClass` field doesn't fail them):
+
+```javascript
+  it('transferInfo includes the counterpart money-class for color coding', () => {
+    const typed = [
+      { id: 'tf', accountId: 'a1', amount: -500, transferId: 'x' },
+      { id: 'tt', accountId: 'a2', amount:  500, transferId: 'x' },
+    ];
+    const accts = new Map([
+      ['a1', { id: 'a1', name: 'Checking', type: 'bank' }],        // asset
+      ['a2', { id: 'a2', name: 'Visa',     type: 'credit_card' }], // liability
+    ]);
+    expect(transferInfo(typed[0], typed, accts).counterpartClass).toBe('liability'); // counterpart = Visa
+    expect(transferInfo(typed[1], typed, accts).counterpartClass).toBe('asset');     // counterpart = Checking
+  });
+```
+
+- [ ] **Step 2: run red** — `npx vitest run src/accountsModel.test.js` → FAIL (`counterpartClass` undefined).
+
+- [ ] **Step 3: implement (model)** — replace `transferInfo` in `src/accountsModel.js` with:
+
+```javascript
+export function transferInfo(leg, transactions, accountsById, typesById) {
+  const partner = transferCounterpart(leg, transactions);
+  if (!partner) return null;
+  const acct = accountsById && accountsById.get(partner.accountId);
+  if (!acct) return null;
+  return {
+    counterpartName: acct.name,
+    direction: (Number.isFinite(leg.amount) && leg.amount < 0) ? 'out' : 'in',
+    counterpartClass: accountClass(acct.type, typesById),
+  };
+}
+```
+
+- [ ] **Step 4: run green** — `npx vitest run src/accountsModel.test.js` → PASS.
+
+- [ ] **Step 5: failing test (row)** — append inside `describe('TransactionRow', ...)`:
+
+```jsx
+  it('tints the transfer chip by counterpart money-class', () => {
+    const row = { ...baseRow, categoryId: null };
+    render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={catsById} transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset' }} onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('Savings').className).toContain('txn-transfer--asset');
+  });
+```
+
+- [ ] **Step 6: run red** — `npx vitest run src/TransactionRow.test.jsx` → FAIL (no modifier class).
+
+- [ ] **Step 7: implement (row)** — change `TransferChip` in `src/TransactionRow.jsx`:
+
+```jsx
+function TransferChip({ info }) {
+  const cls = info.counterpartClass ? ` txn-transfer--${info.counterpartClass}` : '';
+  return (
+    <span className={`txn-cat txn-transfer${cls}`}>
+      <span className="txn-transfer-glyph" aria-hidden="true">⇄ {info.direction === 'out' ? '→' : '←'}</span> {info.counterpartName}
+    </span>
+  );
+}
+```
+
+- [ ] **Step 8: pass typesById in Register** — in `src/Register.jsx`, change the row map to `transferInfo(r, transactions, accountsById, typesById)`.
+
+- [ ] **Step 9: add CSS** — in `src/App.css`, after the `.txn-cat-none` rule:
+
+```css
+.txn-transfer { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--border-strong); }
+.txn-transfer-glyph { opacity: 0.85; }
+.txn-transfer--asset     { color: var(--green);  border-color: var(--green-border);  background: var(--green-dim); }
+.txn-transfer--liability { color: var(--red);    border-color: var(--red-border);    background: var(--red-dim); }
+.txn-transfer--offsheet  { color: var(--purple); border-color: var(--purple-border); background: var(--purple-dim); }
+```
+
+- [ ] **Step 10: run green + full suite** — `npx vitest run src/TransactionRow.test.jsx` then `npx vitest run` → all PASS.
+
+- [ ] **Step 11: commit**
+
+```bash
+git add src/accountsModel.js src/accountsModel.test.js src/TransactionRow.jsx src/TransactionRow.test.jsx src/Register.jsx src/App.css
+git commit -m "feat(transfers): color transfer chip by counterpart money-class
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+```
+
+---
+
 ## Self-Review
 
 **1. Spec coverage:**

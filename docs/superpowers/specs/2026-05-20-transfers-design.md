@@ -218,3 +218,30 @@ Stop for review between logical milestones (suggested checkpoints: after step 2,
 - Exact prop shape for the resolved pair handed to `TransferEditor` in edit mode (`{ transferId, fromLeg, toLeg }` vs the two raw transactions) — lean: pass the resolved pair object.
 - Whether `Register` passes the precomputed `transfer` annotation per row, or passes `accountsById` + `transactions` down so `TransactionRow` computes it — lean: precompute in `Register` to keep the row dumb.
 - Exact App-level test harness for the row-click branching (mirroring `__smoke__/setup.test.jsx`).
+
+---
+
+## Addendum (2026-05-20) — grouped pickers & color-coded legs
+
+Two UX refinements approved after the core feature was wired (commits through `8b53959`).
+
+### Grouped account pickers
+
+The `TransferEditor` From/To `<select>`s group accounts by their account-type **group**, using `<optgroup label="…">` headers in the **same order as the sidebar** (`groupOrder(types)`), accounts listed under each. `<optgroup>` labels are inherently non-selectable, so a group acts as a label only — exactly the requested behavior. Empty groups are omitted. Accounts whose type id is unknown fall under the fallback `Unassigned` group.
+
+- New pure helper `groupAccounts(accounts, types, typesById) → [{ group, accounts }]` in `accountsModel.js`, in `groupOrder` order, empty groups filtered out.
+- `TransferEditor` gains optional props `types` (ordered array, default `DEFAULT_ACCOUNT_TYPES`) and `typesById` (default `DEFAULT_ACCOUNT_TYPES_BY_ID`); `App` passes `accountTypes.types` / `accountTypes.typesById`.
+
+### Color-coded transfer legs (by counterpart money-class)
+
+A transfer leg's chip is tinted by the **counterpart account's money-class** — `asset` (green), `liability` (red), `offsheet` (purple) — so you can see "what kind" of account each transfer touches. Each leg is colored by *its own* counterpart's class (the outgoing and incoming legs may differ). Color shows **on the chip pill** only; normal rows are unchanged.
+
+- `transferInfo(leg, transactions, accountsById, typesById)` gains a `counterpartClass` field (= `accountClass(counterpartAccount.type, typesById)`); `typesById` is optional (defaults via `accountClass`).
+- `TransferChip` adds a modifier class `txn-transfer--{class}`; `App.css` maps the three classes to the existing `--green` / `--red` / `--purple` palette (`-dim` background, `-border` border).
+- `Register` passes its `typesById` into `transferInfo`.
+
+### Implementation order (continuation)
+
+7. Grouped pickers (`groupAccounts` + `TransferEditor` optgroups).
+8. Color-coded chip (`transferInfo.counterpartClass` + `TransferChip` modifier + CSS).
+9. Export CSV `transfer` column + `data.json` round-trip (the originally-planned Task 7, done last).
