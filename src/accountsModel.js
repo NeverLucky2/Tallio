@@ -33,3 +33,50 @@ export function isOnBalanceSheet(type) {
 export function flowSign(flow) {
   return flow === 'income' ? 1 : -1;
 }
+
+const opening = (account) =>
+  Number.isFinite(account && account.openingBalance) ? account.openingBalance : 0;
+
+export function accountBalance(account, transactions) {
+  let bal = opening(account);
+  for (const t of transactions || []) {
+    if (t && t.accountId === account.id && Number.isFinite(t.amount)) bal += t.amount;
+  }
+  return bal;
+}
+
+// Transactions for one account, sorted oldest→newest (date asc; array order for
+// same-day ties), each annotated with the running balance after it. Reverse for
+// newest-first display.
+export function computeRegister(account, transactions) {
+  const mine = (transactions || [])
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => t && t.accountId === account.id);
+  mine.sort((a, b) => {
+    const da = a.t.date || '', db = b.t.date || '';
+    if (da !== db) return da < db ? -1 : 1;
+    return a.i - b.i;
+  });
+  let bal = opening(account);
+  return mine.map(({ t }) => {
+    bal += Number.isFinite(t.amount) ? t.amount : 0;
+    return { ...t, balance: bal };
+  });
+}
+
+// Household roll-ups. netWorth = Σ on-balance-sheet balances; assets = Σ asset
+// balances; owed = Σ |negative liability balances|. person/untyped excluded.
+export function householdTotals(accounts, transactions) {
+  let netWorth = 0, assets = 0, owed = 0;
+  for (const a of accounts || []) {
+    const k = accountClass(a.type);
+    if (k === 'asset') {
+      const b = accountBalance(a, transactions);
+      assets += b; netWorth += b;
+    } else if (k === 'liability') {
+      const b = accountBalance(a, transactions);
+      owed += Math.abs(Math.min(0, b)); netWorth += b;
+    }
+  }
+  return { netWorth, assets, owed };
+}

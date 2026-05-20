@@ -47,3 +47,52 @@ describe('account types & classification', () => {
     expect(flowSign(undefined)).toBe(-1);
   });
 });
+
+import { accountBalance, computeRegister, householdTotals } from './accountsModel.js';
+
+describe('balance math', () => {
+  const checking = { id: 'a_chk', type: 'bank', openingBalance: 1000 };
+  const card     = { id: 'a_cc',  type: 'credit_card', openingBalance: 0 };
+  const txns = [
+    { id: 't1', accountId: 'a_chk', date: '2026-05-01', amount:  3200 }, // paycheck
+    { id: 't2', accountId: 'a_chk', date: '2026-04-15', amount:  -96.30 }, // electric
+    { id: 't3', accountId: 'a_cc',  date: '2026-05-05', amount:  -96.20 }, // charge
+    { id: 't4', accountId: 'a_cc',  date: '2026-04-02', amount:  -15.99 }, // charge
+  ];
+
+  it('accountBalance = opening + Σ amounts for that account', () => {
+    expect(accountBalance(checking, txns)).toBeCloseTo(1000 + 3200 - 96.30, 2);
+    expect(accountBalance(card, txns)).toBeCloseTo(-112.19, 2);
+  });
+
+  it('computeRegister returns oldest→newest with running balance after each row', () => {
+    const rows = computeRegister(checking, txns);
+    expect(rows.map(r => r.id)).toEqual(['t2', 't1']); // Apr 15 then May 1
+    expect(rows[0].balance).toBeCloseTo(903.70, 2);    // 1000 - 96.30
+    expect(rows[1].balance).toBeCloseTo(4103.70, 2);   // + 3200
+  });
+
+  it('computeRegister breaks same-day ties by array order', () => {
+    const acct = { id: 'x', type: 'bank', openingBalance: 0 };
+    const same = [
+      { id: 'first',  accountId: 'x', date: '2026-05-10', amount: 10 },
+      { id: 'second', accountId: 'x', date: '2026-05-10', amount: 5 },
+    ];
+    const rows = computeRegister(acct, same);
+    expect(rows.map(r => r.id)).toEqual(['first', 'second']);
+    expect(rows[1].balance).toBe(15);
+  });
+
+  it('householdTotals: net worth excludes person/untyped; owed is positive', () => {
+    const accounts = [
+      checking, card,
+      { id: 'a_mom', type: 'person',  openingBalance: 0 },
+      { id: 'a_u',   type: 'untyped', openingBalance: 500 },
+    ];
+    const withMom = [...txns, { id: 't5', accountId: 'a_mom', date: '2026-05-01', amount: -1100 }];
+    const totals = householdTotals(accounts, withMom);
+    expect(totals.assets).toBeCloseTo(4103.70, 2);    // checking only
+    expect(totals.owed).toBeCloseTo(112.19, 2);        // |card|
+    expect(totals.netWorth).toBeCloseTo(4103.70 - 112.19, 2); // mom + untyped excluded
+  });
+});
