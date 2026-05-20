@@ -221,3 +221,56 @@ describe('account types as data', () => {
     expect(groupOrder(types)).toEqual(['Cash', 'Investments', 'Unassigned']);
   });
 });
+
+import { transferCounterpart, transferInfo, resolveTransfer } from './accountsModel.js';
+
+describe('transfers', () => {
+  const txns = [
+    { id: 'tf', accountId: 'a1', date: '2026-05-20', amount: -500, categoryId: null, transferId: 'x' },
+    { id: 'tt', accountId: 'a2', date: '2026-05-20', amount:  500, categoryId: null, transferId: 'x' },
+    { id: 'n1', accountId: 'a1', date: '2026-05-01', amount:  -20, categoryId: 'c',  transferId: null },
+  ];
+  const accountsById = new Map([
+    ['a1', { id: 'a1', name: 'Checking' }],
+    ['a2', { id: 'a2', name: 'Savings' }],
+  ]);
+
+  it('transferCounterpart finds the partner leg, null for non-transfers', () => {
+    expect(transferCounterpart(txns[0], txns).id).toBe('tt');
+    expect(transferCounterpart(txns[1], txns).id).toBe('tf');
+    expect(transferCounterpart(txns[2], txns)).toBeNull();
+  });
+
+  it('transferInfo gives direction + counterpart name; null when unresolved', () => {
+    expect(transferInfo(txns[0], txns, accountsById)).toEqual({ counterpartName: 'Savings', direction: 'out' });
+    expect(transferInfo(txns[1], txns, accountsById)).toEqual({ counterpartName: 'Checking', direction: 'in' });
+    expect(transferInfo(txns[2], txns, accountsById)).toBeNull(); // not a transfer
+    const orphan = { id: 'o', accountId: 'a1', amount: -10, transferId: 'gone' };
+    expect(transferInfo(orphan, [orphan], accountsById)).toBeNull(); // partner missing
+    expect(transferInfo(txns[0], txns, new Map([['a1', { id: 'a1', name: 'Checking' }]]))).toBeNull(); // account not in map
+  });
+
+  it('resolveTransfer returns the from/to pair, null for non-transfers', () => {
+    const pair = resolveTransfer(txns[1], txns); // start from the + leg
+    expect(pair.transferId).toBe('x');
+    expect(pair.fromLeg.id).toBe('tf'); // negative leg
+    expect(pair.toLeg.id).toBe('tt');   // positive leg
+    expect(resolveTransfer(txns[2], txns)).toBeNull();
+  });
+});
+
+describe('net-worth neutrality of transfers', () => {
+  const accounts = [
+    { id: 'a1', type: 'bank', openingBalance: 1000 },
+    { id: 'a2', type: 'bank', openingBalance: 0 },
+  ];
+  it('an on-sheet→on-sheet transfer leaves netWorth unchanged', () => {
+    const base = householdTotals(accounts, []);
+    const withTransfer = householdTotals(accounts, [
+      { id: 'tf', accountId: 'a1', amount: -500, transferId: 'x' },
+      { id: 'tt', accountId: 'a2', amount:  500, transferId: 'x' },
+    ]);
+    expect(withTransfer.netWorth).toBeCloseTo(base.netWorth, 2);
+    expect(withTransfer.netWorth).toBeCloseTo(1000, 2);
+  });
+});

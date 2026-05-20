@@ -161,3 +161,37 @@ export function sortRows(rows, { key = 'date', dir = 'desc' } = {}, categoriesBy
   });
   return indexed.map(({ r }) => r);
 }
+
+// A transfer is a pair of transactions sharing one transferId. transferCounterpart
+// returns the OTHER leg (different id), or null when leg isn't a transfer / has no
+// resolvable partner (e.g. its partner's account was deleted → orphan).
+export function transferCounterpart(leg, transactions) {
+  if (!leg || !leg.transferId) return null;
+  return (transactions || []).find(t => t && t.transferId === leg.transferId && t.id !== leg.id) || null;
+}
+
+// Display info for a transfer leg: the counterpart account's name and the direction
+// (out = money left this account → '→'; in = money arrived → '←'). null when the leg
+// is not a resolvable transfer or the counterpart account is missing → caller renders
+// it as a plain row.
+export function transferInfo(leg, transactions, accountsById) {
+  const partner = transferCounterpart(leg, transactions);
+  if (!partner) return null;
+  const acct = accountsById && accountsById.get(partner.accountId);
+  if (!acct) return null;
+  return {
+    counterpartName: acct.name,
+    direction: (Number.isFinite(leg.amount) && leg.amount < 0) ? 'out' : 'in',
+  };
+}
+
+// The resolved pair for the editor / row-click branching: { transferId, fromLeg, toLeg }
+// where fromLeg is the negative (source) leg and toLeg the positive (destination) leg.
+// null when leg is not a resolvable transfer.
+export function resolveTransfer(leg, transactions) {
+  const partner = transferCounterpart(leg, transactions);
+  if (!partner) return null;
+  const fromLeg = (Number.isFinite(leg.amount) && leg.amount < 0) ? leg : partner;
+  const toLeg   = fromLeg === leg ? partner : leg;
+  return { transferId: leg.transferId, fromLeg, toLeg };
+}
