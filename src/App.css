@@ -3340,3 +3340,15 @@
 .register-table th.right .th-sort { width: 100%; text-align: right; }
 .th-sort:hover { color: #5b8dff; }
 .th-sort-active { color: #5b8dff; }
+
+/* Account Types screen (container classes mirror .manage-screen) */
+.screen-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: flex; flex-direction: column; overflow-y: auto; }
+.screen { flex: 1; width: 100%; max-width: 720px; margin: 0 auto; padding: 0 17px 24px; }
+.screen-header { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.screen-title { margin: 0; font-size: 16px; font-weight: 700; flex: 1; }
+.type-list { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.5rem 0; }
+.type-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; border: 1px solid var(--border, #2a2a3a); border-radius: 8px; }
+.type-row-label { font-weight: 600; }
+.type-row-meta { margin-left: auto; font-size: 0.72rem; color: var(--muted, #8a8a9a); }
+.type-row .btn { margin-left: 0.5rem; }
+.type-add { margin-top: 0.5rem; }
