@@ -274,3 +274,24 @@ describe('net-worth neutrality of transfers', () => {
     expect(withTransfer.netWorth).toBeCloseTo(1000, 2);
   });
 });
+
+import { groupAccounts, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
+
+describe('groupAccounts', () => {
+  it('groups accounts by type group in groupOrder, omitting empty groups', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank' },
+      { id: 'a_cc',  name: 'Visa',     type: 'credit_card' },
+      { id: 'a_chk2',name: 'Savings',  type: 'bank' },
+    ];
+    const out = groupAccounts(accts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID);
+    expect(out.map(g => g.group)).toEqual(['Cash & Bank', 'Credit cards & loans']);
+    expect(out[0].accounts.map(a => a.id)).toEqual(['a_chk', 'a_chk2']);
+    expect(out[1].accounts.map(a => a.id)).toEqual(['a_cc']);
+  });
+
+  it('puts accounts with unknown types under the Unassigned fallback group', () => {
+    const out = groupAccounts([{ id: 'x', name: 'Mystery', type: 'gone' }], DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID);
+    expect(out.map(g => g.group)).toEqual(['Unassigned']);
+  });
+});

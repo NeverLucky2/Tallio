@@ -1,9 +1,11 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
+import { groupAccounts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], fromAccountId = null, transfer = null, onSave, onDelete, onClose }) {
+export default function TransferEditor({ accounts = [], fromAccountId = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+  const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
   const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : '');
@@ -30,14 +32,22 @@ export default function TransferEditor({ accounts = [], fromAccountId = null, tr
 
         <label className="field"><span>From</span>
           <select aria-label="From account" value={fromId} onChange={(e) => setFromId(e.target.value)} className="select">
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            {groups.map(({ group, accounts: list }) => (
+              <optgroup key={group} label={group}>
+                {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </optgroup>
+            ))}
           </select>
         </label>
 
         <label className="field"><span>To</span>
           <select aria-label="To account" value={toId} onChange={(e) => setToId(e.target.value)} className="select">
             <option value="">Select account…</option>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            {groups.map(({ group, accounts: list }) => (
+              <optgroup key={group} label={group}>
+                {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </optgroup>
+            ))}
           </select>
         </label>
 

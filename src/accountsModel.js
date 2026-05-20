@@ -195,3 +195,16 @@ export function resolveTransfer(leg, transactions) {
   const toLeg   = fromLeg === leg ? partner : leg;
   return { transferId: leg.transferId, fromLeg, toLeg };
 }
+
+// Accounts bucketed by their type group, in groupOrder(types) order, empty groups
+// omitted. Used by the transfer pickers to render <optgroup> sections.
+export function groupAccounts(accounts, types, typesById) {
+  const order = groupOrder(types);
+  const byGroup = new Map(order.map(g => [g, []]));
+  for (const a of accounts || []) {
+    const g = groupFor(a.type, typesById);
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(a);
+  }
+  return [...byGroup.entries()].filter(([, list]) => list.length > 0).map(([group, list]) => ({ group, accounts: list }));
+}

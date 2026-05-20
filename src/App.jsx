@@ -339,6 +339,8 @@ function BillTracker() {
       {editingTransfer && (
         <TransferEditor
           accounts={ledger.accounts}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
           fromAccountId={editingTransfer.fromAccountId || null}
           transfer={editingTransfer.transfer || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}

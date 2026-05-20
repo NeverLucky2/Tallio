@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TransferEditor from './TransferEditor.jsx';
+import { DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
 const accounts = [
   { id: 'a_chk', name: 'Checking', type: 'bank' },
@@ -67,5 +68,15 @@ describe('TransferEditor', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ transferId: 'x', fromId: 'a_chk', toId: 'a_sav', amount: 500 });
     await userEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('x');
+  });
+
+  it('groups the From options by account-type group in sidebar order', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank' },
+      { id: 'a_cc',  name: 'Visa',     type: 'credit_card' },
+    ];
+    render(<TransferEditor accounts={accts} types={DEFAULT_ACCOUNT_TYPES} typesById={DEFAULT_ACCOUNT_TYPES_BY_ID} fromAccountId="a_chk" onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    const fromSel = screen.getByLabelText(/from account/i);
+    expect([...fromSel.querySelectorAll('optgroup')].map(g => g.label)).toEqual(['Cash & Bank', 'Credit cards & loans']);
   });
 });
