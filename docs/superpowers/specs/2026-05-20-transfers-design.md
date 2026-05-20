@@ -245,3 +245,15 @@ A transfer leg's chip is tinted by the **counterpart account's money-class** —
 7. Grouped pickers (`groupAccounts` + `TransferEditor` optgroups).
 8. Color-coded chip (`transferInfo.counterpartClass` + `TransferChip` modifier + CSS).
 9. Export CSV `transfer` column + `data.json` round-trip (the originally-planned Task 7, done last).
+
+### Jump-to-counterpart navigation (added 2026-05-20)
+
+A transfer chip gets a small `↗` jump button after the counterpart name. Clicking `↗` **selects the counterpart account** (switches the register to it) so the user can hop across many accounts to inspect the other leg; clicking anywhere else on the row still opens the `TransferEditor`. The jump button calls `stopPropagation` so it never triggers the row's edit handler. Because the other leg shows its own chip pointing back, navigation works in both directions naturally.
+
+- `transferInfo` gains a `counterpartId` field (= the partner account's id).
+- `TransactionRow`/`TransferChip` render the `↗` button (only when `counterpartId` is present) with `aria-label="Go to {name}"`; new optional `onNavigate(accountId)` prop.
+- `Register` threads `onSelectAccount` → the row's `onNavigate`; `App` wires it to `setSelectedAccountId`.
+
+## Future work (out of scope for this phase)
+
+- **Quick "pay this balance" transfer** — from a liability account (e.g. a credit card showing −$300), a one-click action that opens the transfer dialog pre-filled with amount = the balance owed and From = a suggested/last-used bank account, so paying a bill is a couple of clicks. Builds on the transfer primitive shipped here; candidate for a later sub-phase.

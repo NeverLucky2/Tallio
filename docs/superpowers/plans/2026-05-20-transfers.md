@@ -1059,6 +1059,109 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 ---
 
+## Task 10: Jump-to-counterpart navigation
+
+**Files:**
+- Modify: `src/accountsModel.js` (add `counterpartId` to `transferInfo`), `src/accountsModel.test.js`
+- Modify: `src/TransactionRow.jsx`, `src/TransactionRow.test.jsx`
+- Modify: `src/Register.jsx`, `src/Register.test.jsx`
+- Modify: `src/App.jsx` (wire `onSelectAccount` → `setSelectedAccountId`)
+- Modify: `src/App.css` (jump button)
+
+- [ ] **Step 1 (model): failing test** — in `src/accountsModel.test.js`, add `counterpartId` to the two `toMatchObject` assertions in the existing `transferInfo` test:
+
+```javascript
+    expect(transferInfo(txns[0], txns, accountsById)).toMatchObject({ counterpartName: 'Savings', direction: 'out', counterpartId: 'a2' });
+    expect(transferInfo(txns[1], txns, accountsById)).toMatchObject({ counterpartName: 'Checking', direction: 'in', counterpartId: 'a1' });
+```
+
+- [ ] **Step 2: run red** — `npx vitest run src/accountsModel.test.js` → FAIL (`counterpartId` undefined).
+
+- [ ] **Step 3: implement (model)** — in `transferInfo`, add `counterpartId: partner.accountId` to the returned object.
+
+- [ ] **Step 4: run green** — `npx vitest run src/accountsModel.test.js` → PASS.
+
+- [ ] **Step 5 (row): failing test** — append inside `describe('TransactionRow', ...)`:
+
+```jsx
+  it('clicking the chip jump icon navigates to the counterpart and does not open the editor', async () => {
+    const onEdit = vi.fn(); const onNavigate = vi.fn();
+    const row = { ...baseRow, categoryId: null };
+    render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={catsById} transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset', counterpartId: 'a_sav' }} onNavigate={onNavigate} onEdit={onEdit} /></tbody></table>);
+    await userEvent.click(screen.getByRole('button', { name: /go to savings/i }));
+    expect(onNavigate).toHaveBeenCalledWith('a_sav');
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+```
+
+- [ ] **Step 6: run red** — `npx vitest run src/TransactionRow.test.jsx` → FAIL (no jump button).
+
+- [ ] **Step 7: implement (row)** — add `onNavigate` to the `TransactionRow` signature and pass it to `TransferChip`; render the jump button in `TransferChip`:
+
+```jsx
+function TransferChip({ info, onNavigate }) {
+  const cls = info.counterpartClass ? ` txn-transfer--${info.counterpartClass}` : '';
+  return (
+    <span className={`txn-cat txn-transfer${cls}`}>
+      <span className="txn-transfer-glyph" aria-hidden="true">⇄ {info.direction === 'out' ? '→' : '←'}</span> {info.counterpartName}
+      {info.counterpartId && (
+        <button type="button" className="txn-transfer-jump" aria-label={`Go to ${info.counterpartName}`}
+          onClick={(e) => { e.stopPropagation(); if (onNavigate) onNavigate(info.counterpartId); }}>
+          <span aria-hidden="true">↗</span>
+        </button>
+      )}
+    </span>
+  );
+}
+```
+
+In both layout branches, pass `onNavigate`: `<TransferChip info={transfer} onNavigate={onNavigate} />`.
+
+- [ ] **Step 8: run green** — `npx vitest run src/TransactionRow.test.jsx` → PASS.
+
+- [ ] **Step 9 (register): failing test** — append inside `describe('Register', ...)`:
+
+```jsx
+  it('clicking a transfer chip jump icon selects the counterpart account', async () => {
+    const onSelectAccount = vi.fn();
+    const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
+    const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+    ];
+    render(<Register account={chk} transactions={txns} accounts={[chk, sav]} categories={[]} categoriesById={new Map()} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={() => {}} onSelectAccount={onSelectAccount} />);
+    await userEvent.click(screen.getByRole('button', { name: /go to savings/i }));
+    expect(onSelectAccount).toHaveBeenCalledWith('a_sav');
+  });
+```
+
+- [ ] **Step 10: run red** — `npx vitest run src/Register.test.jsx` → FAIL.
+
+- [ ] **Step 11: implement (register)** — add `onSelectAccount = () => {}` to the `Register` signature and pass `onNavigate={onSelectAccount}` to `TransactionRow` in the row map.
+
+- [ ] **Step 12: wire App** — in `src/App.jsx`, add `onSelectAccount={setSelectedAccountId}` to the `<Register>` props.
+
+- [ ] **Step 13: add CSS** — in `src/App.css`, after the transfer chip rules:
+
+```css
+.txn-transfer-jump { margin-left: 0.2rem; background: none; border: none; padding: 0; color: inherit; cursor: pointer; opacity: 0.7; font-size: 0.9em; line-height: 1; }
+.txn-transfer-jump:hover { opacity: 1; }
+```
+
+- [ ] **Step 14: run green + full suite + lint** — `npx vitest run src/Register.test.jsx`, then `npx vitest run`, then `npx eslint` on the touched files → all PASS / 0 errors.
+
+- [ ] **Step 15: commit**
+
+```bash
+git add src/accountsModel.js src/accountsModel.test.js src/TransactionRow.jsx src/TransactionRow.test.jsx src/Register.jsx src/Register.test.jsx src/App.jsx src/App.css
+git commit -m "feat(transfers): jump-to-counterpart button on the transfer chip
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+```
+
+---
+
 ## Self-Review
 
 **1. Spec coverage:**
