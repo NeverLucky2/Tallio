@@ -180,6 +180,7 @@ export function transferInfo(leg, transactions, accountsById, typesById) {
   const acct = accountsById && accountsById.get(partner.accountId);
   if (!acct) return null;
   return {
+    counterpartId: acct.id,
     counterpartName: acct.name,
     direction: (Number.isFinite(leg.amount) && leg.amount < 0) ? 'out' : 'in',
     counterpartClass: accountClass(acct.type, typesById),

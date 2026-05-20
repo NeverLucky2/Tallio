@@ -27,7 +27,7 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {} }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {} }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -93,7 +93,7 @@ export default function Register({ account, transactions, accounts = [], categor
             <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
-              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} transfer={transferInfo(r, transactions, accountsById, typesById)} onEdit={onEditTransaction} />
+              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} transfer={transferInfo(r, transactions, accountsById, typesById)} onNavigate={onSelectAccount} onEdit={onEditTransaction} />
             ))
           )}
         </tbody>

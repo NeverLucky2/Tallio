@@ -59,4 +59,13 @@ describe('TransactionRow', () => {
     render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={catsById} transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset' }} onEdit={() => {}} /></tbody></table>);
     expect(screen.getByText('Savings').className).toContain('txn-transfer--asset');
   });
+
+  it('clicking the chip jump icon navigates to the counterpart and does not open the editor', async () => {
+    const onEdit = vi.fn(); const onNavigate = vi.fn();
+    const row = { ...baseRow, categoryId: null };
+    render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={catsById} transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset', counterpartId: 'a_sav' }} onNavigate={onNavigate} onEdit={onEdit} /></tbody></table>);
+    await userEvent.click(screen.getByRole('button', { name: /go to savings/i }));
+    expect(onNavigate).toHaveBeenCalledWith('a_sav');
+    expect(onEdit).not.toHaveBeenCalled();
+  });
 });

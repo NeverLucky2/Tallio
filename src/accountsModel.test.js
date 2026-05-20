@@ -242,8 +242,8 @@ describe('transfers', () => {
   });
 
   it('transferInfo gives direction + counterpart name; null when unresolved', () => {
-    expect(transferInfo(txns[0], txns, accountsById)).toMatchObject({ counterpartName: 'Savings', direction: 'out' });
-    expect(transferInfo(txns[1], txns, accountsById)).toMatchObject({ counterpartName: 'Checking', direction: 'in' });
+    expect(transferInfo(txns[0], txns, accountsById)).toMatchObject({ counterpartName: 'Savings', direction: 'out', counterpartId: 'a2' });
+    expect(transferInfo(txns[1], txns, accountsById)).toMatchObject({ counterpartName: 'Checking', direction: 'in', counterpartId: 'a1' });
     expect(transferInfo(txns[2], txns, accountsById)).toBeNull(); // not a transfer
     const orphan = { id: 'o', accountId: 'a1', amount: -10, transferId: 'gone' };
     expect(transferInfo(orphan, [orphan], accountsById)).toBeNull(); // partner missing

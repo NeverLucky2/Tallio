@@ -78,4 +78,17 @@ describe('Register', () => {
     expect(screen.getByText('Savings')).toBeTruthy(); // counterpart name
     expect(screen.getByText(/→/)).toBeTruthy();        // outgoing direction
   });
+
+  it('clicking a transfer chip jump icon selects the counterpart account', async () => {
+    const onSelectAccount = vi.fn();
+    const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
+    const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+    ];
+    render(<Register account={chk} transactions={txns} accounts={[chk, sav]} categories={[]} categoriesById={new Map()} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={() => {}} onSelectAccount={onSelectAccount} />);
+    await userEvent.click(screen.getByRole('button', { name: /go to savings/i }));
+    expect(onSelectAccount).toHaveBeenCalledWith('a_sav');
+  });
 });

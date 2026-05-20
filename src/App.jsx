@@ -415,6 +415,7 @@ function BillTracker() {
                   }}
                   onAddTransaction={(accountId) => setEditingTxn({ mode: 'new', accountId })}
                   onTransfer={(accountId) => setEditingTransfer({ mode: 'new', fromAccountId: accountId })}
+                  onSelectAccount={setSelectedAccountId}
                 />
               </>
             )}
