@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import {
   resolvePeriod, monthsInRange, scopeAccountIds,
   incomeExpenseSummary, spendingByCategory, cashFlowByMonth, netWorthByMonth,
-  recurringCharges, findDuplicates,
+  recurringCharges, findDuplicates, classifyRecurring,
 } from './reportsModel.js';
 import PeriodControl from './PeriodControl.jsx';
 import ScopeControl from './ScopeControl.jsx';
@@ -13,7 +13,11 @@ import CashFlowChart from './CashFlowChart.jsx';
 import NetWorthChart from './NetWorthChart.jsx';
 import RecurringList from './RecurringList.jsx';
 
-export default function ReportsScreen({ accounts, transactions, categories, types, typesById, onClose, now }) {
+export default function ReportsScreen({
+  accounts, transactions, categories, types, typesById, onClose, now,
+  subscriptions = {}, dismissedDuplicates = [],
+  onSetStatus = () => {}, onClearStatus = () => {}, onDismissDuplicate = () => {},
+}) {
   const [period, setPeriod] = useState({ preset: 'last-12-months', customStart: '', customEnd: '' });
   const [scope, setScope] = useState({ kind: 'all' });
   const nowDate = useMemo(() => now || new Date(), [now]);
@@ -32,7 +36,9 @@ export default function ReportsScreen({ accounts, transactions, categories, type
   const cashFlow = useMemo(() => cashFlowByMonth(transactions, categoriesById, opts, months), [transactions, categoriesById, opts, months]);
   const netWorth = useMemo(() => netWorthByMonth(accounts, transactions, typesById, opts, months), [accounts, transactions, typesById, opts, months]);
   const recurring = useMemo(() => recurringCharges(transactions, categoriesById, { ...opts, now: nowDate }), [transactions, categoriesById, opts, nowDate]);
-  const duplicates = useMemo(() => findDuplicates(transactions, opts), [transactions, opts]);
+  const classified = useMemo(() => classifyRecurring(recurring, subscriptions), [recurring, subscriptions]);
+  const dismissedSet = useMemo(() => new Set(dismissedDuplicates), [dismissedDuplicates]);
+  const duplicates = useMemo(() => findDuplicates(transactions, { ...opts, dismissed: dismissedSet }), [transactions, opts, dismissedSet]);
 
   return (
     <div className="screen-overlay">
@@ -69,7 +75,13 @@ export default function ReportsScreen({ accounts, transactions, categories, type
 
         <section className="panel">
           <div className="panel-header"><h3 className="panel-title">Recurring &amp; subscriptions</h3></div>
-          <RecurringList items={recurring} duplicates={duplicates} />
+          <RecurringList
+            classified={classified}
+            duplicates={duplicates}
+            onSetStatus={onSetStatus}
+            onClearStatus={onClearStatus}
+            onDismissDuplicate={onDismissDuplicate}
+          />
         </section>
       </div>
     </div>

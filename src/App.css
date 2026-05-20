@@ -3410,3 +3410,14 @@
 .recurring-row.is-active .recurring-flag { color: var(--green, #3ddba0); }
 .recurring-dups { margin-top: 12px; }
 .recurring-dups-title { margin: 0 0 6px; font-size: 13px; }
+
+/* Reports — recurring acknowledgments */
+.recurring-group { margin-bottom: 10px; }
+.recurring-group-title { margin: 8px 0 4px; font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.recurring-group-title.is-alert { color: var(--red, #e06c6c); }
+.recurring-group-title.is-ongoing { color: var(--green, #3ddba0); }
+.recurring-row.is-alert { background: rgba(224, 108, 108, 0.12); }
+.recurring-actions, .recurring-cancel-edit { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.recurring-btn { font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; }
+.recurring-btn:hover { border-color: var(--accent); }
+.recurring-cancel-edit .input { font-size: 12px; padding: 2px 6px; }

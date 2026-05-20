@@ -45,4 +45,18 @@ describe('ReportsScreen', () => {
     expect(screen.getByText('Savings')).toBeTruthy();
     expect(screen.getByText(/\$4,400/)).toBeTruthy(); // 5000 income − 600 spending
   });
+  it('hides a duplicate whose signature has been dismissed', () => {
+    const dupTxns = [
+      { id: 'p1', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payee: 'OfficeMax' },
+      { id: 'p2', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payee: 'OfficeMax' },
+    ];
+    const base = {
+      accounts, categories, types: DEFAULT_ACCOUNT_TYPES, typesById: DEFAULT_ACCOUNT_TYPES_BY_ID,
+      now: NOW, onClose: () => {},
+    };
+    const { rerender } = render(<ReportsScreen {...base} transactions={dupTxns} />);
+    expect(screen.getByText('OfficeMax')).toBeTruthy();
+    rerender(<ReportsScreen {...base} transactions={dupTxns} dismissedDuplicates={['p1|p2']} />);
+    expect(screen.queryByText('OfficeMax')).toBeNull();
+  });
 });
