@@ -3361,3 +3361,52 @@
 .type-row-meta { margin-left: auto; font-size: 0.72rem; color: var(--muted, #8a8a9a); }
 .type-row .btn { margin-left: 0.5rem; }
 .type-add { margin-top: 0.5rem; }
+
+/* ---- Reports ---- */
+.reports-screen { max-width: 760px; }
+.reports-controls {
+  position: sticky; top: 49px; z-index: 1; background: var(--bg);
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.period-control { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 220px; }
+.period-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.period-chip {
+  padding: 4px 10px; font-size: 12px; border: 1px solid var(--border);
+  border-radius: 999px; background: transparent; color: var(--text); cursor: pointer;
+}
+.period-chip-active { background: var(--accent); border-color: var(--accent); color: #11161c; font-weight: 600; }
+.period-custom { display: flex; gap: 10px; flex-wrap: wrap; }
+.period-date { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+.scope-control { min-width: 180px; }
+
+.scorecard { padding: 4px 0; }
+.scorecard-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.scorecard-item { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 120px; }
+.scorecard-item-hero { border-left: 2px solid var(--border); padding-left: 16px; }
+.scorecard-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.scorecard-value { font-size: 22px; font-weight: 700; }
+.scorecard-pos { color: var(--green, #3ddba0); }
+.scorecard-neg { color: var(--red, #e06c6c); }
+.scorecard-rate { font-size: 12px; color: var(--text-dim); }
+.scorecard-sub { margin: 10px 0 0; font-size: 12px; color: var(--text-dim); }
+
+.cat-pct { font-size: 11px; color: var(--text-dim); margin-left: 4px; }
+
+.chart { display: block; margin: 4px 0; }
+.chart-axis { stroke: var(--border); stroke-width: 1; }
+.cashflow-bar.is-pos { fill: var(--green, #3ddba0); }
+.cashflow-bar.is-neg { fill: var(--red, #e06c6c); }
+.networth-line { stroke: var(--accent, #d4a853); stroke-width: 2; }
+.networth-dot { fill: var(--accent, #d4a853); }
+.networth-current { margin: 4px 0 0; font-size: 13px; color: var(--text-dim); }
+
+.recurring-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.recurring-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; background: var(--surface, rgba(255,255,255,0.03)); }
+.recurring-label { font-weight: 600; flex: 1; }
+.recurring-amt { font-size: 12px; color: var(--text-dim); }
+.recurring-flag { font-size: 12px; }
+.recurring-row.is-stale .recurring-flag { color: var(--red, #e06c6c); }
+.recurring-row.is-active .recurring-flag { color: var(--green, #3ddba0); }
+.recurring-dups { margin-top: 12px; }
+.recurring-dups-title { margin: 0 0 6px; font-size: 13px; }
