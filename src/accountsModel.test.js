@@ -164,3 +164,60 @@ describe('sortRows', () => {
     expect(out.find(r => r.id === 'r2').balance).toBe(-12.29);
   });
 });
+
+import { DEFAULT_ACCOUNT_TYPES, groupOrder } from './accountsModel.js';
+
+describe('account types as data', () => {
+  it('DEFAULT_ACCOUNT_TYPES is an ordered array of the 7 built-ins with ids', () => {
+    expect(DEFAULT_ACCOUNT_TYPES.map(t => t.id)).toEqual(
+      ['bank', 'investment', 'credit_card', 'loan', 'mortgage', 'person', 'untyped']
+    );
+    for (const t of DEFAULT_ACCOUNT_TYPES) {
+      expect(typeof t.label).toBe('string');
+      expect(['asset', 'liability', 'offsheet']).toContain(t.klass);
+      expect(['bank', 'compact']).toContain(t.layout);
+      expect(t.builtin).toBe(true);
+    }
+  });
+
+  it('helpers resolve against a custom typesById registry', () => {
+    const custom = new Map([['hsa', { id: 'hsa', label: 'HSA', klass: 'asset', layout: 'bank', group: 'Health', icon: '🏥' }]]);
+    expect(accountClass('hsa', custom)).toBe('asset');
+    expect(layoutFor('hsa', custom)).toBe('bank');
+    expect(groupFor('hsa', custom)).toBe('Health');
+    expect(isOnBalanceSheet('hsa', custom)).toBe(true);
+  });
+
+  it('unknown / deleted type ids fall back to off-sheet / compact / Unassigned', () => {
+    const empty = new Map();
+    expect(accountClass('gone', empty)).toBe('offsheet');
+    expect(layoutFor('gone', empty)).toBe('compact');
+    expect(groupFor('gone', empty)).toBe('Unassigned');
+    expect(isOnBalanceSheet('gone', empty)).toBe(false);
+  });
+
+  it('householdTotals honors a custom registry', () => {
+    const types = new Map([
+      ['cash', { id: 'cash', klass: 'asset',     layout: 'bank',    group: 'Cash' }],
+      ['card', { id: 'card', klass: 'liability', layout: 'compact', group: 'Debt' }],
+    ]);
+    const accounts = [
+      { id: 'a1', type: 'cash', openingBalance: 1000 },
+      { id: 'a2', type: 'card', openingBalance: -200 },
+    ];
+    const totals = householdTotals(accounts, [], types);
+    expect(totals.assets).toBe(1000);
+    expect(totals.owed).toBe(200);
+    expect(totals.netWorth).toBe(800);
+  });
+
+  it('groupOrder lists groups in first-seen order with Unassigned last', () => {
+    const types = [
+      { id: 'a', group: 'Cash' },
+      { id: 'b', group: 'Unassigned' },
+      { id: 'c', group: 'Investments' },
+      { id: 'd', group: 'Cash' },
+    ];
+    expect(groupOrder(types)).toEqual(['Cash', 'Investments', 'Unassigned']);
+  });
+});

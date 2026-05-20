@@ -1,31 +1,52 @@
 // src/accountsModel.js
 
-// Account type registry. `klass` drives net-worth inclusion; `layout` drives
-// which register columns render; `group` is the sidebar section header.
-export const ACCOUNT_TYPES = {
-  bank:        { label: 'Bank / Cash',       klass: 'asset',     layout: 'bank',    group: 'Cash & Bank' },
-  investment:  { label: 'Investments',       klass: 'asset',     layout: 'compact', group: 'Investments' },
-  credit_card: { label: 'Credit card',       klass: 'liability', layout: 'compact', group: 'Credit cards & loans' },
-  loan:        { label: 'Loan',              klass: 'liability', layout: 'compact', group: 'Credit cards & loans' },
-  mortgage:    { label: 'Mortgage',          klass: 'liability', layout: 'compact', group: 'Credit cards & loans' },
-  person:      { label: 'Person / External', klass: 'offsheet',  layout: 'compact', group: 'People & external' },
-  untyped:     { label: 'Unassigned',        klass: 'offsheet',  layout: 'compact', group: 'Unassigned' },
-};
-
-export const GROUP_ORDER = [
-  'Cash & Bank', 'Investments', 'Credit cards & loans', 'People & external', 'Unassigned',
+// Default (built-in) account types as an ordered array — the seed for
+// useAccountTypes. `klass` drives net-worth inclusion; `layout` drives register
+// columns; `group` is the sidebar section header. Ids are stable so existing
+// accounts (which store `type: '<id>'`) keep resolving.
+export const DEFAULT_ACCOUNT_TYPES = [
+  { id: 'bank',        label: 'Bank / Cash',       klass: 'asset',     layout: 'bank',    group: 'Cash & Bank',          icon: '🏦', builtin: true },
+  { id: 'investment',  label: 'Investments',       klass: 'asset',     layout: 'compact', group: 'Investments',          icon: '📈', builtin: true },
+  { id: 'credit_card', label: 'Credit card',       klass: 'liability', layout: 'compact', group: 'Credit cards & loans', icon: '💳', builtin: true },
+  { id: 'loan',        label: 'Loan',              klass: 'liability', layout: 'compact', group: 'Credit cards & loans', icon: '🏷️', builtin: true },
+  { id: 'mortgage',    label: 'Mortgage',          klass: 'liability', layout: 'compact', group: 'Credit cards & loans', icon: '🏠', builtin: true },
+  { id: 'person',      label: 'Person / External', klass: 'offsheet',  layout: 'compact', group: 'People & external',    icon: '👤', builtin: true },
+  { id: 'untyped',     label: 'Unassigned',        klass: 'offsheet',  layout: 'compact', group: 'Unassigned',           icon: '🏦', builtin: true },
 ];
 
-const typeOrFallback = (type) => ACCOUNT_TYPES[type] || ACCOUNT_TYPES.untyped;
+// Returned for any account whose type id is not in the registry (e.g. a deleted
+// type). Keeps balances and layout safe.
+const FALLBACK_TYPE = { id: 'untyped', label: 'Unassigned', klass: 'offsheet', layout: 'compact', group: 'Unassigned', icon: '🏦', builtin: true };
 
-export function accountClass(type) { return typeOrFallback(type).klass; }
-export function layoutFor(type)    { return typeOrFallback(type).layout; }
-export function groupFor(type)     { return typeOrFallback(type).group; }
+export const DEFAULT_ACCOUNT_TYPES_BY_ID = new Map(DEFAULT_ACCOUNT_TYPES.map(t => [t.id, t]));
 
-export function isOnBalanceSheet(type) {
-  const k = accountClass(type);
+// Back-compat exports (built-in registry as an object + fixed group order).
+export const ACCOUNT_TYPES = Object.fromEntries(DEFAULT_ACCOUNT_TYPES.map(t => [t.id, t]));
+
+const resolveType = (typeId, typesById) =>
+  (typesById || DEFAULT_ACCOUNT_TYPES_BY_ID).get(typeId) || FALLBACK_TYPE;
+
+export function accountClass(typeId, typesById) { return resolveType(typeId, typesById).klass; }
+export function layoutFor(typeId, typesById)    { return resolveType(typeId, typesById).layout; }
+export function groupFor(typeId, typesById)     { return resolveType(typeId, typesById).group; }
+
+export function isOnBalanceSheet(typeId, typesById) {
+  const k = accountClass(typeId, typesById);
   return k === 'asset' || k === 'liability';
 }
+
+// Sidebar group order, derived from the types array: first-seen order, with the
+// fallback group ('Unassigned') always present and last.
+export function groupOrder(types) {
+  const FALLBACK_GROUP = 'Unassigned';
+  const seen = [];
+  for (const t of types || []) {
+    if (t && t.group && t.group !== FALLBACK_GROUP && !seen.includes(t.group)) seen.push(t.group);
+  }
+  return [...seen, FALLBACK_GROUP];
+}
+
+export const GROUP_ORDER = groupOrder(DEFAULT_ACCOUNT_TYPES);
 
 // Flow → sign of the balance delta. Income raises the holding account; expense
 // and savings lower it. Used by migration and the transaction editor to convert
@@ -66,10 +87,10 @@ export function computeRegister(account, transactions) {
 
 // Household roll-ups. netWorth = Σ on-balance-sheet balances; assets = Σ asset
 // balances; owed = Σ |negative liability balances|. person/untyped excluded.
-export function householdTotals(accounts, transactions) {
+export function householdTotals(accounts, transactions, typesById) {
   let netWorth = 0, assets = 0, owed = 0;
   for (const a of accounts || []) {
-    const k = accountClass(a.type);
+    const k = accountClass(a.type, typesById);
     if (k === 'asset') {
       const b = accountBalance(a, transactions);
       assets += b; netWorth += b;
