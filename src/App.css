@@ -3329,3 +3329,8 @@
 
 /* Account editor */
 .dialog-hint { font-size: 0.72rem; color: var(--muted, #8a8a9a); margin: 0.25rem 0 0.5rem; }
+
+/* Accounts layout */
+.accounts-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.25rem; align-items: start; }
+@media (max-width: 860px) { .accounts-layout { grid-template-columns: 1fr; } }
+.account-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }

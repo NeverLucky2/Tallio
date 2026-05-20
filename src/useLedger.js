@@ -16,6 +16,8 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     try {
       localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
       localStorage.setItem(TXN_KEY, JSON.stringify(transactions));
+      // Clear a prior quota error once a save succeeds. No-op when already null.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError) setStorageError(null);
     } catch (e) {
       console.error('Failed to save ledger:', e);
