@@ -59,4 +59,23 @@ describe('Register', () => {
     await userEvent.click(screen.getByRole('button', { name: /amount/i }));
     expect(screen.getAllByText(/Walmart|Netflix/).map(n => n.textContent)[0]).toBe('Walmart');
   });
+
+  it('shows a ⇄ Transfer button that fires onTransfer with the account id', async () => {
+    const onTransfer = vi.fn();
+    render(<Register account={account} transactions={transactions} accounts={[account]} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={onTransfer} />);
+    await userEvent.click(screen.getByRole('button', { name: /^transfer$/i }));
+    expect(onTransfer).toHaveBeenCalledWith('a_cc');
+  });
+
+  it('renders a transfer leg with a counterpart chip', () => {
+    const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
+    const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+    ];
+    render(<Register account={chk} transactions={txns} accounts={[chk, sav]} categories={[]} categoriesById={new Map()} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={() => {}} />);
+    expect(screen.getByText('Savings')).toBeTruthy(); // counterpart name
+    expect(screen.getByText(/→/)).toBeTruthy();        // outgoing direction
+  });
 });

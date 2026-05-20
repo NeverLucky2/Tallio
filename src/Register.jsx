@@ -1,6 +1,6 @@
 // src/Register.jsx
 import React, { useMemo, useState } from 'react';
-import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance } from './accountsModel.js';
+import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -27,7 +27,7 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, categories, categoriesById, typesById, onEditTransaction, onAddTransaction }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {} }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -44,6 +44,8 @@ export default function Register({ account, transactions, categories, categories
     return sortRows(filtered, sort, categoriesById);
   }, [account, transactions, search, month, categoryId, categoriesById, sort]);
 
+  const accountsById = useMemo(() => new Map((accounts || []).map(a => [a.id, a])), [accounts]);
+
   const onHeaderClick = (col) => {
     setSort(prev => prev.key === col.key
       ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
@@ -58,6 +60,7 @@ export default function Register({ account, transactions, categories, categories
         <h2 className="register-title"><span className="register-icon" aria-hidden="true">{account.icon}</span> {account.name}</h2>
         <span className="register-balance">{balanceLabel}</span>
         <button type="button" className="btn" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ Add transaction</button>
+        <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
       </div>
 
       <div className="register-filters">
@@ -90,7 +93,7 @@ export default function Register({ account, transactions, categories, categories
             <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
-              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} onEdit={onEditTransaction} />
+              <TransactionRow key={r.id} layout={layout} row={r} categoriesById={categoriesById} transfer={transferInfo(r, transactions, accountsById)} onEdit={onEditTransaction} />
             ))
           )}
         </tbody>
