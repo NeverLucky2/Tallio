@@ -75,3 +75,54 @@ export function filterRows(transactions, { start = null, end = null, accountIds 
     return true;
   });
 }
+
+// Internal: a row's countable flow, or null for transfer legs / uncategorized rows.
+function flowOf(t, categoriesById) {
+  if (!t || t.transferId != null) return null;
+  const cat = categoriesById && categoriesById.get(t.categoryId);
+  const f = cat && cat.flow;
+  return (f === 'income' || f === 'expense' || f === 'savings') ? f : null;
+}
+
+// Income / Spending / Savings over flow-countable rows in scope+period. NET IS SAVINGS.
+export function incomeExpenseSummary(transactions, categoriesById, opts = {}) {
+  const rows = filterRows(transactions, opts);
+  let income = 0, expenseSigned = 0, savingsSigned = 0;
+  for (const t of rows) {
+    const f = flowOf(t, categoriesById);
+    if (!f) continue;
+    const amt = Number.isFinite(t.amount) ? t.amount : 0;
+    if (f === 'income') income += amt;
+    else if (f === 'expense') expenseSigned += amt;
+    else savingsSigned += amt;
+  }
+  const spending = -expenseSigned;
+  const earmarked = -savingsSigned;
+  const savings = income - spending;
+  return { income, spending, savings, savingsRate: income > 0 ? savings / income : 0, earmarked };
+}
+
+// Expense-flow totals per category, descending. total = magnitude (refunds reduce it).
+export function spendingByCategory(transactions, categoriesById, opts = {}) {
+  const rows = filterRows(transactions, opts);
+  const signed = new Map();
+  for (const t of rows) {
+    if (flowOf(t, categoriesById) !== 'expense') continue;
+    const amt = Number.isFinite(t.amount) ? t.amount : 0;
+    signed.set(t.categoryId, (signed.get(t.categoryId) || 0) + amt);
+  }
+  const entries = [...signed.entries()].map(([categoryId, sum]) => {
+    const cat = (categoriesById && categoriesById.get(categoryId)) || {};
+    return {
+      categoryId,
+      name: cat.name || 'Uncategorized',
+      icon: cat.icon || '📋',
+      color: cat.color || '#6B7280',
+      total: -sum,
+    };
+  }).filter(e => e.total > 0);
+  const sum = entries.reduce((s, e) => s + e.total, 0);
+  for (const e of entries) e.pct = sum > 0 ? (e.total / sum) * 100 : 0;
+  entries.sort((a, b) => b.total - a.total);
+  return entries;
+}

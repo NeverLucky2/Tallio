@@ -71,3 +71,49 @@ describe('filterRows', () => {
     expect(filterRows(txns, {}).map(t => t.id)).toEqual(['t1', 't2', 't3']);
   });
 });
+
+import { incomeExpenseSummary, spendingByCategory } from './reportsModel.js';
+
+const cats = new Map([
+  ['c_inc', { id: 'c_inc', name: 'Salary',    icon: '💰', color: '#0a0', flow: 'income' }],
+  ['c_gro', { id: 'c_gro', name: 'Groceries', icon: '🛒', color: '#a00', flow: 'expense' }],
+  ['c_din', { id: 'c_din', name: 'Dining',    icon: '🍽️', color: '#b50', flow: 'expense' }],
+  ['c_sav', { id: 'c_sav', name: 'Brokerage', icon: '📈', color: '#05a', flow: 'savings' }],
+]);
+
+const txns = [
+  { id: 'i1', accountId: 'a1', date: '2026-05-02', amount:  5000, categoryId: 'c_inc' },
+  { id: 'g1', accountId: 'a1', date: '2026-05-03', amount:  -600, categoryId: 'c_gro' },
+  { id: 'g2', accountId: 'a1', date: '2026-05-09', amount:   -50, categoryId: 'c_gro' },
+  { id: 'r1', accountId: 'a1', date: '2026-05-10', amount:    20, categoryId: 'c_gro' }, // grocery refund
+  { id: 'd1', accountId: 'a1', date: '2026-05-12', amount:  -400, categoryId: 'c_din' },
+  { id: 's1', accountId: 'a1', date: '2026-05-15', amount: -1000, categoryId: 'c_sav' }, // savings outflow
+  { id: 'x1', accountId: 'a1', date: '2026-05-20', amount:  -300, categoryId: null, transferId: 'tr1' }, // transfer leg
+];
+
+describe('incomeExpenseSummary', () => {
+  it('savings = income − spending; transfers + savings-flow excluded from spending; refunds net', () => {
+    const s = incomeExpenseSummary(txns, cats, {});
+    expect(s.income).toBeCloseTo(5000, 2);
+    expect(s.spending).toBeCloseTo(1030, 2); // 600 + 50 − 20 (refund) + 400
+    expect(s.savings).toBeCloseTo(3970, 2);  // 5000 − 1030
+    expect(s.savingsRate).toBeCloseTo(3970 / 5000, 4);
+    expect(s.earmarked).toBeCloseTo(1000, 2); // savings-flow magnitude (informational, not subtracted)
+  });
+  it('savingsRate guarded when no income', () => {
+    expect(incomeExpenseSummary([txns[1]], cats, {}).savingsRate).toBe(0);
+  });
+});
+
+describe('spendingByCategory', () => {
+  it('expense-flow only, descending, pct sums ~100, transfers/savings excluded', () => {
+    const rows = spendingByCategory(txns, cats, {});
+    expect(rows.map(r => r.categoryId)).toEqual(['c_gro', 'c_din']); // 630 then 400
+    expect(rows[0]).toMatchObject({ name: 'Groceries', total: 630 });
+    expect(rows[1]).toMatchObject({ name: 'Dining', total: 400 });
+    expect(Math.round(rows.reduce((s, r) => s + r.pct, 0))).toBe(100);
+  });
+  it('empty when no expenses', () => {
+    expect(spendingByCategory([txns[0]], cats, {})).toEqual([]);
+  });
+});
