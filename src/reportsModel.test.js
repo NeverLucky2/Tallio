@@ -169,3 +169,46 @@ describe('netWorthByMonth', () => {
     expect(rows[0].netWorth).toBe(rows[1].netWorth); // 1000 both months
   });
 });
+
+import { recurringCharges, findDuplicates } from './reportsModel.js';
+
+describe('recurringCharges', () => {
+  const cats3 = new Map([['exp', { flow: 'expense' }], ['inc', { flow: 'income' }]]);
+  const now = new Date(2026, 4, 20); // May 2026
+  const recTxns = [
+    // Netflix every month Mar/Apr/May → active
+    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    { id: 'n3', accountId: 'a', date: '2026-05-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    // OldApp Jan/Feb only → stale (not active in May)
+    { id: 'o1', accountId: 'a', date: '2026-01-09', amount: -9.99, categoryId: 'exp', payee: 'OldApp' },
+    { id: 'o2', accountId: 'a', date: '2026-02-09', amount: -9.99, categoryId: 'exp', payee: 'OldApp' },
+    // single-month coffee → not recurring
+    { id: 'c1', accountId: 'a', date: '2026-05-01', amount: -4.50, categoryId: 'exp', payee: 'Cafe' },
+    // income ignored
+    { id: 'p1', accountId: 'a', date: '2026-05-01', amount: 4000, categoryId: 'inc', payee: 'Work' },
+  ];
+  it('groups ≥2-month expense charges, flags active vs stale, active-first', () => {
+    const rows = recurringCharges(recTxns, cats3, { now });
+    expect(rows.map(r => r.label)).toEqual(['Netflix', 'OldApp']); // active first
+    const netflix = rows[0];
+    expect(netflix).toMatchObject({ active: true, occurrences: 3, monthCount: 3 });
+    expect(netflix.avgAmount).toBeCloseTo(15.99, 2);
+    expect(rows[1]).toMatchObject({ label: 'OldApp', active: false });
+  });
+});
+
+describe('findDuplicates', () => {
+  const dupTxns = [
+    { id: 'd1', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' },
+    { id: 'd2', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' }, // dup
+    { id: 'n1', accountId: 'a', date: '2026-04-04', amount: -54.10, payee: 'Amazon', categoryId: 'exp' }, // diff day
+    { id: 'tr', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: null, transferId: 'x', categoryId: null },
+  ];
+  it('flags same account+date+amount+label collisions; ignores diff-day and transfers', () => {
+    const dups = findDuplicates(dupTxns, {});
+    expect(dups).toHaveLength(1);
+    expect(dups[0]).toMatchObject({ accountId: 'a', amount: -54.10, date: '2026-04-03', label: 'Amazon' });
+    expect(dups[0].ids.sort()).toEqual(['d1', 'd2']);
+  });
+});

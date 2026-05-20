@@ -167,3 +167,92 @@ export function netWorthByMonth(accounts, transactions, typesById, opts = {}, mo
     return { month: mo, assets, owed, netWorth };
   });
 }
+
+function normalizeLabel(s) {
+  return (typeof s === 'string' ? s : '').toUpperCase().trim().replace(/\s+/g, ' ');
+}
+function monthsBetween(fromMonth, toMonth) {
+  const [y1, m1] = fromMonth.split('-').map(n => parseInt(n, 10));
+  const [y2, m2] = toMonth.split('-').map(n => parseInt(n, 10));
+  return (y2 - y1) * 12 + (m2 - m1);
+}
+function mode(values) {
+  const counts = new Map();
+  for (const v of values) counts.set(v, (counts.get(v) || 0) + 1);
+  let best = values[0], max = 0;
+  for (const [v, c] of counts) if (c > max) { best = v; max = c; }
+  return best;
+}
+
+// Repeating expense charges grouped by normalized payee/description, spanning ≥2 months.
+export function recurringCharges(transactions, categoriesById, opts = {}) {
+  const { now = new Date() } = opts;
+  const nowMonth = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const groups = new Map();
+  for (const t of filterRows(transactions, opts)) {
+    if (flowOf(t, categoriesById) !== 'expense') continue;
+    const date = typeof t.date === 'string' ? t.date : '';
+    if (!DATE_RE.test(date)) continue;
+    const key = normalizeLabel(t.payee || t.description);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({
+      date, month: date.slice(0, 7),
+      amount: -(Number.isFinite(t.amount) ? t.amount : 0),
+      categoryId: t.categoryId,
+      label: (t.payee || t.description || '').trim(),
+    });
+  }
+  const results = [];
+  for (const occ of groups.values()) {
+    const monthsSet = new Set(occ.map(o => o.month));
+    if (monthsSet.size < 2) continue;
+    const amounts = occ.map(o => o.amount);
+    const avg = amounts.reduce((s, a) => s + a, 0) / amounts.length;
+    const varies = avg !== 0 && Math.max(...amounts.map(a => Math.abs(a - avg) / Math.abs(avg))) > 0.15;
+    const sorted = [...occ].sort((a, b) => a.date.localeCompare(b.date));
+    const lastMonth = sorted[sorted.length - 1].month;
+    const gap = monthsBetween(lastMonth, nowMonth);
+    results.push({
+      label: mode(occ.map(o => o.label)),
+      categoryId: mode(occ.map(o => o.categoryId)),
+      avgAmount: avg,
+      lastAmount: sorted[sorted.length - 1].amount,
+      occurrences: occ.length,
+      monthCount: monthsSet.size,
+      firstDate: sorted[0].date,
+      lastDate: sorted[sorted.length - 1].date,
+      active: gap >= 0 && gap <= 1,
+      varies,
+    });
+  }
+  results.sort((a, b) => (a.active !== b.active ? (a.active ? -1 : 1) : Math.abs(b.avgAmount) - Math.abs(a.avgAmount)));
+  return results;
+}
+
+// Likely dual charges: same account + date + amount + normalized label, ≥2 rows. Transfers excluded.
+export function findDuplicates(transactions, opts = {}) {
+  const groups = new Map();
+  for (const t of filterRows(transactions, opts)) {
+    if (t.transferId != null) continue;
+    const date = typeof t.date === 'string' ? t.date : '';
+    if (!DATE_RE.test(date)) continue;
+    const amt = Number.isFinite(t.amount) ? Math.round(t.amount * 100) / 100 : 0;
+    const key = `${t.accountId}|${date}|${amt}|${normalizeLabel(t.payee || t.description)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(t);
+  }
+  const out = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const t0 = list[0];
+    out.push({
+      accountId: t0.accountId,
+      label: (t0.payee || t0.description || '').trim(),
+      amount: t0.amount,
+      date: t0.date,
+      ids: list.map(t => t.id),
+    });
+  }
+  return out;
+}
