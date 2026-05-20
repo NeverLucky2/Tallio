@@ -1,6 +1,6 @@
 // src/reportsModel.js
 // Pure, ledger-native report aggregation + chart geometry. No React, no storage.
-import { groupFor } from './accountsModel.js';
+import { accountClass, groupFor } from './accountsModel.js';
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -125,4 +125,45 @@ export function spendingByCategory(transactions, categoriesById, opts = {}) {
   for (const e of entries) e.pct = sum > 0 ? (e.total / sum) * 100 : 0;
   entries.sort((a, b) => b.total - a.total);
   return entries;
+}
+
+// Per-month income / spending / net across `months` (default: derived from period bounds).
+export function cashFlowByMonth(transactions, categoriesById, opts = {}, months = null) {
+  const list = months || monthsInRange(opts.start || null, opts.end || null, transactions);
+  const byMonth = new Map(list.map(mo => [mo, { month: mo, income: 0, spending: 0, net: 0 }]));
+  for (const t of filterRows(transactions, opts)) {
+    const f = flowOf(t, categoriesById);
+    if (f !== 'income' && f !== 'expense') continue;
+    const b = byMonth.get(typeof t.date === 'string' ? t.date.slice(0, 7) : '');
+    if (!b) continue;
+    const amt = Number.isFinite(t.amount) ? t.amount : 0;
+    if (f === 'income') b.income += amt; else b.spending += -amt;
+  }
+  const out = list.map(mo => byMonth.get(mo));
+  for (const b of out) b.net = b.income - b.spending;
+  return out;
+}
+
+// Household net worth as-of each month-end. On-balance-sheet accounts only; transfers net out.
+export function netWorthByMonth(accounts, transactions, typesById, opts = {}, months = null) {
+  const list = months || monthsInRange(opts.start || null, opts.end || null, transactions);
+  const accountIds = opts.accountIds || null;
+  const scoped = (accounts || []).filter(a => a && (!accountIds || accountIds.has(a.id)));
+  return list.map(mo => {
+    let assets = 0, owed = 0, netWorth = 0;
+    for (const a of scoped) {
+      const k = accountClass(a.type, typesById);
+      if (k !== 'asset' && k !== 'liability') continue;
+      let bal = Number.isFinite(a.openingBalance) ? a.openingBalance : 0;
+      for (const t of transactions || []) {
+        if (t && t.accountId === a.id && Number.isFinite(t.amount)
+            && typeof t.date === 'string' && t.date.slice(0, 7) <= mo) {
+          bal += t.amount;
+        }
+      }
+      netWorth += bal;
+      if (k === 'asset') assets += bal; else owed += Math.abs(Math.min(0, bal));
+    }
+    return { month: mo, assets, owed, netWorth };
+  });
 }

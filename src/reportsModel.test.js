@@ -117,3 +117,55 @@ describe('spendingByCategory', () => {
     expect(spendingByCategory([txns[0]], cats, {})).toEqual([]);
   });
 });
+
+import { cashFlowByMonth, netWorthByMonth } from './reportsModel.js';
+
+describe('cashFlowByMonth', () => {
+  const cats2 = new Map([
+    ['inc', { flow: 'income' }],
+    ['exp', { flow: 'expense' }],
+  ]);
+  const t = [
+    { id: '1', accountId: 'a', date: '2026-01-10', amount: 1000, categoryId: 'inc' },
+    { id: '2', accountId: 'a', date: '2026-01-20', amount: -300, categoryId: 'exp' },
+    { id: '3', accountId: 'a', date: '2026-03-05', amount: -200, categoryId: 'exp' },
+    { id: '4', accountId: 'a', date: '2026-02-01', amount: -50, categoryId: null, transferId: 'x' }, // transfer
+  ];
+  it('one bucket per month with per-month net; empty months are zero; transfers ignored', () => {
+    const rows = cashFlowByMonth(t, cats2, {}, ['2026-01', '2026-02', '2026-03']);
+    expect(rows).toEqual([
+      { month: '2026-01', income: 1000, spending: 300, net: 700 },
+      { month: '2026-02', income: 0, spending: 0, net: 0 },
+      { month: '2026-03', income: 0, spending: 200, net: -200 },
+    ]);
+  });
+});
+
+describe('netWorthByMonth', () => {
+  const typesById = undefined; // use built-in defaults: bank=asset, credit_card=liability, person=offsheet
+  const accounts = [
+    { id: 'bank', type: 'bank', openingBalance: 1000 },
+    { id: 'card', type: 'credit_card', openingBalance: 0 },
+    { id: 'fren', type: 'person', openingBalance: 999 }, // off-sheet, must be ignored
+  ];
+  const txns2 = [
+    { id: 'p', accountId: 'bank', date: '2026-02-15', amount: 500 },   // raises assets from Feb on
+    { id: 'c', accountId: 'card', date: '2026-03-10', amount: -200 },  // owes from Mar on
+  ];
+  it('as-of each month-end; off-sheet excluded; later txns only affect later months', () => {
+    const rows = netWorthByMonth(accounts, txns2, typesById, {}, ['2026-01', '2026-02', '2026-03']);
+    expect(rows).toEqual([
+      { month: '2026-01', assets: 1000, owed: 0, netWorth: 1000 },
+      { month: '2026-02', assets: 1500, owed: 0, netWorth: 1500 },
+      { month: '2026-03', assets: 1500, owed: 200, netWorth: 1300 },
+    ]);
+  });
+  it('on-sheet → on-sheet transfer leaves net worth flat', () => {
+    const transferTxns = [
+      { id: 'o', accountId: 'bank', date: '2026-02-10', amount: -400, transferId: 'tr', categoryId: null },
+      { id: 'i', accountId: 'card', date: '2026-02-10', amount: 400, transferId: 'tr', categoryId: null },
+    ];
+    const rows = netWorthByMonth(accounts.slice(0, 2), transferTxns, typesById, {}, ['2026-01', '2026-02']);
+    expect(rows[0].netWorth).toBe(rows[1].netWorth); // 1000 both months
+  });
+});
