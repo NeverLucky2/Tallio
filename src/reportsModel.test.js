@@ -212,3 +212,35 @@ describe('findDuplicates', () => {
     expect(dups[0].ids.sort()).toEqual(['d1', 'd2']);
   });
 });
+
+import { sparklinePath, barLayout } from './reportsModel.js';
+
+describe('sparklinePath', () => {
+  it('maps higher values to smaller y; first cmd is M, rest L', () => {
+    const { d, points } = sparklinePath([0, 10], { width: 100, height: 20, pad: 0 });
+    expect(points).toHaveLength(2);
+    expect(points[0].x).toBeCloseTo(0, 2);
+    expect(points[1].x).toBeCloseTo(100, 2);
+    expect(points[0].y).toBeGreaterThan(points[1].y); // value 10 sits higher (smaller y)
+    expect(d.startsWith('M')).toBe(true);
+    expect(d).toContain('L');
+  });
+  it('single point centers x; empty → empty path', () => {
+    expect(sparklinePath([5], { width: 100, height: 20, pad: 0 }).points[0].x).toBeCloseTo(50, 2);
+    expect(sparklinePath([], {})).toEqual({ d: '', points: [] });
+  });
+});
+
+describe('barLayout', () => {
+  it('baseline at mid-height; negatives flagged and drawn below', () => {
+    const bars = barLayout([10, -10], { width: 100, height: 40, gap: 0 });
+    expect(bars).toHaveLength(2);
+    expect(bars[0].negative).toBe(false);
+    expect(bars[1].negative).toBe(true);
+    expect(bars[0].y + bars[0].height).toBeCloseTo(20, 2); // top bar ends at baseline
+    expect(bars[1].y).toBeCloseTo(20, 2);                  // bottom bar starts at baseline
+  });
+  it('empty → []', () => {
+    expect(barLayout([], {})).toEqual([]);
+  });
+});

@@ -256,3 +256,34 @@ export function findDuplicates(transactions, opts = {}) {
   }
   return out;
 }
+
+// SVG polyline geometry for a trend line. Higher value → smaller y (drawn higher).
+export function sparklinePath(values, { width = 100, height = 30, pad = 2 } = {}) {
+  const n = (values || []).length;
+  if (n === 0) return { d: '', points: [] };
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const innerW = Math.max(0, width - pad * 2);
+  const innerH = Math.max(0, height - pad * 2);
+  const points = values.map((v, i) => ({
+    x: n === 1 ? pad + innerW / 2 : pad + (i / (n - 1)) * innerW,
+    y: pad + innerH - ((v - min) / span) * innerH,
+  }));
+  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  return { d, points };
+}
+
+// Rect geometry for a +/- bar chart with the zero baseline at mid-height.
+export function barLayout(values, { width = 100, height = 40, gap = 2 } = {}) {
+  const n = (values || []).length;
+  if (n === 0) return [];
+  const maxAbs = Math.max(1, ...values.map(v => Math.abs(v)));
+  const slot = width / n;
+  const barW = Math.max(0, slot - gap);
+  const zeroY = height / 2;
+  return values.map((v, i) => {
+    const h = (Math.abs(v) / maxAbs) * (height / 2);
+    const negative = v < 0;
+    return { x: i * slot + gap / 2, y: negative ? zeroY : zeroY - h, width: barW, height: h, negative };
+  });
+}
