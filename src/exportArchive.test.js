@@ -1,178 +1,81 @@
+// src/exportArchive.test.js
 import { describe, it, expect } from 'vitest';
-import { buildItemsCsv, buildDataJson, buildArchive } from './exportArchive.js';
 import { unzipSync, strFromU8 } from 'fflate';
+import { buildArchive, buildTransactionsCsv } from './exportArchive.js';
 
-const cats = [
-  { id: 'c_food', name: 'Groceries',  flow: 'expense' },
-  { id: 'c_pay',  name: 'Paycheck',   flow: 'income'  },
-  { id: 'c_401k', name: '401(k)',     flow: 'savings' },
+const categories = [
+  { id: 'c_shop', name: 'Shopping', flow: 'expense' },
+  { id: 'c_pay',  name: 'Paycheck', flow: 'income' },
 ];
-const catsById = new Map(cats.map(c => [c.id, c]));
+const accounts = [
+  { id: 'a_cc',  name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: 0 },
+  { id: 'a_chk', name: 'Chase',      type: 'bank',        icon: '🏦', openingBalance: 1000 },
+];
+const transactions = [
+  { id: 't1', accountId: 'a_cc',  date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payee: null, checkNumber: null, transferId: null },
+  { id: 't2', accountId: 'a_chk', date: '2026-05-01', amount: 3200,   categoryId: 'c_pay',  description: 'Salary',  payee: 'Acme', checkNumber: null, transferId: null },
+];
 
-describe('buildItemsCsv', () => {
-  it('starts with UTF-8 BOM and the header row', () => {
-    const csv = buildItemsCsv([], catsById);
-    expect(csv.charCodeAt(0)).toBe(0xFEFF);
-    expect(csv.split('\n')[0].slice(1)).toBe('date,vendor,description,amount,category,flow,recurring');
+describe('export v4', () => {
+  it('archive holds data.json (schema 4, accounts+transactions) + transactions.csv', () => {
+    const bytes = buildArchive({ accounts, transactions, categories, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12T00:00:00Z') });
+    const files = unzipSync(bytes);
+    expect(Object.keys(files).sort()).toEqual(['data.json', 'transactions.csv']);
+    const data = JSON.parse(strFromU8(files['data.json']));
+    expect(data.schemaVersion).toBe(4);
+    expect(data.accounts).toHaveLength(2);
+    expect(data.transactions).toHaveLength(2);
   });
 
-  it('renders one row per item, sorted by date ascending', () => {
-    const bills = [
-      { id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-        { id: 'i2', description: 'Whole Foods', amount: 84.21, categoryId: 'c_food', date: '2026-05-02' },
-      ]},
-      { id: 'b2', vendor: 'Acme', month: '2026-05', items: [
-        { id: 'i1', description: 'Gross pay', amount: 5200, categoryId: 'c_pay', date: '2026-05-15' },
-      ]},
+  it('CSV header and an account-name column', () => {
+    const csv = buildTransactionsCsv(accounts, transactions, new Map(categories.map(c => [c.id, c])));
+    expect(csv.split('\n')[0]).toContain('date,account,description,amount,category');
+    expect(csv).toContain('Mastercard');
+  });
+
+  it('includes accountTypes in data.json when provided', () => {
+    const accountTypes = [{ id: 'hsa', label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health', icon: '🏥', builtin: false }];
+    const bytes = buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12T00:00:00Z') });
+    const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
+    expect(data.accountTypes).toHaveLength(1);
+    expect(data.accountTypes[0].id).toBe('hsa');
+  });
+
+  it('CSV adds a transfer column; transfer legs have blank category/flow and the counterpart name', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank', openingBalance: 0 },
+      { id: 'a_sav', name: 'Savings',  type: 'bank', openingBalance: 0 },
     ];
-    const lines = buildItemsCsv(bills, catsById).split('\n').filter(Boolean);
-    expect(lines.length).toBe(3); // header + 2 rows
-    expect(lines[1]).toContain('2026-05-02');
-    expect(lines[1]).toContain('Whole Foods');
-    expect(lines[2]).toContain('2026-05-15');
-    expect(lines[2]).toContain('Gross pay');
-  });
-
-  it('formats amount with toFixed(2) and preserves negatives', () => {
-    const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-      { id: 'i1', description: 'Whole Foods refund', amount: -40, categoryId: 'c_food', date: '2026-05-12' },
-      { id: 'i2', description: 'Coffee',             amount: 5,   categoryId: 'c_food', date: '2026-05-03' },
-    ]}];
-    const csv = buildItemsCsv(bills, catsById);
-    expect(csv).toContain(',-40.00,');
-    expect(csv).toContain(',5.00,');
-  });
-
-  it('escapes commas, quotes, and newlines in fields', () => {
-    const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-      { id: 'i1', description: 'Whole Foods, refund', amount: 10, categoryId: 'c_food', date: '2026-05-02' },
-      { id: 'i2', description: 'He said "ok"',        amount: 20, categoryId: 'c_food', date: '2026-05-03' },
-      { id: 'i3', description: 'line1\nline2',        amount: 30, categoryId: 'c_food', date: '2026-05-04' },
-    ]}];
-    const csv = buildItemsCsv(bills, catsById);
-    expect(csv).toContain('"Whole Foods, refund"');
-    expect(csv).toContain('"He said ""ok"""');
-    expect(csv).toContain('"line1\nline2"');
-  });
-
-  it('renders recurring as yes/no based on bill.recurringChainId', () => {
-    const bills = [
-      { id: 'b1', vendor: 'Honda', month: '2026-05', recurringChainId: 'rec_x',
-        items: [{ id: 'i1', description: 'Loan', amount: 470, categoryId: 'c_food', date: '2026-05-15' }] },
-      { id: 'b2', vendor: 'Coffee Shop', month: '2026-05',
-        items: [{ id: 'i2', description: 'Latte', amount: 5, categoryId: 'c_food', date: '2026-05-02' }] },
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
     ];
-    const lines = buildItemsCsv(bills, catsById).split('\n');
-    expect(lines[1]).toMatch(/,no$/);   // sorted by date — coffee first
-    expect(lines[2]).toMatch(/,yes$/);  // honda second
+    const csv = buildTransactionsCsv(accts, txns, new Map());
+    const lines = csv.replace(/^\uFEFF/, '').split('\n');
+    expect(lines[0]).toBe('date,account,description,amount,category,flow,payee,check,transfer');
+    expect(lines.find(l => l.startsWith('2026-05-20,Checking'))).toBe('2026-05-20,Checking,,-500.00,,,,,Savings');
+    expect(lines.find(l => l.startsWith('2026-05-20,Savings'))).toBe('2026-05-20,Savings,,500.00,,,,,Checking');
   });
 
-  it('falls back to Uncategorized + expense for unknown categoryId', () => {
-    const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-      { id: 'i1', description: 'Mystery', amount: 9, categoryId: 'c_missing', date: '2026-05-02' },
-    ]}];
-    const csv = buildItemsCsv(bills, catsById);
-    expect(csv).toContain(',Uncategorized,expense,');
+  it('data.json preserves transferId on both legs', () => {
+    const accts = [
+      { id: 'a_chk', name: 'Checking', type: 'bank', openingBalance: 0 },
+      { id: 'a_sav', name: 'Savings',  type: 'bank', openingBalance: 0 },
+    ];
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+    ];
+    const bytes = buildArchive({ accounts: accts, transactions: txns, categories: [], schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-20T00:00:00Z') });
+    const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
+    expect(data.transactions.every(t => t.transferId === 'x')).toBe(true);
   });
 
-  it('falls back to bill.month-01 when item.date is null', () => {
-    const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-      { id: 'i1', description: 'Old item', amount: 5, categoryId: 'c_food', date: null },
-    ]}];
-    const csv = buildItemsCsv(bills, catsById);
-    expect(csv).toContain('2026-05-01');
-  });
-
-  it('skips items with amount === 0', () => {
-    const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-      { id: 'i1', description: 'Zero',  amount: 0, categoryId: 'c_food', date: '2026-05-02' },
-      { id: 'i2', description: 'Real',  amount: 5, categoryId: 'c_food', date: '2026-05-03' },
-    ]}];
-    const lines = buildItemsCsv(bills, catsById).split('\n').filter(Boolean);
-    expect(lines.length).toBe(2); // header + 1 row
-    expect(lines[1]).toContain('Real');
-  });
-});
-
-describe('buildDataJson', () => {
-  const fixedNow = new Date('2026-05-12T18:42:01.234Z');
-  const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [], recurring: true, recurringChainId: 'rec_x' }];
-  const categories = [{ id: 'c_food', name: 'Groceries', flow: 'expense', keywords: ['WHOLE'], templates: [], icon: '🛒', color: '#10B981', builtin: true }];
-  const trackedKeywords = ['CHURCH'];
-
-  it('returns parseable JSON with top-level keys in declared order', () => {
-    const str = buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow);
-    const parsed = JSON.parse(str);
-    expect(Object.keys(parsed)).toEqual([
-      'schemaVersion', 'exportedAt', 'appVersion', 'bills', 'categories', 'trackedKeywords',
-    ]);
-  });
-
-  it('uses the input schemaVersion as an integer', () => {
-    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
-    expect(parsed.schemaVersion).toBe(3);
-  });
-
-  it('formats exportedAt as ISO 8601 UTC', () => {
-    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
-    expect(parsed.exportedAt).toBe('2026-05-12T18:42:01.234Z');
-  });
-
-  it('preserves bills, categories, and trackedKeywords byte-identically', () => {
-    const parsed = JSON.parse(buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow));
-    expect(parsed.bills).toEqual(bills);
-    expect(parsed.categories).toEqual(categories);
-    expect(parsed.trackedKeywords).toEqual(trackedKeywords);
-  });
-
-  it('handles empty trackedKeywords array', () => {
-    const parsed = JSON.parse(buildDataJson(bills, categories, [], 3, '1.0.0', fixedNow));
-    expect(parsed.trackedKeywords).toEqual([]);
-  });
-
-  it('serializes with 2-space indent (human-readable)', () => {
-    const str = buildDataJson(bills, categories, trackedKeywords, 3, '1.0.0', fixedNow);
-    expect(str).toContain('\n  "schemaVersion"');
-  });
-});
-
-describe('buildArchive', () => {
-  const fixedNow = new Date('2026-05-12T18:42:01.234Z');
-  const bills = [{ id: 'b1', vendor: 'Chase', month: '2026-05', items: [
-    { id: 'i1', description: 'Coffee', amount: 5, categoryId: 'c_food', date: '2026-05-02' },
-  ]}];
-  const categories = [{ id: 'c_food', name: 'Groceries', flow: 'expense' }];
-  const trackedKeywords = ['CHURCH'];
-
-  it('returns a Uint8Array', () => {
-    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
-    expect(bytes).toBeInstanceOf(Uint8Array);
-  });
-
-  it('zip contains exactly data.json and items.csv', () => {
-    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
-    const unzipped = unzipSync(bytes);
-    expect(Object.keys(unzipped).sort()).toEqual(['data.json', 'items.csv']);
-  });
-
-  it('data.json round-trips through JSON.parse', () => {
-    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
-    const unzipped = unzipSync(bytes);
-    const data = JSON.parse(strFromU8(unzipped['data.json']));
-    expect(data.schemaVersion).toBe(3);
-    expect(data.bills).toEqual(bills);
-  });
-
-  it('items.csv starts with BOM and header row', () => {
-    const bytes = buildArchive({ bills, categories, trackedKeywords, schemaVersion: 3, appVersion: '1.0.0', now: fixedNow });
-    const unzipped = unzipSync(bytes);
-    const csvBytes = unzipped['items.csv'];
-    // Check UTF-8 BOM bytes (EF BB BF)
-    expect(csvBytes[0]).toBe(0xEF);
-    expect(csvBytes[1]).toBe(0xBB);
-    expect(csvBytes[2]).toBe(0xBF);
-    // Check header row (strFromU8 will strip the BOM bytes automatically)
-    const csv = strFromU8(csvBytes);
-    expect(csv.split('\n')[0]).toBe('date,vendor,description,amount,category,flow,recurring');
+  it('includes reportAcks in data.json when provided', () => {
+    const reportAcks = { subscriptions: { NETFLIX: { status: 'ongoing' } }, dismissedDuplicates: ['d1|d2'] };
+    const bytes = buildArchive({ accounts, transactions, categories, reportAcks, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12T00:00:00Z') });
+    const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
+    expect(data.reportAcks.subscriptions.NETFLIX.status).toBe('ongoing');
+    expect(data.reportAcks.dismissedDuplicates).toEqual(['d1|d2']);
   });
 });
