@@ -210,7 +210,9 @@ export function transferDraftForAccount(account, transactions, accounts, typesBy
   if (accountClass(account.type, typesById) !== 'liability') {
     return { fromAccountId: account.id, toAccountId: undefined, initialAmount: null };
   }
-  const owed = Math.abs(Math.min(0, accountBalance(account, transactions)));
+  // Round to cents so the prefill matches the displayed "Owed" figure (summing
+  // transaction amounts as floats can leave a tail, e.g. 323.78999999999974).
+  const owed = Math.round(Math.abs(Math.min(0, accountBalance(account, transactions))) * 100) / 100;
   const resolves = (id) => !!id && id !== account.id && list.some(a => a.id === id);
   const remembered = resolves(account.defaultPayFromId) ? account.defaultPayFromId : undefined;
   const firstAsset = list.find(a => a.id !== account.id && accountClass(a.type, typesById) === 'asset');

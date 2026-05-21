@@ -348,6 +348,15 @@ describe('transferDraftForAccount', () => {
     expect(transferDraftForAccount(cc, txns, [accounts[0], cc]).initialAmount).toBe(350);
   });
 
+  it('rounds the owed amount to cents (no floating-point tail)', () => {
+    const cc = { id: 'cc', name: 'Visa', type: 'credit_card', openingBalance: 0 };
+    const txns = [
+      { id: 't1', accountId: 'cc', amount: -0.1 },
+      { id: 't2', accountId: 'cc', amount: -0.2 }, // raw sum drifts to -0.30000000000000004
+    ];
+    expect(transferDraftForAccount(cc, txns, [cc]).initialAmount).toBe(0.3);
+  });
+
   it('treats a custom liability type (via typesById) as a liability', () => {
     const typesById = new Map([
       ['store_card', { id: 'store_card', klass: 'liability' }],
