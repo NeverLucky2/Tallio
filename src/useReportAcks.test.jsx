@@ -49,4 +49,26 @@ describe('useReportAcks', () => {
     act(() => result.current.setStatus('NETFLIX', 'ongoing'));
     expect(result.current.exportSnapshot()).toEqual({ subscriptions: { NETFLIX: { status: 'ongoing' } }, dismissedDuplicates: [] });
   });
+  it('restore replaces the full state from a snapshot (undo round-trip)', () => {
+    const { result } = renderHook(() => useReportAcks());
+    let snap;
+    act(() => { snap = result.current.exportSnapshot(); }); // empty snapshot
+    act(() => result.current.setStatus('NETFLIX', 'ongoing'));
+    act(() => result.current.dismissDuplicate('d1|d2'));
+    expect(result.current.subscriptions.NETFLIX).toEqual({ status: 'ongoing' });
+    expect(result.current.dismissedDuplicates).toEqual(['d1|d2']);
+    act(() => result.current.restore(snap));
+    expect(result.current.subscriptions).toEqual({});
+    expect(result.current.dismissedDuplicates).toEqual([]);
+  });
+  it('restore tolerates a missing or partial snapshot', () => {
+    const { result } = renderHook(() => useReportAcks());
+    act(() => result.current.setStatus('NETFLIX', 'ongoing'));
+    act(() => result.current.restore(undefined));
+    expect(result.current.subscriptions).toEqual({});
+    expect(result.current.dismissedDuplicates).toEqual([]);
+    act(() => result.current.restore({ subscriptions: { X: { status: 'ongoing' } } }));
+    expect(result.current.subscriptions.X.status).toBe('ongoing');
+    expect(result.current.dismissedDuplicates).toEqual([]);
+  });
 });

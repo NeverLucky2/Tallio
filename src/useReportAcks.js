@@ -72,11 +72,17 @@ export default function useReportAcks() {
     () => ({ subscriptions: acks.subscriptions, dismissedDuplicates: acks.dismissedDuplicates }),
     [acks]
   );
+  const restore = useCallback((snapshot) => {
+    setAcks({
+      subscriptions: (snapshot && typeof snapshot.subscriptions === 'object' && snapshot.subscriptions) ? snapshot.subscriptions : {},
+      dismissedDuplicates: Array.isArray(snapshot && snapshot.dismissedDuplicates) ? snapshot.dismissedDuplicates : [],
+    });
+  }, []);
 
   return {
     subscriptions: acks.subscriptions,
     dismissedDuplicates: acks.dismissedDuplicates,
     setStatus, clearStatus, dismissDuplicate, restoreDuplicate,
-    storageError, clearStorageError, exportSnapshot,
+    storageError, clearStorageError, exportSnapshot, restore,
   };
 }
