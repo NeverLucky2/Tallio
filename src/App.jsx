@@ -140,6 +140,10 @@ function BillTracker() {
   // Capture / scan / pairing state (carried over unchanged).
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
+  // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale));
+  }, [settings.uiScale]);
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
