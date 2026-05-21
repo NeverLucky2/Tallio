@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { clampUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from './useSettings.js';
 
 const MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', cost: '~$0.005/receipt' },
@@ -14,7 +15,9 @@ function maskKey(key) {
 }
 
 export default function SettingsPanel({ settings, onClose, banner }) {
-  const { apiKey, model, save } = settings;
+  const { apiKey, model, uiScale, save } = settings;
+  const pct = Math.round(uiScale * 100);
+  const stepScale = (delta) => save({ uiScale: clampUiScale(uiScale + delta) });
   const [draftKey, setDraftKey] = useState(apiKey);
   const [draftModel, setDraftModel] = useState(model);
   const [editing, setEditing] = useState(!apiKey);
@@ -84,6 +87,25 @@ export default function SettingsPanel({ settings, onClose, banner }) {
               <option key={m.id} value={m.id}>{m.label} — {m.cost}</option>
             ))}
           </select>
+
+          <label className="settings-label">Display size</label>
+          <div className="settings-stepper">
+            <button
+              type="button"
+              className="settings-step-btn"
+              aria-label="Decrease display size"
+              onClick={() => stepScale(-UI_SCALE_STEP)}
+              disabled={uiScale <= UI_SCALE_MIN}
+            ><span aria-hidden="true">−</span></button>
+            <span className="settings-step-value">{pct}%</span>
+            <button
+              type="button"
+              className="settings-step-btn"
+              aria-label="Increase display size"
+              onClick={() => stepScale(UI_SCALE_STEP)}
+              disabled={uiScale >= UI_SCALE_MAX}
+            ><span aria-hidden="true">+</span></button>
+          </div>
 
           <p className="settings-privacy">
             Key is stored only in this browser. Never sent to BillTracker servers.
