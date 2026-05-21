@@ -124,13 +124,15 @@ function BillTracker() {
   const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
 
-  // Undo: snapshots of the whole ledger.
+  // Undo: snapshots of the whole ledger + report acknowledgments.
   const [history, setHistory] = useState([]);
-  const pushHistory = () => setHistory(prev => [...prev.slice(-19), ledger.snapshot()]);
+  const pushHistory = () => setHistory(prev => [...prev.slice(-19), { ledger: ledger.snapshot(), acks: acks.exportSnapshot() }]);
   const undo = () => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
-      ledger.restore(prev[prev.length - 1]);
+      const entry = prev[prev.length - 1];
+      ledger.restore(entry.ledger);
+      acks.restore(entry.acks);
       return prev.slice(0, -1);
     });
   };
@@ -326,9 +328,9 @@ function BillTracker() {
           typesById={accountTypes.typesById}
           subscriptions={acks.subscriptions}
           dismissedDuplicates={acks.dismissedDuplicates}
-          onSetStatus={acks.setStatus}
-          onClearStatus={acks.clearStatus}
-          onDismissDuplicate={acks.dismissDuplicate}
+          onSetStatus={(key, status, month) => { pushHistory(); acks.setStatus(key, status, month); }}
+          onClearStatus={(key) => { pushHistory(); acks.clearStatus(key); }}
+          onDismissDuplicate={(sig) => { pushHistory(); acks.dismissDuplicate(sig); }}
           onClose={() => setScreen('main')}
         />
       )}
