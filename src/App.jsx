@@ -14,7 +14,7 @@ import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
 import TransferEditor from './TransferEditor.jsx';
-import { resolveTransfer } from './accountsModel.js';
+import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
@@ -213,9 +213,16 @@ function BillTracker() {
     pushHistory();
     if (data.transferId) ledger.updateTransfer(data.transferId, data);
     else ledger.addTransfer(data);
+    const patch = payFromUpdate(data.toId, data.fromId, ledger.accounts, accountTypes.typesById);
+    if (patch) ledger.updateAccount(data.toId, patch);
     setEditingTransfer(null);
   };
   const deleteTransfer = (transferId) => { pushHistory(); ledger.deleteTransfer(transferId); setEditingTransfer(null); };
+  const openTransfer = (accountId) => {
+    const account = ledger.accounts.find(a => a.id === accountId);
+    const draft = transferDraftForAccount(account, ledger.transactions, ledger.accounts, accountTypes.typesById);
+    setEditingTransfer({ mode: 'new', ...draft });
+  };
 
   const exportData = () => {
     const bytes = buildArchive({
@@ -368,6 +375,8 @@ function BillTracker() {
           types={accountTypes.types}
           typesById={accountTypes.typesById}
           fromAccountId={editingTransfer.fromAccountId || null}
+          toAccountId={editingTransfer.toAccountId || null}
+          initialAmount={editingTransfer.initialAmount ?? null}
           transfer={editingTransfer.transfer || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
         />
@@ -446,7 +455,7 @@ function BillTracker() {
                     else setEditingTxn({ mode: 'edit', accountId: selectedAccount.id, transaction: t });
                   }}
                   onAddTransaction={(accountId) => setEditingTxn({ mode: 'new', accountId })}
-                  onTransfer={(accountId) => setEditingTransfer({ mode: 'new', fromAccountId: accountId })}
+                  onTransfer={openTransfer}
                   onSelectAccount={setSelectedAccountId}
                 />
               </>
