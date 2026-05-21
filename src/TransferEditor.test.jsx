@@ -79,4 +79,29 @@ describe('TransferEditor', () => {
     const fromSel = screen.getByLabelText(/from account/i);
     expect([...fromSel.querySelectorAll('optgroup')].map(g => g.label)).toEqual(['Cash & Bank', 'Credit cards & loans']);
   });
+
+  it('new transfer: toAccountId preselects the To picker and initialAmount fills Amount', () => {
+    render(<TransferEditor accounts={accounts} fromAccountId="a_chk" toAccountId="a_sav" initialAmount={300}
+      onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    expect(screen.getByLabelText(/to account/i).value).toBe('a_sav');
+    expect(screen.getByLabelText(/amount/i).value).toBe('300');
+  });
+
+  it('new transfer: initialAmount null leaves Amount blank', () => {
+    render(<TransferEditor accounts={accounts} fromAccountId="a_chk" toAccountId="a_sav" initialAmount={null}
+      onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    expect(screen.getByLabelText(/amount/i).value).toBe('');
+  });
+
+  it('edit mode ignores toAccountId/initialAmount and seeds from the legs', () => {
+    const transfer = {
+      transferId: 'x',
+      fromLeg: { id: 'tf', accountId: 'a_chk', amount: -500, date: '2026-05-20', description: 'Move' },
+      toLeg:   { id: 'tt', accountId: 'a_sav', amount:  500, date: '2026-05-20', description: 'Move' },
+    };
+    render(<TransferEditor accounts={accounts} transfer={transfer} toAccountId="a_chk" initialAmount={999}
+      onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    expect(screen.getByLabelText(/to account/i).value).toBe('a_sav'); // from the leg, not toAccountId
+    expect(screen.getByLabelText(/amount/i).value).toBe('500');       // from the leg, not initialAmount
+  });
 });

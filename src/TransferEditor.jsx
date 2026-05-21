@@ -4,13 +4,13 @@ import { groupAccounts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } fro
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], fromAccountId = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+export default function TransferEditor({ accounts = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
-  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : '');
+  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : (toAccountId || ''));
   const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : todayISO());
-  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : '');
+  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (initialAmount != null ? String(initialAmount) : ''));
   const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : '');
 
   const mag = Math.abs(parseFloat(magnitude) || 0);
