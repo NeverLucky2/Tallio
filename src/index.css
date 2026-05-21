@@ -21,4 +21,6 @@ body {
   padding: 0;
   text-align: left;
   width: 100%;
+  /* Scales the whole app like browser zoom (fonts, emoji icons, spacing, SVG). Tune via --ui-scale in App.css :root. */
+  zoom: var(--ui-scale, 1);
 }
