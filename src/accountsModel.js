@@ -198,6 +198,38 @@ export function resolveTransfer(leg, transactions) {
   return { transferId: leg.transferId, fromLeg, toLeg };
 }
 
+// Initial config for a NEW transfer launched from `account`. For a liability the
+// clicked account becomes the destination (paying it down is bank→liability):
+//   To = the liability, Amount = the owed balance (null when nothing is owed),
+//   From = the bank last used to pay it (defaultPayFromId) if it still exists,
+//          else the first asset account, else the first other account.
+// For any other account it stays today's behavior: From = the account, To/amount empty.
+export function transferDraftForAccount(account, transactions, accounts, typesById) {
+  if (!account) return { fromAccountId: undefined, toAccountId: undefined, initialAmount: null };
+  const list = accounts || [];
+  if (accountClass(account.type, typesById) !== 'liability') {
+    return { fromAccountId: account.id, toAccountId: undefined, initialAmount: null };
+  }
+  const owed = Math.abs(Math.min(0, accountBalance(account, transactions)));
+  const resolves = (id) => !!id && id !== account.id && list.some(a => a.id === id);
+  const remembered = resolves(account.defaultPayFromId) ? account.defaultPayFromId : undefined;
+  const firstAsset = list.find(a => a.id !== account.id && accountClass(a.type, typesById) === 'asset');
+  const firstOther = list.find(a => a.id !== account.id);
+  return {
+    fromAccountId: remembered || (firstAsset && firstAsset.id) || (firstOther && firstOther.id) || undefined,
+    toAccountId: account.id,
+    initialAmount: owed > 0 ? owed : null,
+  };
+}
+
+// Patch to remember the pay-from bank on a liability after a transfer is saved.
+// Returns { defaultPayFromId } when `toAccountId` is a liability account, else null.
+export function payFromUpdate(toAccountId, fromId, accounts, typesById) {
+  const to = (accounts || []).find(a => a.id === toAccountId);
+  if (!to || accountClass(to.type, typesById) !== 'liability') return null;
+  return { defaultPayFromId: fromId };
+}
+
 // Accounts bucketed by their type group, in groupOrder(types) order, empty groups
 // omitted. Used by the transfer pickers to render <optgroup> sections.
 export function groupAccounts(accounts, types, typesById) {

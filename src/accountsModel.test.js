@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ACCOUNT_TYPES, GROUP_ORDER, accountClass, layoutFor, groupFor,
-  isOnBalanceSheet, flowSign,
+  isOnBalanceSheet, flowSign, transferDraftForAccount, payFromUpdate,
 } from './accountsModel.js';
 
 describe('account types & classification', () => {
@@ -306,5 +306,89 @@ describe('groupAccounts', () => {
   it('puts accounts with unknown types under the Unassigned fallback group', () => {
     const out = groupAccounts([{ id: 'x', name: 'Mystery', type: 'gone' }], DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID);
     expect(out.map(g => g.group)).toEqual(['Unassigned']);
+  });
+});
+
+describe('transferDraftForAccount', () => {
+  const accounts = [
+    { id: 'chk', name: 'Checking',  type: 'bank',        openingBalance: 1000 },
+    { id: 'inv', name: 'Brokerage', type: 'investment',  openingBalance: 5000 },
+    { id: 'cc',  name: 'Visa',      type: 'credit_card', openingBalance: -300 },
+  ];
+
+  it('liability with a balance owed: To = self, amount = owed, From = first asset account', () => {
+    const cc = accounts.find(a => a.id === 'cc');
+    expect(transferDraftForAccount(cc, [], accounts)).toEqual({
+      fromAccountId: 'chk', toAccountId: 'cc', initialAmount: 300,
+    });
+  });
+
+  it('uses defaultPayFromId for From when it still resolves', () => {
+    const cc = { ...accounts.find(a => a.id === 'cc'), defaultPayFromId: 'inv' };
+    const draft = transferDraftForAccount(cc, [], [accounts[0], accounts[1], cc]);
+    expect(draft.fromAccountId).toBe('inv');
+    expect(draft.toAccountId).toBe('cc');
+  });
+
+  it('falls back to first asset account when defaultPayFromId points to a deleted account', () => {
+    const cc = { ...accounts.find(a => a.id === 'cc'), defaultPayFromId: 'gone' };
+    const draft = transferDraftForAccount(cc, [], [accounts[0], accounts[1], cc]);
+    expect(draft.fromAccountId).toBe('chk');
+  });
+
+  it('liability with nothing owed: amount is null but To is still the liability', () => {
+    const cc = { id: 'cc0', name: 'Paid Card', type: 'credit_card', openingBalance: 0 };
+    const draft = transferDraftForAccount(cc, [], [accounts[0], cc]);
+    expect(draft).toEqual({ fromAccountId: 'chk', toAccountId: 'cc0', initialAmount: null });
+  });
+
+  it('owed amount reflects transactions, not just opening balance', () => {
+    const cc = { id: 'cc', name: 'Visa', type: 'credit_card', openingBalance: -300 };
+    const txns = [{ id: 't', accountId: 'cc', amount: -50, date: '2026-05-10' }]; // now owes 350
+    expect(transferDraftForAccount(cc, txns, [accounts[0], cc]).initialAmount).toBe(350);
+  });
+
+  it('treats a custom liability type (via typesById) as a liability', () => {
+    const typesById = new Map([
+      ['store_card', { id: 'store_card', klass: 'liability' }],
+      ['bank',       { id: 'bank',       klass: 'asset' }],
+    ]);
+    const sc = { id: 'sc', name: 'Store Card', type: 'store_card', openingBalance: -50 };
+    const list = [{ id: 'chk', type: 'bank', openingBalance: 0 }, sc];
+    expect(transferDraftForAccount(sc, [], list, typesById)).toEqual({
+      fromAccountId: 'chk', toAccountId: 'sc', initialAmount: 50,
+    });
+  });
+
+  it('non-liability account keeps todays behavior: From = self, To/amount empty', () => {
+    const chk = accounts.find(a => a.id === 'chk');
+    expect(transferDraftForAccount(chk, [], accounts)).toEqual({
+      fromAccountId: 'chk', toAccountId: undefined, initialAmount: null,
+    });
+  });
+});
+
+describe('payFromUpdate', () => {
+  const accounts = [
+    { id: 'chk', type: 'bank' },
+    { id: 'cc',  type: 'credit_card' },
+  ];
+
+  it('returns a defaultPayFromId patch when the To account is a liability', () => {
+    expect(payFromUpdate('cc', 'chk', accounts)).toEqual({ defaultPayFromId: 'chk' });
+  });
+
+  it('returns null when the To account is not a liability', () => {
+    expect(payFromUpdate('chk', 'cc', accounts)).toBeNull();
+  });
+
+  it('returns null when the To account is not found', () => {
+    expect(payFromUpdate('nope', 'chk', accounts)).toBeNull();
+  });
+
+  it('honors a custom liability type via typesById', () => {
+    const typesById = new Map([['store_card', { id: 'store_card', klass: 'liability' }]]);
+    const list = [{ id: 'sc', type: 'store_card' }, { id: 'chk', type: 'bank' }];
+    expect(payFromUpdate('sc', 'chk', list, typesById)).toEqual({ defaultPayFromId: 'chk' });
   });
 });
