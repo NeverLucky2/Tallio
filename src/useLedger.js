@@ -67,29 +67,30 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
   // A transfer is a PAIR of linked transactions sharing one transferId: a negative
   // leg on the source account and a positive leg on the destination. Each method is
   // a single setTransactions update so the operation is atomic and snapshot-friendly.
-  const addTransfer = useCallback(({ fromId, toId, amount, date, description = '' }) => {
+  const addTransfer = useCallback(({ fromId, toId, amount, date, description = '', categoryId = null }) => {
     const transferId = nanoid(8);
     const mag = Math.abs(Number(amount)) || 0;
     const note = description || '';
-    const base = { date, categoryId: null, description: note, payee: null, checkNumber: null, transferId };
+    const base = { date, categoryId: categoryId ?? null, description: note, payee: null, checkNumber: null, transferId };
     const fromLeg = { id: nanoid(8), accountId: fromId, amount: -mag, ...base };
     const toLeg   = { id: nanoid(8), accountId: toId,   amount:  mag, ...base };
     setTransactions(prev => [...prev, fromLeg, toLeg]);
     return transferId;
   }, []);
 
-  const updateTransfer = useCallback((transferId, { fromId, toId, amount, date, description = '' }) => {
+  const updateTransfer = useCallback((transferId, { fromId, toId, amount, date, description = '', categoryId = null }) => {
     if (!transferId) return;
     const mag = Math.abs(Number(amount)) || 0;
     const note = description || '';
+    const cid = categoryId ?? null;
     setTransactions(prev => {
       const legs = prev.filter(t => t.transferId === transferId);
       if (legs.length === 0) return prev;
       const fromLegId = legs[0].id;             // deterministic: first leg = From
       const toLegId = legs[1] ? legs[1].id : null;
       return prev.map(t => {
-        if (t.id === fromLegId) return { ...t, accountId: fromId, amount: -mag, date, categoryId: null, description: note, payee: null, checkNumber: null, transferId };
-        if (toLegId && t.id === toLegId) return { ...t, accountId: toId, amount: mag, date, categoryId: null, description: note, payee: null, checkNumber: null, transferId };
+        if (t.id === fromLegId) return { ...t, accountId: fromId, amount: -mag, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
+        if (toLegId && t.id === toLegId) return { ...t, accountId: toId, amount: mag, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
         return t;
       });
     });

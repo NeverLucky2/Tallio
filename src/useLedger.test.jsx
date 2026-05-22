@@ -120,4 +120,25 @@ describe('transfers', () => {
     expect(surviving[0].accountId).toBe('a2');
     expect(surviving[0].amount).toBe(500);
   });
+
+  it('addTransfer stores categoryId on both legs (null when omitted)', () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    let tid;
+    act(() => { tid = result.current.addTransfer({ fromId: 'a1', toId: 'a2', amount: 100, date: '2026-05-20', categoryId: 'cat_x' }); });
+    const legs = result.current.transactions.filter(t => t.transferId === tid);
+    expect(legs).toHaveLength(2);
+    for (const leg of legs) expect(leg.categoryId).toBe('cat_x');
+
+    let tid2;
+    act(() => { tid2 = result.current.addTransfer({ fromId: 'a1', toId: 'a2', amount: 50, date: '2026-05-20' }); });
+    for (const leg of result.current.transactions.filter(t => t.transferId === tid2)) expect(leg.categoryId).toBeNull();
+  });
+
+  it('updateTransfer updates categoryId on both legs', () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    let tid;
+    act(() => { tid = result.current.addTransfer({ fromId: 'a1', toId: 'a2', amount: 100, date: '2026-05-20', categoryId: 'cat_x' }); });
+    act(() => { result.current.updateTransfer(tid, { fromId: 'a1', toId: 'a2', amount: 100, date: '2026-05-20', categoryId: 'cat_y' }); });
+    for (const leg of result.current.transactions.filter(t => t.transferId === tid)) expect(leg.categoryId).toBe('cat_y');
+  });
 });
