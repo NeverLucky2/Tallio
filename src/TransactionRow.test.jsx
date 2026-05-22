@@ -68,4 +68,24 @@ describe('TransactionRow', () => {
     expect(onNavigate).toHaveBeenCalledWith('a_sav');
     expect(onEdit).not.toHaveBeenCalled();
   });
+
+  it('renders a type pill (icon + name) when a transfer has a transfer category', () => {
+    const tcat = { id: 'c_inv', name: 'Investment Transfer', icon: '📈', color: '#5b8dff' };
+    const row = { ...baseRow, categoryId: 'c_inv' };
+    render(<table><tbody><TransactionRow layout="compact" row={row}
+      categoriesById={new Map([[tcat.id, tcat]])}
+      transfer={{ counterpartName: 'Fidelity', direction: 'out', counterpartClass: 'offsheet' }}
+      onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('Investment Transfer')).toBeTruthy();
+    expect(screen.getByText('Fidelity')).toBeTruthy(); // account chip still present
+  });
+
+  it('renders no type pill for an untyped transfer', () => {
+    const row = { ...baseRow, categoryId: null };
+    render(<table><tbody><TransactionRow layout="compact" row={row} categoriesById={new Map()}
+      transfer={{ counterpartName: 'Savings', direction: 'out', counterpartClass: 'asset' }}
+      onEdit={() => {}} /></tbody></table>);
+    expect(screen.getByText('Savings').className).toContain('txn-transfer--asset'); // chip color intact
+    expect(screen.queryByText('Investment Transfer')).toBeNull();
+  });
 });
