@@ -104,4 +104,59 @@ describe('TransferEditor', () => {
     expect(screen.getByLabelText(/to account/i).value).toBe('a_sav'); // from the leg, not toAccountId
     expect(screen.getByLabelText(/amount/i).value).toBe('500');       // from the leg, not initialAmount
   });
+
+  const transferCats = [
+    { id: 'cc', name: 'Credit Card Payment', icon: '💳', color: '#d4a853', flow: 'transfer' },
+    { id: 'iv', name: 'Investment Transfer', icon: '📈', color: '#5b8dff', flow: 'transfer' },
+    { id: 'exp', name: 'Groceries', icon: '🛒', color: '#10B981', flow: 'expense' },
+  ];
+  const acctsTyped = [
+    { id: 'a_chk', name: 'Checking', type: 'bank' },
+    { id: 'a_visa', name: 'Visa', type: 'credit_card' },
+  ];
+
+  it('Type dropdown lists only transfer-flow categories plus None', () => {
+    render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />);
+    const select = screen.getByLabelText(/^type$/i);
+    const optionText = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
+    expect(optionText.some(t => /none/i.test(t))).toBe(true);
+    expect(optionText.some(t => /Credit Card Payment/.test(t))).toBe(true);
+    expect(optionText.some(t => /Groceries/.test(t))).toBe(false); // expense flow excluded
+  });
+
+  it('new transfer auto-suggests a type from the destination account', async () => {
+    const onSave = vi.fn();
+    render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
+      onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // credit_card → Credit Card Payment
+    await userEvent.type(screen.getByLabelText(/amount/i), '200');
+    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    expect(onSave.mock.calls[0][0].categoryId).toBe('cc');
+  });
+
+  it('a manual Type choice is preserved when the To account later changes', async () => {
+    const onSave = vi.fn();
+    render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
+      onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText(/^type$/i), 'iv'); // user picks Investment Transfer
+    await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // would suggest 'cc'
+    await userEvent.type(screen.getByLabelText(/amount/i), '200');
+    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    expect(onSave.mock.calls[0][0].categoryId).toBe('iv'); // not overridden
+  });
+
+  it('edit mode shows the existing categoryId and emits it on save', async () => {
+    const onSave = vi.fn();
+    const transfer = {
+      transferId: 'x',
+      fromLeg: { id: 'f', accountId: 'a_chk', amount: -500, date: '2026-05-20', description: 'Move', categoryId: 'iv' },
+      toLeg:   { id: 't', accountId: 'a_visa', amount: 500, date: '2026-05-20', description: 'Move', categoryId: 'iv' },
+    };
+    render(<TransferEditor accounts={acctsTyped} categories={transferCats} transfer={transfer}
+      onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByLabelText(/^type$/i).value).toBe('iv');
+    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    expect(onSave.mock.calls[0][0].categoryId).toBe('iv');
+  });
 });
