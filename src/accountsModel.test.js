@@ -401,3 +401,32 @@ describe('payFromUpdate', () => {
     expect(payFromUpdate('sc', 'chk', list, typesById)).toEqual({ defaultPayFromId: 'chk' });
   });
 });
+
+import { suggestTransferCategoryId } from './accountsModel.js';
+
+describe('suggestTransferCategoryId', () => {
+  const transferCats = [
+    { id: 'cc', name: 'Credit Card Payment', flow: 'transfer' },
+    { id: 'ln', name: 'Loan Payment', flow: 'transfer' },
+    { id: 'iv', name: 'Investment Transfer', flow: 'transfer' },
+  ];
+
+  it('maps destination account type to the matching transfer category id', () => {
+    expect(suggestTransferCategoryId({ id: 'a', type: 'credit_card' }, transferCats)).toBe('cc');
+    expect(suggestTransferCategoryId({ id: 'a', type: 'loan' }, transferCats)).toBe('ln');
+    expect(suggestTransferCategoryId({ id: 'a', type: 'mortgage' }, transferCats)).toBe('ln');
+    expect(suggestTransferCategoryId({ id: 'a', type: 'investment' }, transferCats)).toBe('iv');
+  });
+
+  it('returns null for ambiguous / unmapped destination types', () => {
+    expect(suggestTransferCategoryId({ id: 'a', type: 'bank' }, transferCats)).toBeNull();
+    expect(suggestTransferCategoryId({ id: 'a', type: 'person' }, transferCats)).toBeNull();
+    expect(suggestTransferCategoryId({ id: 'a', type: 'untyped' }, transferCats)).toBeNull();
+    expect(suggestTransferCategoryId({ id: 'a', type: 'custom_xyz' }, transferCats)).toBeNull();
+  });
+
+  it('returns null gracefully when no account or the seed was renamed/removed', () => {
+    expect(suggestTransferCategoryId(null, transferCats)).toBeNull();
+    expect(suggestTransferCategoryId({ id: 'a', type: 'credit_card' }, [])).toBeNull();
+  });
+});
