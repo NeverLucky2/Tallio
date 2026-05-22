@@ -28,6 +28,18 @@ describe('CategoryEditor', () => {
     expect(screen.getByDisplayValue('Utilities')).toBeTruthy();
   });
 
+  it('offers a Transfer flow option', () => {
+    render(
+      <CategoryEditor
+        category={cat} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
+        onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
+      />
+    );
+    expect(screen.getByRole('radio', { name: /transfer/i })).toBeTruthy();
+  });
+
   it('renders existing keywords and templates as chips', () => {
     render(
       <CategoryEditor

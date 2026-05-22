@@ -30,6 +30,13 @@ describe('ManageCategoriesScreen', () => {
     expect(screen.getByText('Dining')).toBeTruthy();
   });
 
+  it('groups transfer-flow categories under a transfer group', () => {
+    const withTransfer = [...cats, { id: 'tc', name: 'Credit Card Payment', icon: '💳', color: '#d4a853', keywords: [], templates: [], flow: 'transfer', builtin: true }];
+    render(<ManageCategoriesScreen categories={withTransfer} {...noopProps} />);
+    expect(screen.getByText('Credit Card Payment')).toBeTruthy();
+    expect(screen.getByText('transfer')).toBeTruthy(); // flow group label
+  });
+
   it('selects the first category by default', () => {
     render(<ManageCategoriesScreen categories={cats} {...noopProps} />);
     expect(screen.getByText(/editing: utilities/i)).toBeTruthy();
