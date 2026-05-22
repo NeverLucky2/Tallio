@@ -372,6 +372,7 @@ function BillTracker() {
       {editingTransfer && (
         <TransferEditor
           accounts={ledger.accounts}
+          categories={cats.categories}
           types={accountTypes.types}
           typesById={accountTypes.typesById}
           fromAccountId={editingTransfer.fromAccountId || null}
