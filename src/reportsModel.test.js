@@ -298,3 +298,24 @@ describe('findDuplicates signature + dismissed', () => {
     expect(findDuplicates(txns, { dismissed: new Set(['d1|d2']) })).toHaveLength(0);
   });
 });
+
+describe('transfers stay out of reports even when categorized', () => {
+  it('a transfer leg with a transfer-flow category contributes nothing to income/spending', () => {
+    const categoriesById = new Map([['ct', { id: 'ct', name: 'Credit Card Payment', flow: 'transfer' }]]);
+    const txns = [
+      { id: 'o', accountId: 'a', date: '2026-05-10', amount: -300, transferId: 'tr', categoryId: 'ct' },
+      { id: 'i', accountId: 'b', date: '2026-05-10', amount:  300, transferId: 'tr', categoryId: 'ct' },
+    ];
+    const sum = incomeExpenseSummary(txns, categoriesById, {});
+    expect(sum.income).toBeCloseTo(0);
+    expect(sum.spending).toBeCloseTo(0);
+  });
+
+  it('defensively, a non-transfer row carrying a transfer-flow category is also non-countable', () => {
+    const categoriesById = new Map([['ct', { id: 'ct', name: 'Credit Card Payment', flow: 'transfer' }]]);
+    const txns = [{ id: 'n', accountId: 'a', date: '2026-05-10', amount: -300, categoryId: 'ct' }];
+    const sum = incomeExpenseSummary(txns, categoriesById, {});
+    expect(sum.income).toBeCloseTo(0);
+    expect(sum.spending).toBeCloseTo(0);
+  });
+});

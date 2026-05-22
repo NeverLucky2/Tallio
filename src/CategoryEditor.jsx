@@ -4,9 +4,10 @@ import ColorPicker from './ColorPicker.jsx';
 import ChipEditor from './ChipEditor.jsx';
 
 const FLOW_OPTIONS = [
-  { key: 'income',  label: 'Income'  },
-  { key: 'expense', label: 'Expense' },
-  { key: 'savings', label: 'Savings' },
+  { key: 'income',   label: 'Income'   },
+  { key: 'expense',  label: 'Expense'  },
+  { key: 'savings',  label: 'Savings'  },
+  { key: 'transfer', label: 'Transfer' },
 ];
 
 function FlowControl({ value, onChange }) {
@@ -37,7 +38,7 @@ function FlowChangeDialog({ category, fromFlow, toFlow, itemCount, onConfirm, on
       <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
         <h2 className="dialog-title">Change flow on "{category.name}"?</h2>
         <p className="dialog-body">
-          Changing this category from <strong>{fromFlow}</strong> to <strong>{toFlow}</strong> will reclassify {itemCount} item{itemCount === 1 ? '' : 's'} into the {toFlow === 'income' ? 'Income' : toFlow === 'savings' ? 'Saved' : 'Spent'} bucket. This affects past months too.
+          Changing this category from <strong>{fromFlow}</strong> to <strong>{toFlow}</strong> will reclassify {itemCount} item{itemCount === 1 ? '' : 's'} into the {toFlow === 'income' ? 'Income' : toFlow === 'savings' ? 'Saved' : toFlow === 'transfer' ? 'Transfer' : 'Spent'} bucket. This affects past months too.
         </p>
         <div className="dialog-actions">
           <button className="btn dialog-btn-cancel" onClick={onCancel}>Cancel</button>

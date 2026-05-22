@@ -63,7 +63,7 @@ export default function ManageCategoriesScreen({
       <div className="manage-body">
         <aside className="manage-list">
           <div className="manage-list-title">{categories.length} categories</div>
-          {(['income', 'expense', 'savings']).map(flow => {
+          {(['income', 'expense', 'savings', 'transfer']).map(flow => {
             const inFlow = categories.filter(c => (c.flow || 'expense') === flow);
             if (inFlow.length === 0) return null;
             return (

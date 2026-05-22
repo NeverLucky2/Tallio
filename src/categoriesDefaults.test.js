@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, V3_SEED_CATEGORIES, TRANSFER_SEED_CATEGORIES, withTransferSeeds } from './categoriesDefaults.js';
 
 describe('DEFAULT_CATEGORIES', () => {
   it('exports 14 seed categories', () => {
@@ -54,5 +54,44 @@ describe('DEFAULT_CATEGORIES', () => {
         expect(kw).toBe(kw.toUpperCase());
       }
     }
+  });
+});
+
+describe('transfer seed categories', () => {
+  it('every seed is flow:transfer with empty keywords', () => {
+    for (const s of TRANSFER_SEED_CATEGORIES) {
+      expect(s.flow).toBe('transfer');
+      expect(s.keywords).toEqual([]);
+    }
+  });
+
+  it('seed names do not collide with default or v3 category names', () => {
+    const existing = new Set([...DEFAULT_CATEGORIES, ...V3_SEED_CATEGORIES].map(c => c.name));
+    for (const s of TRANSFER_SEED_CATEGORIES) expect(existing.has(s.name)).toBe(false);
+  });
+
+  it('withTransferSeeds appends all seeds (with string ids) to an empty list', () => {
+    const out = withTransferSeeds([]);
+    expect(out).toHaveLength(TRANSFER_SEED_CATEGORIES.length);
+    for (const c of out) expect(typeof c.id).toBe('string');
+    expect(out.map(c => c.name).sort()).toEqual(TRANSFER_SEED_CATEGORIES.map(s => s.name).sort());
+  });
+
+  it('is idempotent — second pass adds nothing and returns the same reference', () => {
+    const once = withTransferSeeds([]);
+    const twice = withTransferSeeds(once);
+    expect(twice).toBe(once);
+  });
+
+  it('appends only missing seeds, preserving existing categories without duplicating', () => {
+    const existing = [
+      { id: 'x', name: 'Credit Card Payment', flow: 'transfer' },
+      { id: 'y', name: 'Groceries', flow: 'expense' },
+    ];
+    const out = withTransferSeeds(existing);
+    const names = out.map(c => c.name);
+    expect(names).toContain('Groceries');
+    expect(names.filter(n => n === 'Credit Card Payment')).toHaveLength(1);
+    expect(names).toContain('Internal Transfer');
   });
 });

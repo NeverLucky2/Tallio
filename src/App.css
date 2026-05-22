@@ -3320,6 +3320,9 @@
 .txn-transfer--offsheet  { color: var(--purple); border-color: var(--purple-border); background: var(--purple-dim); }
 .txn-transfer-jump { display: inline-flex; align-items: center; justify-content: center; margin-left: 0.25rem; min-width: 1.6em; min-height: 1.6em; padding: 0.1rem 0.35rem; background: none; border: 1px solid transparent; border-radius: 6px; color: inherit; cursor: pointer; opacity: 0.7; font-size: 1em; line-height: 1; vertical-align: middle; }
 .txn-transfer-jump:hover { opacity: 1; background: rgba(255,255,255,0.08); border-color: var(--border-strong); }
+/* Transfer "type" pill — the transfer's category, sits after the account chip */
+.txn-transfer-wrap { display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.txn-transfer-type { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.05rem 0.4rem; border-radius: 6px; border: 1px solid; font-size: 0.72rem; white-space: nowrap; }
 
 /* Register */
 .register-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }

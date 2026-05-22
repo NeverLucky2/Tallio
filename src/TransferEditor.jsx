@@ -1,10 +1,10 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
-import { groupAccounts, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
+import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
@@ -12,6 +12,22 @@ export default function TransferEditor({ accounts = [], fromAccountId = null, to
   const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : todayISO());
   const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (initialAmount != null ? String(initialAmount) : ''));
   const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : '');
+  const transferCats = (categories || []).filter(c => c && c.flow === 'transfer');
+  const [categoryId, setCategoryId] = useState(
+    transfer
+      ? (transfer.fromLeg.categoryId || '')
+      : (suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
+  );
+  const [typeTouched, setTypeTouched] = useState(false);
+
+  const onToChange = (e) => {
+    const next = e.target.value;
+    setToId(next);
+    if (!isEdit && !typeTouched) {
+      setCategoryId(suggestTransferCategoryId(accounts.find(a => a.id === next), transferCats) || '');
+    }
+  };
+  const onTypeChange = (e) => { setTypeTouched(true); setCategoryId(e.target.value); };
 
   const mag = Math.abs(parseFloat(magnitude) || 0);
   const sameAccount = !!fromId && !!toId && fromId === toId;
@@ -22,6 +38,7 @@ export default function TransferEditor({ accounts = [], fromAccountId = null, to
     onSave({
       ...(transfer ? { transferId: transfer.transferId } : {}),
       fromId, toId, amount: mag, date, description: description.trim(),
+      categoryId: categoryId || null,
     });
   };
 
@@ -41,7 +58,7 @@ export default function TransferEditor({ accounts = [], fromAccountId = null, to
         </label>
 
         <label className="field"><span>To</span>
-          <select aria-label="To account" value={toId} onChange={(e) => setToId(e.target.value)} className="select">
+          <select aria-label="To account" value={toId} onChange={onToChange} className="select">
             <option value="">Select account…</option>
             {groups.map(({ group, accounts: list }) => (
               <optgroup key={group} label={group}>
@@ -61,6 +78,13 @@ export default function TransferEditor({ accounts = [], fromAccountId = null, to
 
         <label className="field"><span>Notes</span>
           <input type="text" aria-label="Notes" value={description} onChange={(e) => setDescription(e.target.value)} className="input" />
+        </label>
+
+        <label className="field"><span>Type</span>
+          <select aria-label="Type" value={categoryId} onChange={onTypeChange} className="select">
+            <option value="">— None —</option>
+            {transferCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          </select>
         </label>
 
         {sameAccount && <p className="field-error">From and To must be different accounts.</p>}

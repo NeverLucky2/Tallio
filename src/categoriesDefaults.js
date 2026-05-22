@@ -1,3 +1,5 @@
+import { nanoid } from 'nanoid';
+
 export const OTHER_CATEGORY_NAME = 'Other';
 export const OTHER_INCOME_CATEGORY_NAME = 'Other Income';
 
@@ -65,3 +67,26 @@ export const V3_SEED_CATEGORIES = [
   { name: 'Cash Savings',       icon: '🪙', color: '#06B6D4', flow: 'savings', keywords: ['SAVINGS DEPOSIT', 'TRANSFER TO SAVINGS'], templates: [], builtin: true },
   { name: 'Loans Lent',         icon: '🤝', color: '#9333EA', flow: 'savings', keywords: ['LOAN OUT', 'LENT TO'], templates: [], builtin: true },
 ];
+
+// Seed categories for the 'transfer' flow (transfer "types"). Names are chosen
+// not to collide with any existing category name, since the append-by-name
+// helper skips duplicates. keywords:[] so they never affect auto-categorization.
+export const TRANSFER_SEED_CATEGORIES = [
+  { name: 'Credit Card Payment', icon: '💳', color: '#d4a853', flow: 'transfer', keywords: [], templates: [], builtin: true },
+  { name: 'Loan Payment',        icon: '🏷️', color: '#e0928a', flow: 'transfer', keywords: [], templates: [], builtin: true },
+  { name: 'Investment Transfer', icon: '📈', color: '#5b8dff', flow: 'transfer', keywords: [], templates: [], builtin: true },
+  { name: 'Savings Transfer',    icon: '🪙', color: '#22d3ee', flow: 'transfer', keywords: [], templates: [], builtin: true },
+  { name: 'Cash Withdrawal',     icon: '💵', color: '#3ddba0', flow: 'transfer', keywords: [], templates: [], builtin: true },
+  { name: 'Internal Transfer',   icon: '⇄',  color: '#a47dea', flow: 'transfer', keywords: [], templates: [], builtin: true },
+];
+
+// Append any transfer seed whose `name` isn't already present (assigning a fresh
+// id). Idempotent: returns the SAME array reference when nothing is missing.
+export function withTransferSeeds(categories) {
+  const list = Array.isArray(categories) ? categories : [];
+  const names = new Set(list.map(c => c && c.name));
+  const missing = TRANSFER_SEED_CATEGORIES
+    .filter(s => !names.has(s.name))
+    .map(s => ({ ...s, id: nanoid(8) }));
+  return missing.length ? [...list, ...missing] : list;
+}

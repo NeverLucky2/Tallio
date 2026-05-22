@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'billtracker-categories';
 const PERSIST_DEBOUNCE_MS = 250;
 
 function seed() {
-  return DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) }));
+  return withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) })));
 }
 
 function load() {
@@ -16,7 +16,7 @@ function load() {
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return seed();
-    return parsed;
+    return withTransferSeeds(parsed);
   } catch {
     return seed();
   }
@@ -61,7 +61,7 @@ export default function useCategories() {
       name: (name || '').trim(),
       icon: icon || '📋',
       color: color || '#6B7280',
-      flow: flow === 'income' || flow === 'savings' ? flow : 'expense',
+      flow: ['income', 'savings', 'transfer'].includes(flow) ? flow : 'expense',
       keywords: [],
       templates: [],
       builtin: false,

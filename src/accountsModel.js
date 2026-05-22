@@ -224,6 +224,25 @@ export function transferDraftForAccount(account, transactions, accounts, typesBy
   };
 }
 
+// Suggested transfer category for a NEW transfer, keyed off the DESTINATION
+// account's built-in type. Best-effort: returns the matching transfer-flow
+// category's id, or null when the type has no sensible default or the seed was
+// renamed/removed. `transferCategories` is the flow:'transfer' subset.
+const TRANSFER_SUGGESTION_BY_TYPE = {
+  credit_card: 'Credit Card Payment',
+  loan:        'Loan Payment',
+  mortgage:    'Loan Payment',
+  investment:  'Investment Transfer',
+};
+
+export function suggestTransferCategoryId(toAccount, transferCategories) {
+  if (!toAccount) return null;
+  const name = TRANSFER_SUGGESTION_BY_TYPE[toAccount.type];
+  if (!name) return null;
+  const match = (transferCategories || []).find(c => c && c.name === name);
+  return match ? match.id : null;
+}
+
 // Patch to remember the pay-from bank on a liability after a transfer is saved.
 // Returns { defaultPayFromId } when `toAccountId` is a liability account, else null.
 export function payFromUpdate(toAccountId, fromId, accounts, typesById) {
