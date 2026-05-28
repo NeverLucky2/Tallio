@@ -263,3 +263,37 @@ export function groupAccounts(accounts, types, typesById) {
   }
   return [...byGroup.entries()].filter(([, list]) => list.length > 0).map(([group, list]) => ({ group, accounts: list }));
 }
+
+// Throws an Error if `transaction.splits` is set and violates any invariant.
+// No-op when splits is absent or null. Pure; used at the useLedger boundary.
+export function validateSplits(transaction) {
+  const t = transaction || {};
+  if (t.splits == null) return;
+  if (!Array.isArray(t.splits)) throw new Error('splits must be an array');
+  if (t.splits.length < 2) throw new Error('splits must have at least 2 lines');
+
+  const ids = new Set();
+  const transferIds = new Set();
+  let cents = 0;
+  for (const s of t.splits) {
+    if (!s || typeof s.id !== 'string') throw new Error('split line missing id');
+    if (ids.has(s.id)) throw new Error(`duplicate split line id: ${s.id}`);
+    ids.add(s.id);
+    if (!Number.isFinite(s.amount)) throw new Error(`split line ${s.id} amount not finite`);
+    const hasCat = typeof s.categoryId === 'string' && s.categoryId.length > 0;
+    const hasTransfer = typeof s.transferId === 'string' && s.transferId.length > 0;
+    if (hasCat === hasTransfer) {
+      throw new Error(`split line ${s.id} must have exactly one of categoryId or transferId`);
+    }
+    if (hasTransfer) {
+      if (transferIds.has(s.transferId)) throw new Error(`duplicate transferId in splits: ${s.transferId}`);
+      transferIds.add(s.transferId);
+    }
+    cents += Math.round(s.amount * 100);
+  }
+  const parentCents = Math.round((Number.isFinite(t.amount) ? t.amount : 0) * 100);
+  if (cents !== parentCents) {
+    throw new Error(`splits sum (${cents / 100}) does not match transaction amount (${parentCents / 100})`);
+  }
+}
+

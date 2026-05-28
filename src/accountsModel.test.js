@@ -430,3 +430,40 @@ describe('suggestTransferCategoryId', () => {
     expect(suggestTransferCategoryId({ id: 'a', type: 'credit_card' }, [])).toBeNull();
   });
 });
+
+import { validateSplits } from './accountsModel.js';
+
+describe('validateSplits', () => {
+  it('accepts a transaction with no splits field (today\'s shape)', () => {
+    expect(() => validateSplits({ id: 't1', amount: -42, categoryId: 'c1' })).not.toThrow();
+  });
+
+  it('accepts a transaction with splits=null', () => {
+    expect(() => validateSplits({ id: 't1', amount: -42, categoryId: 'c1', splits: null })).not.toThrow();
+  });
+
+  it('accepts a well-formed Camry down-payment (category-only splits)', () => {
+    const txn = {
+      id: 't_cam_down', amount: -10000,
+      splits: [
+        { id: 's1', amount: -9000, categoryId: 'c_auto',   description: 'Down payment principal' },
+        { id: 's2', amount:  -900, categoryId: 'c_fees',   description: 'Doc / dealer fees' },
+        { id: 's3', amount: -1100, categoryId: 'c_tax',    description: 'TX 6.25% sales tax' },
+        { id: 's4', amount: +1000, categoryId: 'c_credit', description: 'IRS EV credit' },
+      ],
+    };
+    expect(() => validateSplits(txn)).not.toThrow();
+  });
+
+  it('accepts a Costco split with a transfer line (cash back)', () => {
+    const txn = {
+      id: 't_costco', amount: -180,
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_groceries', description: 'Groceries' },
+        { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+        { id: 's3', amount:  -50, transferId: 'tr_cash',     description: 'ATM cash back' },
+      ],
+    };
+    expect(() => validateSplits(txn)).not.toThrow();
+  });
+});
