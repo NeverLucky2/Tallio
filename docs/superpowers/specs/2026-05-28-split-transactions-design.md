@@ -67,12 +67,25 @@ splits: [
 2. Each line carries `id` (nanoid(8)), signed `amount` (finite number),
    `description` (string, may be empty), and **exactly one** of `categoryId`
    or `transferId`. Never both, never neither.
-3. **Invariant γ:**
-   `sum(splits where line.categoryId).amount === transaction.amount` to the
-   cent. Transfer split lines do **not** contribute to the parent's amount —
-   they create the counterpart on the other account and otherwise float on
-   top. This keeps `accountBalance()` and `computeRegister()` working
-   unchanged: the parent's `amount` is still exactly what hit the account.
+3. **Sum invariant:**
+   `sum(splits[].amount) === transaction.amount` to the cent. The rule is the
+   same for category and transfer lines — every line, regardless of type,
+   contributes to the sum that has to match the parent. This keeps
+   `accountBalance()` and `computeRegister()` working unchanged: the parent's
+   `amount` is still exactly what hit the account, and the splits decompose
+   that exact figure.
+
+   *Implication for the user:* split-with-transfer only fits scenarios where
+   money really did flow through the parent's account (cash back at the
+   register, loan payment + late fee in one debit, a check that included a
+   transfer to savings). It does **not** fit scenarios where a separate
+   account funded part of a purchase without touching the parent — e.g., a
+   $25k car purchase where the bank loan disbursed $15k directly to the
+   dealer and Chase only saw a $10k debit. That scenario is recorded as
+   **two separate transactions**: a $10k split on Chase (covering the cash
+   portion's categories) and a $15k transaction on the Loan account (the
+   debt taken on). Splits do not link them; they're conceptually one
+   purchase but two ledger events.
 4. When `splits` is set, the top-level `categoryId` is **ignored for
    reports**. It stays writable for backward compat and as a search fallback
    but is not authoritative.
@@ -86,45 +99,77 @@ splits: [
    also have `splits` — but only on the **source leg** (the negative side).
    The destination leg stays single.
 
-### Worked example — Camry purchase
+### Worked example 1 — Camry down payment (category-only splits)
 
 ```js
-// On Chase Checking — net bank impact is -$10,000:
-{ id: 't_cam', accountId: 'a_chase', date: '2026-05-28',
+// On Chase Checking — $10,000 down payment that hit the bank:
+{ id: 't_cam_down', accountId: 'a_chase', date: '2026-05-28',
   amount: -10000, payee: 'Toyota of Plano',
-  description: '2026 Camry XLE — purchase',
+  description: '2026 Camry XLE — down payment',
   splits: [
-    { id: 's1', amount: -9500,  categoryId: 'c_auto',   description: 'Vehicle base price' },
-    { id: 's2', amount:  -899,  categoryId: 'c_fees',   description: 'Doc / dealer fees' },
-    { id: 's3', amount:  -851,  categoryId: 'c_tax',    description: 'TX 6.25% sales tax' },
-    { id: 's4', amount: +1250,  categoryId: 'c_credit', description: 'IRS §30D EV credit' },
-    { id: 's5', amount: -15000, transferId: 'tr_loan',  description: 'Wells Fargo loan funded $15k' },
+    { id: 's1', amount: -9000, categoryId: 'c_auto',   description: 'Down payment principal' },
+    { id: 's2', amount:  -900, categoryId: 'c_fees',   description: 'Doc / dealer fees' },
+    { id: 's3', amount: -1100, categoryId: 'c_tax',    description: 'TX 6.25% sales tax on cash portion' },
+    { id: 's4', amount: +1000, categoryId: 'c_credit', description: 'IRS §30D EV credit applied to down payment' },
   ],
 }
-// Category lines: -9500 -899 -851 +1250 = -10,000 ✓ matches parent.amount
-// Transfer line: -15,000 — creates a counterpart on Camry Loan with amount +15,000? No — see counterpart below.
+// Sum: -9000 -900 -1100 +1000 = -10,000 ✓
+```
 
-// On Camry Loan — single ordinary leg, sharing tr_loan:
-{ id: 't_cam_loan', accountId: 'a_camry_loan', date: '2026-05-28',
-  amount: -15000,   // debt increased (negative on a liability)
-  transferId: 'tr_loan',
-  description: 'Wells Fargo loan funded $15k',
-  categoryId: 'c_loan_payment',   // from suggestTransferCategoryId
+No transfer lines — every line is a category line. The loan portion of the
+purchase ($15k disbursed directly by Wells Fargo to the dealer) is a
+**separate** transaction on the Loan account, not linked to this one.
+
+### Worked example 2 — Costco run with $50 cash back (transfer split)
+
+```js
+// On Chase Checking — $180 charge: $130 of goods + $50 cash withdrawn:
+{ id: 't_costco', accountId: 'a_chase', date: '2026-05-20',
+  amount: -180, payee: 'Costco',
+  description: 'Weekly Costco shop',
+  splits: [
+    { id: 's1', amount: -100, categoryId: 'c_groceries', description: 'Weekly groceries' },
+    { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Paper goods, soap' },
+    { id: 's3', amount:  -50, transferId: 'tr_cash',     description: 'ATM cash back at register' },
+  ],
+}
+// Sum: -100 -30 -50 = -180 ✓
+
+// Counterpart on Cash account — single ordinary leg, sharing tr_cash:
+{ id: 't_costco_cash', accountId: 'a_cash', date: '2026-05-20',
+  amount: +50,                       // Cash account received $50
+  transferId: 'tr_cash',
+  description: 'ATM cash back at register',
+  categoryId: 'c_cash_withdrawal',   // from suggestTransferCategoryId
   payee: null,
 }
 ```
 
-The counterpart amount is the **negation** of the source split line's amount,
-matching today's transfer convention (source leg negative → destination leg
-positive, or vice versa). For the loan-funding example, the source side
-records `-15000` and the destination side records `-15000` because both sides
-represent value flowing in the same conceptual direction (toward the dealer
-and into the loan principal). In practice the helper used by `useLedger` is:
-**`counterpart.amount = -sourceLine.amount`** unless the destination is a
-liability where convention inverts — implemented exactly the same way the
-existing `addTransfer` / `updateTransfer` paths already handle the pair sign.
-The split implementation does not introduce a new sign rule; it reuses
-whatever the existing transfer pair flow does today.
+### Worked example 3 — Big Costco trip with solar panels (Dad's reconciliation use case)
+
+```js
+// On Chase Checking — $4,300 charge: groceries + household + solar kit:
+{ id: 't_costco_big', accountId: 'a_chase', date: '2026-05-20',
+  amount: -4300, payee: 'Costco',
+  description: 'Costco — big shop',
+  splits: [
+    { id: 's1', amount:  -180, categoryId: 'c_groceries',    description: 'Weekly groceries' },
+    { id: 's2', amount:   -40, categoryId: 'c_household',    description: 'Paper goods, dish soap' },
+    { id: 's3', amount: -4080, categoryId: 'c_home_improve', description: '5kW solar panel starter kit' },
+  ],
+}
+// Sum: -180 -40 -4080 = -4300 ✓
+```
+
+Without the per-line `description` field, "Costco $4,300" would be opaque in
+next year's reconciliation. With it, each line tells its own story.
+
+### Counterpart sign convention (transfer splits)
+
+`counterpart.amount = -1 * sourceSplit.amount` — same opposite-sign pair
+convention `useLedger.addTransfer` / `updateTransfer` already enforce for
+today's transfers. The split implementation does not introduce a new sign
+rule.
 
 ## Validation — `validateSplits(transaction)`
 
@@ -139,9 +184,10 @@ Invariants checked:
 2. Every line has `id` (string), `amount` (finite number), `description`
    (string), and exactly one of `categoryId` (string) or `transferId`
    (string).
-3. `Math.round(sum(splits where categoryId).amount * 100) ===
-   Math.round(transaction.amount * 100)`. (Cent-precision reconciliation, same
-   approach as `transferDraftForAccount` uses for the "Owed" prefill.)
+3. `Math.round(sum(splits[].amount) * 100) ===
+   Math.round(transaction.amount * 100)`. (Cent-precision reconciliation,
+   same approach as `transferDraftForAccount` uses for the "Owed" prefill.)
+   Applies uniformly to category and transfer lines.
 4. Every transfer line's `transferId` is unique within the array.
 5. Line ids are unique within the array.
 
@@ -149,13 +195,17 @@ Invariants checked:
 
 - Add a small **"Split…"** button next to (or below) the Category dropdown.
 - When the transaction has no splits: button label is "Split…". Clicking it
-  opens `<SplitsEditor>` pre-seeded with **two** lines — the first carrying
-  the current `categoryId` and `amount`, the second empty with the
-  complementary amount left for the user to fill.
+  opens `<SplitsEditor>` pre-seeded with **two** lines — line 1 carries the
+  current `categoryId` and the full parent `amount`; line 2 is empty
+  (no category, amount `0`). The footer shows green initially (`-180 + 0 =
+  -180` ✓). The user edits line 2 to a real amount and adjusts line 1 down
+  to rebalance; the footer goes red while mid-edit and back to green when
+  the sum matches. No auto-rebalancing — the user is in control of the
+  numbers.
 - When the transaction has splits: the Category dropdown row is replaced by a
   read-only summary chip — `▼ N split lines · M categories + K transfer(s)`
-  — and the Amount input becomes read-only (derived from the category-line
-  sum). A trailing **"Edit splits…"** link reopens `<SplitsEditor>` with the
+  — and the Amount input becomes read-only (derived from `sum(splits[])`). A
+  trailing **"Edit splits…"** link reopens `<SplitsEditor>` with the
   existing lines.
 - Saving the parent persists the parent transaction with its (possibly
   edited) `splits` array. Counterpart synchronization happens inside
@@ -179,21 +229,31 @@ A modal-over-modal, same pattern as `ColorPicker` over `CategoryEditor`.
   - **× delete-line** button.
 - **`+ Add line`** button below the table.
 - **Footer math** (live, re-rendered on every change):
-  - `Sum of category lines: $X.XX` rendered green when it matches
-    `parent.amount` to the cent, red otherwise with a delta hint.
-  - `Transfer lines: N total — to <accounts>` (informational).
-  - `Bank impact: $parent.amount` (fixed reference).
+  - `Sum of lines: $X.XX` rendered green when it matches `parent.amount` to
+    the cent, red otherwise with a delta hint (e.g., `+$25.00 over`,
+    `−$12.40 under`).
+  - `Bank impact: $parent.amount` shown as the fixed reference the user is
+    balancing to.
 - **Actions:**
   - **Cancel** discards changes and closes.
   - **Done** runs `validateSplits` on the pending parent + lines. On success,
     returns the array to `TransactionEditor` (which still requires a Save to
     persist). On failure, surfaces the error inline; does not close.
-- **Convert back to single-category:** if the user deletes lines down to 1,
-  clicking **Done** prompts: *"This will turn the split back into a
-  single-category transaction. Continue?"* On confirm: parent's `categoryId`
-  is set to the surviving line's `categoryId` (or null if it was a transfer
-  line — guard that case by requiring at least one category line during
-  convert-back, otherwise force the user to keep ≥ 2 lines or cancel).
+- **At-least-2-lines invariant:** the table never goes below 2 rows. The
+  **× delete-line** button is disabled when there are only 2 lines (the
+  second-to-last line refuses to delete; tooltip: *"A split needs at least 2
+  lines. To remove the split, use Unsplit below."*).
+- **Unsplit button** (footer, secondary): present whenever the editor is
+  showing an existing split. Click prompts: *"Turn this back into a
+  single-category transaction? The transaction will keep the category of the
+  largest category line; transfer lines and their counterparts will be
+  deleted."* On confirm, the parent's `categoryId` is set to the **category
+  line with the largest absolute amount** (ties broken by line order), the
+  `splits` array is cleared, the parent's `amount` is preserved as-is (it
+  already matched the sum), and any transfer-line counterparts are deleted
+  as part of the same save. **Edge case:** if the split contains no category
+  lines (all-transfer), Unsplit is disabled with a tooltip directing the user
+  to convert at least one transfer line to a category line first.
 
 ## Register row — `TransactionRow.jsx`
 
@@ -372,9 +432,12 @@ workflow.
 ### Pure-model tests
 
 - **`accountsModel.test.js`** — `validateSplits` accepts a well-formed Camry
-  split / rejects sum mismatch / rejects missing `categoryId`+`transferId` /
-  rejects both set / rejects single-line split / rejects duplicate line ids /
-  rejects duplicate `transferId`s within one parent.
+  down-payment split (worked example 1); accepts a Costco split with a
+  transfer line (worked example 2); rejects sum mismatch (covers a mismatch
+  caused by a transfer line, not just category lines); rejects missing
+  `categoryId`+`transferId` / rejects both set / rejects single-line split /
+  rejects duplicate line ids / rejects duplicate `transferId`s within one
+  parent.
 - **`accountsModel.test.js`** — `filterTransactions` matches a search term
   against a split line's `description` and against the name of a
   category referenced by a split line. Hit returns the matching line id.
@@ -409,10 +472,13 @@ workflow.
 ### Component tests
 
 - **`SplitsEditor.test.jsx`** (new) — Done button is disabled while the
-  category-line sum mismatches the parent's amount; type toggle swaps
-  category picker for grouped account picker; transfer line captures the
-  per-line description; deleting back to 1 line prompts to convert; convert
-  applies the surviving category to the parent.
+  line sum mismatches the parent's amount (covers a mismatch caused by a
+  transfer line too, not just category lines); type toggle swaps the
+  category picker for a grouped account picker; transfer line captures the
+  per-line description; the delete-line button is disabled at exactly 2
+  lines; the Unsplit button prompts and on confirm promotes the largest
+  category line's category to the parent and cascades the transfer-line
+  counterpart deletes.
 - **`TransactionEditor.test.jsx`** — Split… button appears for non-split
   transactions; opens SplitsEditor; closing with new splits replaces the
   category dropdown with the summary chip and locks the amount input;
@@ -426,16 +492,20 @@ workflow.
 
 ### Smoke test (in `src/__smoke__`)
 
-End-to-end Camry purchase: enter parent in `TransactionEditor`, open
-`SplitsEditor`, add 4 category lines + 1 transfer line, save. Then verify:
+End-to-end Costco-with-cash-back (worked example 2): enter parent in
+`TransactionEditor`, open `SplitsEditor`, add 2 category lines + 1 transfer
+line, save. Then verify:
 
-- Chase Checking register shows the expandable parent with chevron and the
-  correct 4 category sub-rows on expand, plus the transfer chip with
-  `⇄ → Camry Loan` navigation.
-- Camry Loan register shows a single counterpart leg of `-$15,000` with
+- Chase Checking register shows the expandable parent (`▶ 3 split lines`,
+  amount `-$180`) and on expand, the 2 category sub-rows plus the transfer
+  chip with `⇄ → Cash` navigation.
+- The Cash account register shows a single counterpart leg of `+$50` with
   `⇄ ← Chase Checking` and the per-line description preserved.
-- `incomeExpenseSummary`, `spendingByCategory`, and `cashFlowByMonth`
-  attribute the four category lines correctly.
+- `incomeExpenseSummary` counts `$130` of spending from the parent (the two
+  category lines); the `$50` transfer line is correctly excluded.
+- `spendingByCategory` attributes `$100` to Groceries and `$30` to Household.
+- `findDuplicates` and `recurringCharges` see the parent as a single charge,
+  not three.
 
 ## Integration points (file map)
 
