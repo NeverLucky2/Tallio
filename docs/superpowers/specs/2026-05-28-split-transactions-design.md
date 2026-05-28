@@ -191,6 +191,35 @@ Invariants checked:
 4. Every transfer line's `transferId` is unique within the array.
 5. Line ids are unique within the array.
 
+## Editor routing — which editor opens when a row is clicked?
+
+`App.jsx` today routes clicks via `resolveTransfer(t, transactions)`:
+
+- If the row is part of a transfer pair → `TransferEditor`.
+- Otherwise → `TransactionEditor`.
+
+With splits, the same routing applies to parents — the **presence of `splits`
+does not change which editor opens**:
+
+- **Regular split parent** (no top-level `transferId`) → `TransactionEditor`,
+  which exposes the "Split…" / "Edit splits…" button into `SplitsEditor`.
+- **Transfer source leg that is itself split** (top-level `transferId` set,
+  splits set) → `TransferEditor`, which **also** gains a "Split source leg…"
+  / "Edit splits…" button. The button opens `SplitsEditor` configured with
+  the source leg's amount as the parent.amount to balance against, and the
+  destination leg's existence is preserved unchanged.
+
+This keeps the user's mental model intact: a transfer always opens
+TransferEditor; a regular transaction always opens TransactionEditor. Splits
+are a feature of both.
+
+`TransferEditor` gets exactly the same Split-button affordance as
+`TransactionEditor` (placement may differ given the existing form layout —
+the implementation plan will fix the spot). When the destination leg is
+clicked on the other account, it still opens TransferEditor pointed at the
+pair; the editor is allowed to show "this transfer's source leg is split"
+as a read-only summary, but only the source-leg split table is editable.
+
 ## Editor — `TransactionEditor.jsx`
 
 - Add a small **"Split…"** button next to (or below) the Category dropdown.
@@ -289,13 +318,34 @@ right line.
 
 ## Search & filter — `filterTransactions` in `accountsModel.js`
 
-Extend the match predicate to include split lines:
+Extend the predicate to include split lines for **both** the search term and
+the category filter dropdown:
 
-- `t.description`, `t.payee`, `t.category.name`, `t.amount` — today's matches.
-- **NEW**: any `splits[].description` or the name of any `splits[].categoryId`
-  category.
+- **Text search:** today matches `t.description`, `t.payee`, `t.category.name`,
+  `t.amount`. **NEW**: also matches any `splits[].description` or the name of
+  any `splits[].categoryId` category.
+- **Category filter dropdown:** today matches `t.categoryId === filter`.
+  **NEW**: also matches if any `splits[].categoryId === filter` (the parent
+  row stays visible whenever any of its lines matches).
 - When a hit comes from a split line, the consumer (Register) is given the
-  matching line id so it can pass `expandSplitHint` to that row.
+  matching line id so it can pass `expandSplitHint` to that row. The text
+  search returns the first matching line id; the category filter returns
+  the first split line whose categoryId matches.
+
+## Sort — `sortRows` for split parents
+
+`sortRows` today sorts by category alphabetically (when key === 'category')
+using the row's `categoryId` → category name. A split parent has no
+authoritative category. Convention:
+
+- **Sort key for category column on a split parent** = the literal string
+  `'​—SPLIT—'` (zero-width-space prefix so it sorts after any real
+  category alphabetically). This keeps splits visually grouped at one end of
+  the sort, and lets the user spot them at a glance.
+- Other sort columns (date, amount, balance, payee, description, checkNumber,
+  notes) use the parent's value as today — no special-case needed.
+- Sort never reorders line rows relative to their parent. Line rows are
+  rendered by the parent's `TransactionRow`, not by `sortRows`.
 
 ## Reports — `flattenForReports` in `reportsModel.js`
 
@@ -347,8 +397,8 @@ Net-worth / account-balance functions (`accountBalance`,
 ## `useLedger.js` — counterpart synchronization
 
 The public API stays the same: `addTransaction`, `updateTransaction`,
-`deleteTransaction`. With splits, the implementation cascades transfer
-counterparts.
+`deleteTransaction`, `addTransfer`, `updateTransfer`, `deleteTransfer`,
+`deleteAccount`. With splits, several of these gain new responsibilities.
 
 ### `addTransaction`
 
@@ -383,6 +433,39 @@ counterparts.
 1. If the transaction has `splits`, walk them and delete each
    transferable line's counterpart.
 2. Delete the parent.
+
+### `addTransfer` / `updateTransfer` / `deleteTransfer` — splits on the source leg
+
+Decision 6 allows splitting the source leg of a transfer. These three methods
+gain a single optional `splits` argument applied to the **source leg only**:
+
+- **`addTransfer({ ..., splits })`** — if `splits` is provided, store it on
+  the source leg. Validate that `sum(splits[].amount) === -magnitude` (the
+  source leg's signed amount). The destination leg has no splits, ever.
+- **`updateTransfer(transferId, { ..., splits })`** — replace the source
+  leg's `splits` array (or remove it if `splits` is empty/null). Same
+  sum invariant.
+- **`deleteTransfer(transferId)`** — unchanged. Removes both legs by
+  `transferId`; if the source leg had splits with transfer-line counterparts
+  pointing to *yet other* accounts, those grand-counterparts are also
+  cascaded (rare in practice but valid).
+
+Inside the editor, the existing `categoryId`-on-both-legs convention from
+the transfer-categories spec stays: the leg-level `categoryId` continues to
+mean "transfer type" on both legs, and the source-leg `splits` are the
+*per-line* category attributions.
+
+### `deleteAccount` — orphan cleanup
+
+Today `deleteAccount(id)` filters out every transaction whose
+`accountId === id`. Adding splits means a different account may carry a
+transaction whose `splits[]` includes a `transferId` that just lost its
+counterpart. The same `deleteAccount` call now also walks every remaining
+transaction and, for each split line whose `transferId` no longer resolves
+to a counterpart on any remaining account, **strips that `transferId`**,
+leaving an unanchored category-less line. The UI's existing orphan-row
+fallback (transferInfo returns null → plain row with the line description)
+renders it sensibly; the user can re-pair it from the editor.
 
 ### Editing the counterpart directly from the other account
 
@@ -468,6 +551,15 @@ workflow.
   creates the counterpart.
 - **`useLedger.test.jsx`** — adding a transaction that fails
   `validateSplits` throws and persists nothing.
+- **`useLedger.test.jsx`** — `addTransfer` / `updateTransfer` accept a
+  `splits` array applied to the source leg; the destination leg remains
+  single-line; `sum(splits) === -magnitude` is enforced.
+- **`useLedger.test.jsx`** — `deleteAccount` strips orphan `transferId`s
+  from split lines on transactions in other accounts that referenced the
+  deleted account.
+- **`useLedger.test.jsx`** — `deleteAccount` does not delete other-account
+  transactions that have split lines referencing the deleted account; it
+  only sanitizes the lines.
 
 ### Component tests
 
@@ -483,6 +575,17 @@ workflow.
   transactions; opens SplitsEditor; closing with new splits replaces the
   category dropdown with the summary chip and locks the amount input;
   Edit splits… reopens with existing lines.
+- **`TransferEditor.test.jsx`** — "Split source leg…" button appears,
+  opens SplitsEditor balanced against the source leg's amount, and saving
+  produces a transfer whose source leg has the `splits` array while the
+  destination leg remains single. Editing an already-split transfer
+  reopens the existing lines.
+- **`Register.test.jsx`** — category filter dropdown selects a category
+  referenced only by a split line on a parent → the parent stays visible
+  with the matching line auto-expanded.
+- **`accountsModel.test.js`** — `sortRows` by category column places split
+  parents at one end (after all real categories ascending; before them
+  descending) and never reorders line rows relative to their parent.
 - **`TransactionRow.test.jsx`** — split parent renders chevron + line count;
   clicking the chevron expands into N line rows; clicking elsewhere on the
   parent opens the editor; transfer-line chip renders with the existing
@@ -510,15 +613,22 @@ line, save. Then verify:
 ## Integration points (file map)
 
 - `src/accountsModel.js` — add `validateSplits`; extend `filterTransactions`
-  to match split-line descriptions and categories (~line 107).
+  to match both the search term and the category-filter dropdown against
+  split-line descriptions and categories (~line 107); extend `sortRows`
+  category-column sort to place split parents predictably (~line 126).
 - `src/reportsModel.js` — add `flattenForReports`; switch
   `incomeExpenseSummary`, `spendingByCategory`, `cashFlowByMonth` to consume
   it (~lines 87–144). `findDuplicates` and `recurringCharges` unchanged.
 - `src/useLedger.js` — extend `addTransaction`, `updateTransaction`,
   `deleteTransaction` with counterpart synchronization for transfer split
-  lines; call `validateSplits` on add/update.
+  lines; call `validateSplits` on add/update. Extend `addTransfer` /
+  `updateTransfer` to accept `splits` on the source leg. Extend
+  `deleteAccount` to strip orphan `transferId`s from split lines on other
+  accounts.
 - `src/TransactionEditor.jsx` — Split… button, summary chip rendering,
   read-only amount when split, wire to SplitsEditor.
+- `src/TransferEditor.jsx` — "Split source leg…" button, summary chip,
+  wire to SplitsEditor balanced against the source leg's amount.
 - `src/SplitsEditor.jsx` — new component.
 - `src/SplitsEditor.test.jsx` — new test file.
 - `src/TransactionRow.jsx` — chevron + split-line sub-rows in both layouts
