@@ -466,4 +466,76 @@ describe('validateSplits', () => {
     };
     expect(() => validateSplits(txn)).not.toThrow();
   });
+
+  it('rejects a single-line split', () => {
+    const txn = { id: 't1', amount: -10, splits: [{ id: 's1', amount: -10, categoryId: 'c1', description: '' }] };
+    expect(() => validateSplits(txn)).toThrow(/at least 2/i);
+  });
+
+  it('rejects a line missing both categoryId and transferId', () => {
+    const txn = {
+      id: 't1', amount: -10,
+      splits: [
+        { id: 's1', amount:  -5, description: 'orphan' },
+        { id: 's2', amount:  -5, categoryId: 'c1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/exactly one of categoryId or transferId/i);
+  });
+
+  it('rejects a line with BOTH categoryId and transferId', () => {
+    const txn = {
+      id: 't1', amount: -10,
+      splits: [
+        { id: 's1', amount: -5, categoryId: 'c1', transferId: 'tr1', description: '' },
+        { id: 's2', amount: -5, categoryId: 'c1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/exactly one/i);
+  });
+
+  it('rejects a sum mismatch (category-only)', () => {
+    const txn = {
+      id: 't1', amount: -10,
+      splits: [
+        { id: 's1', amount: -6, categoryId: 'c1', description: '' },
+        { id: 's2', amount: -3, categoryId: 'c1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/does not match/i);
+  });
+
+  it('rejects a sum mismatch caused by a transfer line, not just category lines', () => {
+    const txn = {
+      id: 't1', amount: -180,
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c1', description: '' },
+        { id: 's2', amount:  -30, categoryId: 'c2', description: '' },
+        { id: 's3', amount:  -49, transferId: 'tr1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/does not match/i);
+  });
+
+  it('rejects duplicate line ids', () => {
+    const txn = {
+      id: 't1', amount: -10,
+      splits: [
+        { id: 'dup', amount: -5, categoryId: 'c1', description: '' },
+        { id: 'dup', amount: -5, categoryId: 'c1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/duplicate split line id/i);
+  });
+
+  it('rejects duplicate transferIds within one parent', () => {
+    const txn = {
+      id: 't1', amount: -10,
+      splits: [
+        { id: 's1', amount: -5, transferId: 'tr1', description: '' },
+        { id: 's2', amount: -5, transferId: 'tr1', description: '' },
+      ],
+    };
+    expect(() => validateSplits(txn)).toThrow(/duplicate transferId/i);
+  });
 });
