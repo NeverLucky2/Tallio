@@ -160,3 +160,40 @@ describe('TransferEditor', () => {
     expect(onSave.mock.calls[0][0].categoryId).toBe('iv');
   });
 });
+
+describe('TransferEditor split source-leg wire-up', () => {
+  afterEach(() => cleanup());
+
+  function setupTransfer(transfer = null) {
+    const onSave = vi.fn();
+    render(
+      <TransferEditor
+        accounts={[
+          { id: 'a_chase', name: 'Chase', type: 'bank' },
+          { id: 'a_loan',  name: 'Camry Loan', type: 'loan' },
+        ]}
+        categories={[
+          { id: 'c_pay',       name: 'Loan Payment', icon: '🏷️', flow: 'transfer' },
+          { id: 'c_principal', name: 'Principal',    icon: '💵', flow: 'expense'  },
+        ]}
+        fromAccountId="a_chase"
+        toAccountId="a_loan"
+        transfer={transfer}
+        onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()}
+      />
+    );
+    return { onSave };
+  }
+
+  it('shows "Split source leg…" button when there are no splits', () => {
+    setupTransfer();
+    expect(screen.getByRole('button', { name: /split source leg…?/i })).toBeTruthy();
+  });
+
+  it('opening it mounts SplitsEditor balanced against the source leg amount', async () => {
+    setupTransfer();
+    await userEvent.type(screen.getByLabelText(/amount/i), '325.40');
+    await userEvent.click(screen.getByRole('button', { name: /split source leg…?/i }));
+    expect(screen.getByText(/bank impact: -325.40/i)).toBeTruthy();
+  });
+});

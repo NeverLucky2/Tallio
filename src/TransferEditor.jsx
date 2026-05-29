@@ -1,6 +1,7 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
+import SplitsEditor from './SplitsEditor.jsx';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -19,6 +20,11 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
       : (suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
   );
   const [typeTouched, setTypeTouched] = useState(false);
+  const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? null);
+  const [splitTargets, setSplitTargets] = useState(new Map());
+  const [splitsOpen, setSplitsOpen] = useState(false);
+
+  const hasSplits = Array.isArray(splits) && splits.length > 0;
 
   const onToChange = (e) => {
     const next = e.target.value;
@@ -33,12 +39,27 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
   const sameAccount = !!fromId && !!toId && fromId === toId;
   const valid = !!fromId && !!toId && !sameAccount && mag > 0;
 
+  const sourceAmount = -1 * mag;
+
+  const openSplits = () => {
+    if (!hasSplits) {
+      const id1 = 's_' + Date.now().toString(36);
+      const id2 = id1 + '_2';
+      setSplits([
+        { id: id1, amount: sourceAmount, categoryId: categoryId || (categories[0] && categories[0].id) || '', description: '' },
+        { id: id2, amount: 0,            categoryId: categoryId || (categories[0] && categories[0].id) || '', description: '' },
+      ]);
+    }
+    setSplitsOpen(true);
+  };
+
   const save = () => {
     if (!valid) return;
     onSave({
       ...(transfer ? { transferId: transfer.transferId } : {}),
       fromId, toId, amount: mag, date, description: description.trim(),
       categoryId: categoryId || null,
+      ...(hasSplits ? { splits, splitTargets } : {}),
     });
   };
 
@@ -87,6 +108,18 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
           </select>
         </label>
 
+        {hasSplits ? (
+          <div className="field">
+            <span>Source leg</span>
+            <span className="split-summary">▼ {splits.length} split lines</span>
+            <button type="button" className="btn" onClick={openSplits}>Edit splits…</button>
+          </div>
+        ) : (
+          <div className="field">
+            <button type="button" className="btn" onClick={openSplits}>Split source leg…</button>
+          </div>
+        )}
+
         {sameAccount && <p className="field-error">From and To must be different accounts.</p>}
 
         <div className="dialog-actions">
@@ -94,6 +127,21 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save transfer</button>
         </div>
+
+        {splitsOpen && (
+          <SplitsEditor
+            parentAccountId={fromId}
+            parentAmount={hasSplits ? splits.reduce((s, l) => s + l.amount, 0) : sourceAmount}
+            parentPayee=""
+            parentDate={date}
+            categories={categories}
+            accounts={accounts}
+            initialSplits={splits || []}
+            initialSplitTargets={splitTargets}
+            onDone={({ splits: ns, splitTargets: nt }) => { setSplits(ns); if (nt) setSplitTargets(nt); setSplitsOpen(false); }}
+            onCancel={() => setSplitsOpen(false)}
+          />
+        )}
       </div>
     </div>
   );
