@@ -118,3 +118,33 @@ describe('SplitsEditor editing', () => {
     expect(onDone.mock.calls[0][0].splits[0].description).toContain('Solar panels');
   });
 });
+
+describe('SplitsEditor +Add / ×Delete', () => {
+  afterEach(() => cleanup());
+
+  it('Add line appends a row', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: /add line/i }));
+    expect(screen.getAllByRole('row')).toHaveLength(4); // header + 3 lines
+  });
+
+  it('Delete line removes a row', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -60, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount: -60, categoryId: 'c_household', description: '' },
+        { id: 's3', amount: -60, categoryId: 'c_household', description: '' },
+      ],
+    });
+    const deleteBtns = screen.getAllByRole('button', { name: /delete line/i });
+    await userEvent.click(deleteBtns[0]);
+    expect(screen.getAllByRole('row')).toHaveLength(3); // header + 2 remaining
+  });
+
+  it('Delete is disabled when there are exactly 2 lines', () => {
+    setup();
+    const deleteBtns = screen.getAllByRole('button', { name: /delete line/i });
+    expect(deleteBtns[0].disabled).toBe(true);
+    expect(deleteBtns[1].disabled).toBe(true);
+  });
+});

@@ -69,12 +69,26 @@ export default function SplitsEditor({
                   <td className="right">
                     <input type="number" step="0.01" aria-label="Line amount" className="input" value={line.amount} onChange={(e) => updateLine({ amount: parseFloat(e.target.value) || 0 })} />
                   </td>
-                  <td></td>
+                  <td>
+                    <button
+                      type="button"
+                      aria-label="Delete line"
+                      className="btn-icon"
+                      disabled={lines.length <= 2}
+                      onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
+                    >×</button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        <div>
+          <button type="button" className="btn" onClick={() => {
+            const id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+            setLines(prev => [...prev, { id, amount: 0, categoryId: categories[0]?.id || '', description: '' }]);
+          }}>+ Add line</button>
+        </div>
         <div className={`split-sum ${sumOk ? 'ok' : 'mismatch'}`}>
           Sum of lines: {sum.toFixed(2)} · Bank impact: {parentAmount.toFixed(2)}
         </div>
