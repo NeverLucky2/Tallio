@@ -161,7 +161,18 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
   }, []);
 
   const deleteTransaction = useCallback((id) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    setTransactions(prev => {
+      const target = prev.find(t => t.id === id);
+      if (!target) return prev;
+      const transferIdsToCascade = new Set(
+        Array.isArray(target.splits) ? target.splits.filter(s => s.transferId).map(s => s.transferId) : []
+      );
+      return prev.filter(t => {
+        if (t.id === id) return false;
+        if (t.transferId && transferIdsToCascade.has(t.transferId)) return false;
+        return true;
+      });
+    });
   }, []);
 
   // A transfer is a PAIR of linked transactions sharing one transferId: a negative

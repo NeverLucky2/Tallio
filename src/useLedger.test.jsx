@@ -340,3 +340,32 @@ describe('updateTransaction with splits', () => {
     expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeUndefined();
   });
 });
+
+describe('deleteTransaction with splits', () => {
+  const seed = {
+    accounts: [
+      { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 },
+      { id: 'a_cash',  name: 'Cash',  type: 'bank', icon: '💵', openingBalance: 0 },
+    ],
+    transactions: [],
+  };
+
+  it('deleting a split parent cascades the transfer counterparts', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    let id;
+    act(() => {
+      id = result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c1', description: '' },
+          { id: 's2', amount:  -30, categoryId: 'c1', description: '' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash', description: 'Cash back' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_cash']]) });
+    });
+    expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeDefined();
+    act(() => { result.current.deleteTransaction(id); });
+    expect(result.current.transactions.find(t => t.id === id)).toBeUndefined();
+    expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeUndefined();
+  });
+});
