@@ -539,3 +539,49 @@ describe('validateSplits', () => {
     expect(() => validateSplits(txn)).toThrow(/duplicate transferId/i);
   });
 });
+
+import { filterTransactions } from './accountsModel.js';
+
+describe('filterTransactions with splits', () => {
+  const categoriesById = new Map([
+    ['c_grocery', { id: 'c_grocery', name: 'Groceries',         flow: 'expense' }],
+    ['c_solar',   { id: 'c_solar',   name: 'Home Improvement',  flow: 'expense' }],
+  ]);
+  const split = {
+    id: 't1', accountId: 'a1', date: '2026-05-20', amount: -4300,
+    payee: 'Costco', description: 'Costco big shop', categoryId: null,
+    splits: [
+      { id: 's1', amount:  -180, categoryId: 'c_grocery', description: 'Weekly groceries' },
+      { id: 's2', amount: -4120, categoryId: 'c_solar',   description: '5kW solar panel kit' },
+    ],
+  };
+  const other = {
+    id: 't2', accountId: 'a1', date: '2026-05-19', amount: -22,
+    payee: 'Starbucks', description: 'Coffee', categoryId: 'c_grocery',
+  };
+
+  it('search term matches a split line description', () => {
+    const out = filterTransactions([split, other], { search: 'solar' }, categoriesById);
+    expect(out.map(r => r.id)).toEqual(['t1']);
+  });
+
+  it('search term matches the name of a category referenced by a split line', () => {
+    const out = filterTransactions([split, other], { search: 'home improvement' }, categoriesById);
+    expect(out.map(r => r.id)).toEqual(['t1']);
+  });
+
+  it('search term that matches a parent-level field still works', () => {
+    const out = filterTransactions([split, other], { search: 'costco' }, categoriesById);
+    expect(out.map(r => r.id)).toEqual(['t1']);
+  });
+
+  it('categoryId filter matches a split-line categoryId on a parent', () => {
+    const out = filterTransactions([split, other], { categoryId: 'c_solar' }, categoriesById);
+    expect(out.map(r => r.id)).toEqual(['t1']);
+  });
+
+  it('categoryId filter still matches a top-level categoryId on non-split rows', () => {
+    const out = filterTransactions([split, other], { categoryId: 'c_grocery' }, categoriesById);
+    expect(out.map(r => r.id).sort()).toEqual(['t1', 't2']);
+  });
+});

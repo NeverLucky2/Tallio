@@ -109,13 +109,23 @@ export function filterTransactions(rows, { search = '', month = null, categoryId
   const num = parseFloat(term);
   return (rows || []).filter(r => {
     if (month && (r.date || '').slice(0, 7) !== month) return false;
-    if (categoryId && r.categoryId !== categoryId) return false;
+    if (categoryId && r.categoryId !== categoryId
+        && !(Array.isArray(r.splits) && r.splits.some(s => s.categoryId === categoryId))) {
+      return false;
+    }
     if (!term) return true;
     if ((r.description || '').toLowerCase().includes(term)) return true;
     if ((r.payee || '').toLowerCase().includes(term)) return true;
     const cat = categoriesById && categoriesById.get(r.categoryId);
     if (cat && (cat.name || '').toLowerCase().includes(term)) return true;
     if (Number.isFinite(num) && Math.abs(Math.abs(r.amount || 0) - Math.abs(num)) < 0.01) return true;
+    if (Array.isArray(r.splits)) {
+      for (const s of r.splits) {
+        if ((s.description || '').toLowerCase().includes(term)) return true;
+        const sCat = categoriesById && s.categoryId && categoriesById.get(s.categoryId);
+        if (sCat && (sCat.name || '').toLowerCase().includes(term)) return true;
+      }
+    }
     return false;
   });
 }
