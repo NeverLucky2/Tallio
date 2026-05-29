@@ -148,3 +148,47 @@ describe('SplitsEditor +Add / ×Delete', () => {
     expect(deleteBtns[1].disabled).toBe(true);
   });
 });
+
+describe('SplitsEditor Done validation and Unsplit', () => {
+  afterEach(() => cleanup());
+
+  it('Done shows an inline error when the sum does not match parent amount', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // -50 + -80 = -130, parent -180
+        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText(/does not match/i)).toBeTruthy();
+  });
+
+  it('Done succeeds when the sum matches', async () => {
+    const { onDone } = setup();
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('Unsplit calls onDone with splits cleared and parent.categoryId set to the largest category line', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount:  -80, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount: -100, categoryId: 'c_household', description: '' },
+      ],
+    });
+    window.confirm = vi.fn(() => true);
+    await userEvent.click(screen.getByRole('button', { name: /unsplit/i }));
+    expect(onDone.mock.calls[0][0]).toMatchObject({ splits: null, categoryId: 'c_household' });
+  });
+
+  it('Unsplit is disabled when every line is a transfer (no category to promote)', () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount:  -50, transferId: 'tr1', description: '' },
+        { id: 's2', amount: -130, transferId: 'tr2', description: '' },
+      ],
+    });
+    expect(screen.getByRole('button', { name: /unsplit/i }).disabled).toBe(true);
+  });
+});

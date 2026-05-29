@@ -1,5 +1,6 @@
 // src/SplitsEditor.jsx
 import React, { useState } from 'react';
+import { validateSplits } from './accountsModel.js';
 
 export default function SplitsEditor({
   parentAccountId,
@@ -15,9 +16,30 @@ export default function SplitsEditor({
 }) {
   const [lines, setLines] = useState(initialSplits);
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
+  const [error, setError] = useState(null);
 
   const sum = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? l.amount : 0), 0);
   const sumOk = Math.round(sum * 100) === Math.round(parentAmount * 100);
+
+  const tryDone = () => {
+    setError(null);
+    try {
+      validateSplits({ amount: parentAmount, splits: lines });
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
+    onDone({ splits: lines, splitTargets: targets });
+  };
+
+  const categoryLines = lines.filter(l => l.categoryId);
+  const canUnsplit = categoryLines.length > 0;
+  const doUnsplit = () => {
+    if (!canUnsplit) return;
+    if (!window.confirm('Turn this back into a single-category transaction? Transfer lines and their counterparts will be deleted.')) return;
+    const biggest = [...categoryLines].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0];
+    onDone({ splits: null, categoryId: biggest.categoryId });
+  };
 
   return (
     <div className="dialog-overlay split-editor" onClick={onCancel}>
@@ -93,9 +115,11 @@ export default function SplitsEditor({
           Sum of lines: {sum.toFixed(2)} · Bank impact: {parentAmount.toFixed(2)}
         </div>
         <div className="dialog-actions">
+          <button type="button" className="btn" onClick={doUnsplit} disabled={!canUnsplit}>Unsplit</button>
           <button type="button" className="btn" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={() => onDone({ splits: lines, splitTargets: targets })}>Done</button>
+          <button type="button" className="btn btn-primary" onClick={tryDone}>Done</button>
         </div>
+        {error && <p className="field-error">{error}</p>}
       </div>
     </div>
   );
