@@ -142,3 +142,66 @@ describe('transfers', () => {
     for (const leg of result.current.transactions.filter(t => t.transferId === tid)) expect(leg.categoryId).toBe('cat_y');
   });
 });
+
+describe('addTransaction with splits', () => {
+  const seed = {
+    accounts: [
+      { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 },
+      { id: 'a_cash',  name: 'Cash',  type: 'bank', icon: '💵', openingBalance: 0 },
+    ],
+    transactions: [],
+  };
+
+  it('persists the parent with splits intact', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    let id;
+    act(() => {
+      id = result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco', description: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -80, categoryId: 'c_household', description: 'Soap' },
+        ],
+      });
+    });
+    const parent = result.current.transactions.find(t => t.id === id);
+    expect(parent.splits).toHaveLength(2);
+    expect(parent.amount).toBe(-180);
+  });
+
+  it('creates one counterpart transaction per transfer split line on the target account', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    act(() => {
+      result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash',    description: 'ATM cash back' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_cash']]) });
+    });
+    const counterparts = result.current.transactions.filter(t => t.transferId === 'tr_cash');
+    expect(counterparts).toHaveLength(1);
+    const cp = counterparts[0];
+    expect(cp.accountId).toBe('a_cash');
+    expect(cp.amount).toBe(50);
+    expect(cp.description).toBe('ATM cash back');
+    expect(cp.date).toBe('2026-05-20');
+  });
+
+  it('addTransaction throws and persists nothing when validateSplits fails', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    expect(() => act(() => {
+      result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180,
+        splits: [
+          { id: 's1', amount: -10, categoryId: 'c1', description: '' },
+          { id: 's2', amount: -10, categoryId: 'c1', description: '' },
+        ],
+      });
+    })).toThrow(/does not match/i);
+    expect(result.current.transactions).toHaveLength(0);
+  });
+});
+

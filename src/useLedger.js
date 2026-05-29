@@ -1,6 +1,7 @@
 // src/useLedger.js
 import { useState, useCallback, useEffect } from 'react';
 import { nanoid } from 'nanoid';
+import { validateSplits } from './accountsModel.js';
 
 const ACCOUNTS_KEY = 'billtracker-accounts';
 const TXN_KEY = 'billtracker-transactions';
@@ -40,9 +41,19 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     setTransactions(prev => prev.filter(t => t.accountId !== id));
   }, []);
 
-  const addTransaction = useCallback((txn) => {
+  const addTransaction = useCallback((txn, opts = {}) => {
+    // opts.splitTargets: Map<lineId, targetAccountId> for transfer split lines.
     const id = nanoid(8);
-    setTransactions(prev => [...prev, {
+    const splits = Array.isArray(txn.splits) && txn.splits.length > 0
+      ? txn.splits.map(s => ({
+          id: s.id || nanoid(8),
+          amount: Number.isFinite(s.amount) ? s.amount : 0,
+          description: s.description || '',
+          ...(s.categoryId ? { categoryId: s.categoryId } : {}),
+          ...(s.transferId ? { transferId: s.transferId } : {}),
+        }))
+      : null;
+    const parent = {
       id,
       accountId: txn.accountId,
       date: txn.date,
@@ -52,7 +63,32 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       payee: txn.payee ?? null,
       checkNumber: txn.checkNumber ?? null,
       transferId: txn.transferId ?? null,
-    }]);
+      ...(splits ? { splits } : {}),
+    };
+    validateSplits(parent); // throws on invariant violation before any state change
+
+    setTransactions(prev => {
+      const next = [...prev, parent];
+      if (!splits) return next;
+      const targets = opts.splitTargets || new Map();
+      for (const s of splits) {
+        if (!s.transferId) continue;
+        const targetAccountId = targets.get(s.id);
+        if (!targetAccountId) continue;
+        next.push({
+          id: nanoid(8),
+          accountId: targetAccountId,
+          date: parent.date,
+          amount: -1 * s.amount,
+          categoryId: null,
+          description: s.description || '',
+          payee: parent.payee,
+          checkNumber: null,
+          transferId: s.transferId,
+        });
+      }
+      return next;
+    });
     return id;
   }, []);
 
