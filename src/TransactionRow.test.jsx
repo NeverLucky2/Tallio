@@ -89,3 +89,47 @@ describe('TransactionRow', () => {
     expect(screen.queryByText('Investment Transfer')).toBeNull();
   });
 });
+
+describe('TransactionRow split parent', () => {
+  afterEach(() => cleanup());
+  const splitCategoriesById = new Map([
+    ['c_grocery',   { id: 'c_grocery',   name: 'Groceries', icon: '🛒' }],
+    ['c_household', { id: 'c_household', name: 'Household', icon: '🧴' }],
+  ]);
+  const splitRow = {
+    id: 't1', accountId: 'a1', date: '2026-05-20', amount: -180, balance: 820,
+    payee: 'Costco', description: 'Costco big shop', categoryId: null,
+    splits: [
+      { id: 's1', amount: -100, categoryId: 'c_grocery',   description: 'Groceries' },
+      { id: 's2', amount:  -80, categoryId: 'c_household', description: 'Soap' },
+    ],
+  };
+
+  it('renders "▶ N split lines" in the category cell (collapsed)', () => {
+    render(<table><tbody><TransactionRow layout="bank" row={splitRow} categoriesById={splitCategoriesById} onEdit={vi.fn()} /></tbody></table>);
+    expect(screen.getByText(/2 split lines/)).toBeTruthy();
+  });
+
+  it('clicking the chevron expands and shows per-line sub-rows', async () => {
+    render(<table><tbody><TransactionRow layout="bank" row={splitRow} categoriesById={splitCategoriesById} onEdit={vi.fn()} /></tbody></table>);
+    expect(screen.queryByText('Soap')).toBeNull(); // collapsed
+    await userEvent.click(screen.getByRole('button', { name: /expand splits/i }));
+    expect(screen.getByText('Soap')).toBeTruthy();
+    // "Groceries" appears both in category-name cell and description cell once expanded.
+    expect(screen.getAllByText(/Groceries/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('clicking elsewhere on the row still opens the editor', async () => {
+    const onEdit = vi.fn();
+    render(<table><tbody><TransactionRow layout="bank" row={splitRow} categoriesById={splitCategoriesById} onEdit={onEdit} /></tbody></table>);
+    await userEvent.click(screen.getByText('Costco big shop'));
+    expect(onEdit).toHaveBeenCalledWith(splitRow);
+  });
+
+  it('compact layout: chevron + sub-rows still work', async () => {
+    render(<table><tbody><TransactionRow layout="compact" row={splitRow} categoriesById={splitCategoriesById} onEdit={vi.fn()} /></tbody></table>);
+    expect(screen.queryByText('Soap')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /expand splits/i }));
+    expect(screen.getByText('Soap')).toBeTruthy();
+  });
+});
