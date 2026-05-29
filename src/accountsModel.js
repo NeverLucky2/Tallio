@@ -121,9 +121,15 @@ export function filterTransactions(rows, { search = '', month = null, categoryId
     if (Number.isFinite(num) && Math.abs(Math.abs(r.amount || 0) - Math.abs(num)) < 0.01) return true;
     if (Array.isArray(r.splits)) {
       for (const s of r.splits) {
-        if ((s.description || '').toLowerCase().includes(term)) return true;
+        const descHit = (s.description || '').toLowerCase().includes(term);
         const sCat = categoriesById && s.categoryId && categoriesById.get(s.categoryId);
-        if (sCat && (sCat.name || '').toLowerCase().includes(term)) return true;
+        const catHit = sCat && (sCat.name || '').toLowerCase().includes(term);
+        if (descHit || catHit) {
+          // Tag the row so the consumer (Register) can pass it as expandSplitHint.
+          // Safe to mutate: computeRegister returns fresh row objects each render.
+          r._matchedSplitId = s.id;
+          return true;
+        }
       }
     }
     return false;

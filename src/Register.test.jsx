@@ -92,3 +92,38 @@ describe('Register', () => {
     expect(onSelectAccount).toHaveBeenCalledWith('a_sav');
   });
 });
+
+describe('Register with split transactions', () => {
+  afterEach(() => cleanup());
+
+  const splitAccount = { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 };
+  const splitCats = [
+    { id: 'c_grocery', name: 'Groceries',         icon: '🛒' },
+    { id: 'c_solar',   name: 'Home Improvement',  icon: '🏠' },
+  ];
+  const splitCatsById = new Map(splitCats.map(c => [c.id, c]));
+  const splitTxns = [{
+    id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -4300,
+    payee: 'Costco', checkNumber: null, transferId: null,
+    description: 'Costco big shop', categoryId: null,
+    splits: [
+      { id: 's1', amount:  -180, categoryId: 'c_grocery', description: 'Weekly groceries' },
+      { id: 's2', amount: -4120, categoryId: 'c_solar',   description: '5kW solar panel kit' },
+    ],
+  }];
+
+  it('search matching a split line auto-expands the parent', async () => {
+    render(
+      <Register
+        account={splitAccount}
+        transactions={splitTxns}
+        categories={splitCats}
+        categoriesById={splitCatsById}
+        onEditTransaction={() => {}}
+        onAddTransaction={() => {}}
+      />
+    );
+    await userEvent.type(screen.getByPlaceholderText(/search/i), 'solar');
+    expect(screen.getByText('5kW solar panel kit')).toBeTruthy();
+  });
+});
