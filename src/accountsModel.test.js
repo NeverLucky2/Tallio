@@ -585,3 +585,37 @@ describe('filterTransactions with splits', () => {
     expect(out.map(r => r.id).sort()).toEqual(['t1', 't2']);
   });
 });
+
+import { sortRows } from './accountsModel.js';
+
+describe('sortRows handles split parents predictably', () => {
+  const categoriesById = new Map([
+    ['c_grocery', { id: 'c_grocery', name: 'Groceries' }],
+    ['c_zebra',   { id: 'c_zebra',   name: 'Zebra' }],
+  ]);
+  const rows = [
+    { id: 't_g',     categoryId: 'c_grocery', date: '2026-05-01', amount: -10, balance: 0 },
+    { id: 't_z',     categoryId: 'c_zebra',   date: '2026-05-02', amount: -10, balance: 0 },
+    { id: 't_split', categoryId: null,        date: '2026-05-03', amount: -10, balance: 0,
+      splits: [
+        { id: 's1', amount: -5, categoryId: 'c_grocery', description: '' },
+        { id: 's2', amount: -5, categoryId: 'c_zebra',   description: '' },
+      ] },
+  ];
+
+  it('ascending category sort puts split parents AFTER all real categories', () => {
+    const sorted = sortRows(rows, { key: 'category', dir: 'asc' }, categoriesById);
+    expect(sorted.map(r => r.id)).toEqual(['t_g', 't_z', 't_split']);
+  });
+
+  it('descending category sort puts split parents BEFORE all real categories', () => {
+    const sorted = sortRows(rows, { key: 'category', dir: 'desc' }, categoriesById);
+    expect(sorted.map(r => r.id)).toEqual(['t_split', 't_z', 't_g']);
+  });
+
+  it('a split parent with a leftover top-level categoryId still groups as a split', () => {
+    const rowsWithLeftover = rows.map(r => r.id === 't_split' ? { ...r, categoryId: 'c_grocery' } : r);
+    const sorted = sortRows(rowsWithLeftover, { key: 'category', dir: 'asc' }, categoriesById);
+    expect(sorted.map(r => r.id)).toEqual(['t_g', 't_z', 't_split']);
+  });
+});

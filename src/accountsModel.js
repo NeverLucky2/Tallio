@@ -145,10 +145,24 @@ export function sortRows(rows, { key = 'date', dir = 'desc' } = {}, categoriesBy
     } else {
       let sa, sb;
       if (key === 'category') {
-        const ca = categoriesById && categoriesById.get(a.categoryId);
-        const cb = categoriesById && categoriesById.get(b.categoryId);
-        sa = (ca && ca.name ? ca.name : '').toLowerCase();
-        sb = (cb && cb.name ? cb.name : '').toLowerCase();
+        // Split parents sort to one end of the category column (after every real category
+        // name ascending). '￿' is a valid BMP code point that compares larger than any
+        // printable category name, so the empty-string fallback at lines below never wins.
+        const SPLIT_KEY = '￿—SPLIT—';
+        const aSplit = Array.isArray(a.splits) && a.splits.length > 0;
+        const bSplit = Array.isArray(b.splits) && b.splits.length > 0;
+        if (aSplit) {
+          sa = SPLIT_KEY;
+        } else {
+          const ca = categoriesById && categoriesById.get(a.categoryId);
+          sa = (ca && ca.name ? ca.name : '').toLowerCase();
+        }
+        if (bSplit) {
+          sb = SPLIT_KEY;
+        } else {
+          const cb = categoriesById && categoriesById.get(b.categoryId);
+          sb = (cb && cb.name ? cb.name : '').toLowerCase();
+        }
       } else if (key === 'payee' || key === 'checkNumber' || key === 'description') {
         sa = (a[key] || '').toLowerCase();
         sb = (b[key] || '').toLowerCase();
