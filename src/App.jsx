@@ -202,8 +202,10 @@ function BillTracker() {
   // Transaction CRUD
   const saveTransaction = (data) => {
     pushHistory();
-    if (data.id) ledger.updateTransaction(data.id, data);
-    else ledger.addTransaction(data);
+    const { splitTargets, ...rest } = data;
+    const opts = splitTargets ? { splitTargets } : {};
+    if (rest.id) ledger.updateTransaction(rest.id, rest, opts);
+    else ledger.addTransaction(rest, opts);
     setEditingTxn(null);
   };
   const deleteTransaction = (id) => { pushHistory(); ledger.deleteTransaction(id); setEditingTxn(null); };
@@ -365,6 +367,7 @@ function BillTracker() {
           account={selectedAccount}
           transaction={editingTxn.transaction || null}
           categories={cats.categories}
+          accounts={ledger.accounts}
           typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
         />
