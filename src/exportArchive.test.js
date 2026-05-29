@@ -79,3 +79,20 @@ describe('export v4', () => {
     expect(data.reportAcks.dismissedDuplicates).toEqual(['d1|d2']);
   });
 });
+
+describe('export with split transactions', () => {
+  it('preserves splits[] verbatim in the data.json payload', () => {
+    const txns = [{
+      id: 't1', accountId: 'a_chk', date: '2026-05-20', amount: -180,
+      categoryId: null, description: 'Costco', payee: 'Costco', checkNumber: null, transferId: null,
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_shop', description: 'Groceries' },
+        { id: 's2', amount:  -80, categoryId: 'c_shop', description: 'Soap' },
+      ],
+    }];
+    const bytes = buildArchive({ accounts, transactions: txns, categories: [], schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-21') });
+    const files = unzipSync(bytes);
+    const data = JSON.parse(strFromU8(files['data.json']));
+    expect(data.transactions[0].splits).toEqual(txns[0].splits);
+  });
+});
