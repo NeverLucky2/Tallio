@@ -53,3 +53,45 @@ describe('TransactionEditor', () => {
     expect(onDelete).toHaveBeenCalledWith('t1');
   });
 });
+
+describe('TransactionEditor split wire-up', () => {
+  afterEach(() => cleanup());
+
+  function setupSplit(transaction = null) {
+    const onSave = vi.fn();
+    render(
+      <TransactionEditor
+        account={{ id: 'a_chase', name: 'Chase', type: 'bank' }}
+        transaction={transaction}
+        categories={categories}
+        accounts={[{ id: 'a_chase', name: 'Chase', type: 'bank' }, { id: 'a_cash', name: 'Cash', type: 'bank' }]}
+        onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()}
+      />
+    );
+    return { onSave };
+  }
+
+  it('shows the Split… button for a non-split transaction', () => {
+    setupSplit();
+    expect(screen.getByRole('button', { name: /^split…?$/i })).toBeTruthy();
+  });
+
+  it('opening Split… mounts SplitsEditor', async () => {
+    setupSplit();
+    await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
+    expect(screen.getByRole('button', { name: /done/i })).toBeTruthy();
+  });
+
+  it('an existing split transaction shows the summary chip and a hidden category field', () => {
+    setupSplit({
+      id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
+      categoryId: null, description: 'Costco', payee: 'Costco',
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
+      ],
+    });
+    expect(screen.getByText(/2 split lines/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/^category$/i)).toBeNull();
+  });
+});

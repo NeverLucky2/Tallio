@@ -1,10 +1,11 @@
 // src/TransactionEditor.jsx
 import React, { useState } from 'react';
 import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
+import SplitsEditor from './SplitsEditor.jsx';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
   const isEdit = !!transaction;
   const initialAmount = transaction ? Math.abs(transaction.amount) : '';
   const initialDir = transaction ? (transaction.amount >= 0 ? 'in' : 'out') : 'out';
@@ -16,21 +17,55 @@ export default function TransactionEditor({ account, transaction, categories, ty
   const [categoryId, setCategoryId] = useState(transaction?.categoryId || (categories[0] && categories[0].id) || '');
   const [payee, setPayee] = useState(transaction?.payee || '');
   const [checkNumber, setCheckNumber] = useState(transaction?.checkNumber || '');
+  const [splits, setSplits] = useState(transaction?.splits ?? null);
+  const [splitTargets, setSplitTargets] = useState(new Map());
+  const [splitsOpen, setSplitsOpen] = useState(false);
 
+  const hasSplits = Array.isArray(splits) && splits.length > 0;
   const isBank = layoutFor(account.type, typesById) === 'bank';
 
-  const save = () => {
+  const parentAmount = (() => {
+    if (hasSplits) return splits.reduce((s, l) => s + l.amount, 0);
     const mag = Math.abs(parseFloat(magnitude) || 0);
-    const amount = direction === 'in' ? mag : -mag;
+    return direction === 'in' ? mag : -mag;
+  })();
+
+  const openSplits = () => {
+    if (!hasSplits) {
+      const id1 = 's_' + Date.now().toString(36);
+      const id2 = id1 + '_2';
+      setSplits([
+        { id: id1, amount: parentAmount || 0, categoryId, description: '' },
+        { id: id2, amount: 0,                 categoryId, description: '' },
+      ]);
+    }
+    setSplitsOpen(true);
+  };
+
+  const onSplitsDone = ({ splits: nextSplits, splitTargets: nextTargets, categoryId: promotedCategoryId }) => {
+    if (nextSplits === null) {
+      setSplits(null);
+      setSplitTargets(new Map());
+      if (promotedCategoryId) setCategoryId(promotedCategoryId);
+    } else {
+      setSplits(nextSplits);
+      if (nextTargets) setSplitTargets(nextTargets);
+    }
+    setSplitsOpen(false);
+  };
+
+  const save = () => {
+    const amount = hasSplits ? splits.reduce((s, l) => s + l.amount, 0) : parentAmount;
     onSave({
       ...(transaction || {}),
       accountId: account.id,
       date,
       amount,
-      categoryId,
+      categoryId: hasSplits ? null : categoryId,
       description: description.trim(),
       payee: isBank ? (payee.trim() || null) : null,
       checkNumber: isBank ? (checkNumber.trim() || null) : null,
+      ...(hasSplits ? { splits, splitTargets } : {}),
     });
   };
 
@@ -58,20 +93,29 @@ export default function TransactionEditor({ account, transaction, categories, ty
           </>
         )}
 
-        <label className="field"><span>Category</span>
-          <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
-            {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-          </select>
-        </label>
+        {hasSplits ? (
+          <div className="field">
+            <span>Category</span>
+            <span className="split-summary">▼ {splits.length} split lines</span>
+            <button type="button" className="btn" onClick={openSplits}>Edit splits…</button>
+          </div>
+        ) : (
+          <label className="field"><span>Category</span>
+            <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
+              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </select>
+            <button type="button" className="btn" onClick={openSplits}>Split…</button>
+          </label>
+        )}
 
         <div className="field">
           <span>Amount</span>
           <div className="amount-row">
             <div className="dir-toggle" role="group" aria-label="Direction">
-              <button type="button" className={`dir-btn${direction === 'out' ? ' active' : ''}`} aria-label="Money out" onClick={() => setDirection('out')}>− Out</button>
-              <button type="button" className={`dir-btn${direction === 'in' ? ' active' : ''}`} aria-label="Money in" onClick={() => setDirection('in')}>+ In</button>
+              <button type="button" className={`dir-btn${direction === 'out' ? ' active' : ''}`} aria-label="Money out" disabled={hasSplits} onClick={() => setDirection('out')}>− Out</button>
+              <button type="button" className={`dir-btn${direction === 'in' ? ' active' : ''}`} aria-label="Money in" disabled={hasSplits} onClick={() => setDirection('in')}>+ In</button>
             </div>
-            <input type="number" step="0.01" aria-label="Amount" value={magnitude} onChange={(e) => setMagnitude(e.target.value)} className="input" />
+            <input type="number" step="0.01" aria-label="Amount" value={hasSplits ? Math.abs(splits.reduce((s, l) => s + l.amount, 0)) : magnitude} onChange={(e) => setMagnitude(e.target.value)} disabled={hasSplits} className="input" />
           </div>
         </div>
 
@@ -80,6 +124,21 @@ export default function TransactionEditor({ account, transaction, categories, ty
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save}>Save</button>
         </div>
+
+        {splitsOpen && (
+          <SplitsEditor
+            parentAccountId={account.id}
+            parentAmount={parentAmount}
+            parentPayee={payee}
+            parentDate={date}
+            categories={categories}
+            accounts={accounts}
+            initialSplits={splits || []}
+            initialSplitTargets={splitTargets}
+            onDone={onSplitsDone}
+            onCancel={() => setSplitsOpen(false)}
+          />
+        )}
       </div>
     </div>
   );
