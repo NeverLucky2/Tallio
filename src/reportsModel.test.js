@@ -432,3 +432,34 @@ describe('reports with split transactions', () => {
       .reduce((s, e) => s + e.total, 0)).toBe(130);
   });
 });
+
+describe('duplicate/recurring detection ignores split lines', () => {
+  const categoriesById = new Map([
+    ['c_groceries', { id: 'c_groceries', name: 'Groceries', flow: 'expense', icon: '🛒', color: '#000' }],
+  ]);
+  const split = {
+    id: 't1', accountId: 'a1', date: '2026-05-20', amount: -180,
+    payee: 'Costco', description: 'Costco',
+    splits: [
+      { id: 's1', amount: -100, categoryId: 'c_groceries', description: 'Groceries' },
+      { id: 's2', amount:  -80, categoryId: 'c_groceries', description: 'Soap' },
+    ],
+  };
+  const dupe = { ...split, id: 't2' };
+
+  it('findDuplicates groups by parent payee+amount, not by split lines', () => {
+    const out = findDuplicates([split, dupe]);
+    expect(out).toHaveLength(1);
+    expect(out[0].amount).toBe(-180);
+    expect(out[0].ids).toEqual(['t1', 't2']);
+  });
+
+  it('recurringCharges groups by parent label, not by split lines', () => {
+    const may = { ...split, id: 't_may', date: '2026-05-20' };
+    const jun = { ...split, id: 't_jun', date: '2026-06-20' };
+    const out = recurringCharges([may, jun], categoriesById, { now: new Date(2026, 5, 25) });
+    expect(out).toHaveLength(1);
+    expect(out[0].label).toBe('Costco');
+    expect(out[0].monthCount).toBe(2);
+  });
+});

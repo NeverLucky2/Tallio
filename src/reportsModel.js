@@ -188,7 +188,16 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
   const nowMonth = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
   const groups = new Map();
   for (const t of filterRows(transactions, opts)) {
-    if (flowOf(t, categoriesById) !== 'expense') continue;
+    // A split parent has no top-level categoryId, so flowOf returns null. Treat it as
+    // expense-flow if any of its category-line splits is itself expense-flow — this
+    // keeps recurring detection working on the parent as a single charge.
+    const isSplitParent = Array.isArray(t.splits) && t.splits.length > 0;
+    const splitHasExpenseLine = isSplitParent && t.splits.some(s => {
+      if (s.transferId) return false;
+      const cat = categoriesById && categoriesById.get(s.categoryId);
+      return cat && cat.flow === 'expense';
+    });
+    if (!splitHasExpenseLine && flowOf(t, categoriesById) !== 'expense') continue;
     const date = typeof t.date === 'string' ? t.date : '';
     if (!DATE_RE.test(date)) continue;
     const key = normalizeLabel(t.payee || t.description);
