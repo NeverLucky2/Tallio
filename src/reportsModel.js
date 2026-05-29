@@ -316,3 +316,31 @@ export function barLayout(values, { width = 100, height = 40, gap = 2 } = {}) {
     return { x: i * slot + gap / 2, y: negative ? zeroY : zeroY - h, width: barW, height: h, negative };
   });
 }
+
+// Yields one "virtual row" per category-bearing unit. Splits explode into one
+// row per category line; transfer splits are dropped (they net out, same as
+// top-level transfers do for flow). Non-split transactions yield as-is.
+export function* flattenForReports(transactions) {
+  for (const t of transactions || []) {
+    if (!Array.isArray(t.splits) || t.splits.length === 0) {
+      yield t;
+      continue;
+    }
+    for (const s of t.splits) {
+      if (s.transferId) continue;
+      yield {
+        id: `${t.id}#${s.id}`,
+        accountId: t.accountId,
+        date: t.date,
+        payee: t.payee,
+        description: s.description || t.description,
+        categoryId: s.categoryId,
+        amount: s.amount,
+        transferId: null,
+        _parentId: t.id,
+        _splitId: s.id,
+      };
+    }
+  }
+}
+

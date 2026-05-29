@@ -319,3 +319,57 @@ describe('transfers stay out of reports even when categorized', () => {
     expect(sum.spending).toBeCloseTo(0);
   });
 });
+
+import { flattenForReports } from './reportsModel.js';
+
+describe('flattenForReports', () => {
+  it('yields non-split transactions unchanged', () => {
+    const txns = [{ id: 't1', amount: -10, categoryId: 'c1', date: '2026-05-01', accountId: 'a1' }];
+    expect([...flattenForReports(txns)]).toEqual(txns);
+  });
+
+  it('treats splits=null as non-split', () => {
+    const txns = [{ id: 't1', amount: -10, categoryId: 'c1', date: '2026-05-01', accountId: 'a1', splits: null }];
+    expect([...flattenForReports(txns)]).toEqual(txns);
+  });
+
+  it('explodes a split parent into one virtual row per category line', () => {
+    const txns = [{
+      id: 't1', amount: -180, accountId: 'a1', date: '2026-05-20', payee: 'Costco', description: 'Costco run',
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_groceries', description: 'Groceries' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: 'Soap' },
+      ],
+    }];
+    const flat = [...flattenForReports(txns)];
+    expect(flat).toHaveLength(2);
+    expect(flat[0]).toMatchObject({ accountId: 'a1', date: '2026-05-20', categoryId: 'c_groceries', amount: -100, description: 'Groceries', _parentId: 't1', _splitId: 's1' });
+    expect(flat[1]).toMatchObject({ categoryId: 'c_household', amount: -80, description: 'Soap' });
+  });
+
+  it('drops transfer split lines (they net out, like top-level transfers do today)', () => {
+    const txns = [{
+      id: 't1', amount: -180, accountId: 'a1', date: '2026-05-20',
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_groceries', description: '' },
+        { id: 's2', amount:  -30, categoryId: 'c_household', description: '' },
+        { id: 's3', amount:  -50, transferId: 'tr1',         description: 'cash back' },
+      ],
+    }];
+    const flat = [...flattenForReports(txns)];
+    expect(flat).toHaveLength(2);
+    expect(flat.every(r => r.transferId == null)).toBe(true);
+  });
+
+  it('falls back to parent.description when a line has no description', () => {
+    const txns = [{
+      id: 't1', amount: -10, accountId: 'a1', date: '2026-05-20', description: 'Parent desc',
+      splits: [
+        { id: 's1', amount: -5, categoryId: 'c1', description: '' },
+        { id: 's2', amount: -5, categoryId: 'c1', description: '' },
+      ],
+    }];
+    const [r0] = [...flattenForReports(txns)];
+    expect(r0.description).toBe('Parent desc');
+  });
+});
