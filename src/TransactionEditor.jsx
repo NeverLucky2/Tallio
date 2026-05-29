@@ -1,5 +1,6 @@
 // src/TransactionEditor.jsx
 import React, { useState } from 'react';
+import { nanoid } from 'nanoid';
 import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 
@@ -32,11 +33,9 @@ export default function TransactionEditor({ account, transaction, categories, ac
 
   const openSplits = () => {
     if (!hasSplits) {
-      const id1 = 's_' + Date.now().toString(36);
-      const id2 = id1 + '_2';
       setSplits([
-        { id: id1, amount: parentAmount || 0, categoryId, description: '' },
-        { id: id2, amount: 0,                 categoryId, description: '' },
+        { id: nanoid(8), amount: parentAmount || 0, categoryId, description: '' },
+        { id: nanoid(8), amount: 0,                 categoryId, description: '' },
       ]);
     }
     setSplitsOpen(true);

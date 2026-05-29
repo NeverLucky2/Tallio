@@ -540,8 +540,6 @@ describe('validateSplits', () => {
   });
 });
 
-import { filterTransactions } from './accountsModel.js';
-
 describe('filterTransactions with splits', () => {
   const categoriesById = new Map([
     ['c_grocery', { id: 'c_grocery', name: 'Groceries',         flow: 'expense' }],
@@ -585,8 +583,6 @@ describe('filterTransactions with splits', () => {
     expect(out.map(r => r.id).sort()).toEqual(['t1', 't2']);
   });
 });
-
-import { sortRows } from './accountsModel.js';
 
 describe('sortRows handles split parents predictably', () => {
   const categoriesById = new Map([

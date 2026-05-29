@@ -1,5 +1,6 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
+import { nanoid } from 'nanoid';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 
@@ -43,11 +44,10 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
 
   const openSplits = () => {
     if (!hasSplits) {
-      const id1 = 's_' + Date.now().toString(36);
-      const id2 = id1 + '_2';
+      const fallbackCat = categoryId || (categories[0] && categories[0].id) || '';
       setSplits([
-        { id: id1, amount: sourceAmount, categoryId: categoryId || (categories[0] && categories[0].id) || '', description: '' },
-        { id: id2, amount: 0,            categoryId: categoryId || (categories[0] && categories[0].id) || '', description: '' },
+        { id: nanoid(8), amount: sourceAmount, categoryId: fallbackCat, description: '' },
+        { id: nanoid(8), amount: 0,            categoryId: fallbackCat, description: '' },
       ]);
     }
     setSplitsOpen(true);

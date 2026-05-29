@@ -1,5 +1,6 @@
 // src/SplitsEditor.jsx
 import React, { useState } from 'react';
+import { nanoid } from 'nanoid';
 import { validateSplits } from './accountsModel.js';
 
 export default function SplitsEditor({
@@ -107,8 +108,7 @@ export default function SplitsEditor({
         </table>
         <div>
           <button type="button" className="btn" onClick={() => {
-            const id = `s_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-            setLines(prev => [...prev, { id, amount: 0, categoryId: categories[0]?.id || '', description: '' }]);
+            setLines(prev => [...prev, { id: nanoid(8), amount: 0, categoryId: categories[0]?.id || '', description: '' }]);
           }}>+ Add line</button>
         </div>
         <div className={`split-sum ${sumOk ? 'ok' : 'mismatch'}`}>

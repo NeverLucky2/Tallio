@@ -57,7 +57,8 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
             const peers = survivingByTransferId.get(s.transferId) || [];
             const hasCounterpart = peers.some(p => p.id !== t.id);
             if (hasCounterpart) return s;
-            const { transferId, ...rest } = s;
+            // Strip the orphan transferId; surviving fields (amount, description) stay.
+            const { transferId: _stripped, ...rest } = s;
             return rest;
           });
           return { ...t, splits: cleaned };
