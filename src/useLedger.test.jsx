@@ -369,3 +369,69 @@ describe('deleteTransaction with splits', () => {
     expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeUndefined();
   });
 });
+
+describe('addTransfer / updateTransfer with source-leg splits', () => {
+  const tseed = {
+    accounts: [
+      { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 },
+      { id: 'a_loan',  name: 'Camry Loan', type: 'loan', icon: '🏷️', openingBalance: -20000 },
+    ],
+    transactions: [],
+  };
+
+  it('addTransfer stores splits on the source leg only', () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    let tid;
+    act(() => {
+      tid = result.current.addTransfer({
+        fromId: 'a_chase', toId: 'a_loan', amount: 325.40, date: '2026-06-28',
+        description: 'Monthly payment',
+        splits: [
+          { id: 's1', amount: -250.00, categoryId: 'c_principal', description: 'Principal' },
+          { id: 's2', amount:  -75.40, categoryId: 'c_interest',  description: 'Interest' },
+        ],
+      });
+    });
+    const legs = result.current.transactions.filter(t => t.transferId === tid);
+    const from = legs.find(l => l.accountId === 'a_chase');
+    const to   = legs.find(l => l.accountId === 'a_loan');
+    expect(from.splits).toHaveLength(2);
+    expect(from.amount).toBe(-325.40);
+    expect(to.splits).toBeUndefined();
+    expect(to.amount).toBe(325.40);
+  });
+
+  it("updateTransfer replaces the source leg's splits", () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    let tid;
+    act(() => {
+      tid = result.current.addTransfer({
+        fromId: 'a_chase', toId: 'a_loan', amount: 325.40, date: '2026-06-28', description: 'Pay',
+      });
+    });
+    act(() => {
+      result.current.updateTransfer(tid, {
+        fromId: 'a_chase', toId: 'a_loan', amount: 325.40, date: '2026-06-28', description: 'Pay',
+        splits: [
+          { id: 's1', amount: -250.00, categoryId: 'c_principal', description: 'Principal' },
+          { id: 's2', amount:  -75.40, categoryId: 'c_interest',  description: 'Interest' },
+        ],
+      });
+    });
+    const from = result.current.transactions.find(t => t.transferId === tid && t.accountId === 'a_chase');
+    expect(from.splits).toHaveLength(2);
+  });
+
+  it('addTransfer throws when splits sum mismatches -magnitude', () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    expect(() => act(() => {
+      result.current.addTransfer({
+        fromId: 'a_chase', toId: 'a_loan', amount: 325.40, date: '2026-06-28',
+        splits: [
+          { id: 's1', amount: -200.00, categoryId: 'c_principal', description: 'Principal' },
+          { id: 's2', amount: -100.00, categoryId: 'c_interest',  description: 'Interest' },
+        ],
+      });
+    })).toThrow(/does not match/i);
+  });
+});
