@@ -57,3 +57,64 @@ describe('SplitsEditor', () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 });
+
+describe('SplitsEditor editing', () => {
+  afterEach(() => cleanup());
+
+  it('editing an amount input updates the sum footer', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    // Initial sum is -100 + -80 = -180, matches parentAmount → ok.
+    expect(screen.getByText(/Sum of lines: -180\.00/)).toBeTruthy();
+    // Bump line 1 up so sum stops matching.
+    const amount0 = screen.getAllByLabelText(/line amount/i)[0];
+    await userEvent.type(amount0, '0'); // -100 becomes -1000
+    expect(screen.getByText(/Sum of lines: -1080\.00/)).toBeTruthy();
+  });
+
+  it('flipping a row from Category to Transfer swaps picker controls', async () => {
+    setup();
+    const transferBtns = screen.getAllByRole('button', { name: /^transfer$/i });
+    await userEvent.click(transferBtns[0]); // first line becomes Transfer
+    expect(screen.getAllByLabelText(/target account/i)).toHaveLength(1);
+  });
+
+  it('selecting a category sets the line\'s categoryId', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    const selects = screen.getAllByLabelText(/^category$/i);
+    await userEvent.selectOptions(selects[0], 'c_household');
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone.mock.calls[0][0].splits[0].categoryId).toBe('c_household');
+  });
+
+  it('selecting a transfer target sets the target in splitTargets', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery', description: '' },
+        { id: 's2', amount:  -80, transferId: 'tr1',       description: '' },
+      ],
+      initialSplitTargets: new Map([['s2', '']]),
+    });
+    const select = screen.getByLabelText(/target account/i);
+    await userEvent.selectOptions(select, 'a_cash');
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone.mock.calls[0][0].splitTargets.get('s2')).toBe('a_cash');
+  });
+
+  it('per-line description editing flows through to onDone payload', async () => {
+    const { onDone } = setup();
+    const descInputs = screen.getAllByLabelText(/line description/i);
+    await userEvent.type(descInputs[0], 'Solar panels');
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone.mock.calls[0][0].splits[0].description).toContain('Solar panels');
+  });
+});
