@@ -92,8 +92,72 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     return id;
   }, []);
 
-  const updateTransaction = useCallback((id, patch) => {
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...patch, id: t.id } : t));
+  const updateTransaction = useCallback((id, patch, opts = {}) => {
+    setTransactions(prev => {
+      const idx = prev.findIndex(t => t.id === id);
+      if (idx < 0) return prev;
+      const before = prev[idx];
+      const next = { ...before, ...patch, id: before.id };
+      if (next.splits === undefined) next.splits = before.splits;
+      if (next.splits === null) delete next.splits;
+      validateSplits(next);
+
+      const prevLines = Array.isArray(before.splits) ? before.splits : [];
+      const nextLines = Array.isArray(next.splits) ? next.splits : [];
+      const prevTransferByLineId = new Map(prevLines.filter(s => s.transferId).map(s => [s.id, s]));
+      const nextTransferByLineId = new Map(nextLines.filter(s => s.transferId).map(s => [s.id, s]));
+      const targets = opts.splitTargets || new Map();
+
+      let out = prev.map((t, i) => (i === idx ? next : t));
+
+      // Removed (or flipped) transfer lines: delete their counterparts by transferId.
+      for (const [lineId, prevLine] of prevTransferByLineId) {
+        if (!nextTransferByLineId.has(lineId)
+            || nextTransferByLineId.get(lineId).transferId !== prevLine.transferId) {
+          out = out.filter(t => t.transferId !== prevLine.transferId);
+        }
+      }
+
+      // Added (or flipped) transfer lines: create their counterparts.
+      for (const [lineId, nextLine] of nextTransferByLineId) {
+        const prevSame = prevTransferByLineId.get(lineId);
+        const wasSameTransfer = prevSame && prevSame.transferId === nextLine.transferId;
+        if (wasSameTransfer) continue;
+        const targetAccountId = targets.get(lineId);
+        if (!targetAccountId) continue;
+        out = [...out, {
+          id: nanoid(8),
+          accountId: targetAccountId,
+          date: next.date,
+          amount: -1 * nextLine.amount,
+          categoryId: null,
+          description: nextLine.description || '',
+          payee: next.payee ?? null,
+          checkNumber: null,
+          transferId: nextLine.transferId,
+        }];
+      }
+
+      // Persistent transfer lines: patch the counterpart for amount/account/description/date.
+      for (const [lineId, nextLine] of nextTransferByLineId) {
+        const prevLine = prevTransferByLineId.get(lineId);
+        if (!prevLine || prevLine.transferId !== nextLine.transferId) continue;
+        const newTarget = targets.get(lineId);
+        out = out.map(t => {
+          if (t.transferId !== nextLine.transferId) return t;
+          if (t.id === next.id) return t; // don't patch the parent itself
+          return {
+            ...t,
+            accountId: newTarget || t.accountId,
+            amount: -1 * nextLine.amount,
+            description: nextLine.description || '',
+            date: next.date,
+            payee: next.payee ?? null,
+          };
+        });
+      }
+      return out;
+    });
   }, []);
 
   const deleteTransaction = useCallback((id) => {

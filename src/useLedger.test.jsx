@@ -205,3 +205,138 @@ describe('addTransaction with splits', () => {
   });
 });
 
+
+describe('updateTransaction with splits', () => {
+  const seed = {
+    accounts: [
+      { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 },
+      { id: 'a_cash',  name: 'Cash',  type: 'bank', icon: '💵', openingBalance: 0 },
+      { id: 'a_savings', name: 'Savings', type: 'bank', icon: '🏦', openingBalance: 0 },
+    ],
+    transactions: [],
+  };
+
+  function addCostcoCashBack(result) {
+    let id;
+    act(() => {
+      id = result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash',    description: 'Cash back' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_cash']]) });
+    });
+    return id;
+  }
+
+  it('changing a transfer line amount updates the counterpart amount (negated)', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    const id = addCostcoCashBack(result);
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -200,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -70, transferId: 'tr_cash',    description: 'Cash back' },
+        ],
+      });
+    });
+    const cp = result.current.transactions.find(t => t.transferId === 'tr_cash');
+    expect(cp.amount).toBe(70);
+  });
+
+  it('removing a transfer split line deletes the counterpart', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    const id = addCostcoCashBack(result);
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -130,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+        ],
+      });
+    });
+    expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeUndefined();
+  });
+
+  it('adding a new transfer split line creates a new counterpart', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    const id = addCostcoCashBack(result);
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -200,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash',    description: 'Cash back' },
+          { id: 's4', amount:  -20, transferId: 'tr_save',    description: 'Savings transfer' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_cash'], ['s4', 'a_savings']]) });
+    });
+    const savings = result.current.transactions.find(t => t.transferId === 'tr_save');
+    expect(savings.accountId).toBe('a_savings');
+    expect(savings.amount).toBe(20);
+  });
+
+  it("changing a transfer line's target account moves the counterpart", () => {
+    const { result } = renderHook(() => useLedger(seed));
+    const id = addCostcoCashBack(result);
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -180,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash',    description: 'Cash back (to savings)' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_savings']]) });
+    });
+    const cp = result.current.transactions.find(t => t.transferId === 'tr_cash');
+    expect(cp.accountId).toBe('a_savings');
+    expect(cp.description).toBe('Cash back (to savings)');
+  });
+
+  it('flipping a category line -> transfer line creates a counterpart', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    let id;
+    act(() => {
+      id = result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -130, payee: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+        ],
+      });
+    });
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -130,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
+          { id: 's2', amount:  -30, transferId: 'tr_new', description: 'transfer instead' },
+        ],
+      }, { splitTargets: new Map([['s2', 'a_cash']]) });
+    });
+    expect(result.current.transactions.filter(t => t.transferId === 'tr_new')).toHaveLength(1);
+  });
+
+  it('flipping a transfer line -> category line deletes the counterpart', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    const id = addCostcoCashBack(result);
+    act(() => {
+      result.current.updateTransaction(id, {
+        amount: -180,
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery',   description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, categoryId: 'c_household', description: 'Was transfer' },
+        ],
+      });
+    });
+    expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeUndefined();
+  });
+});
