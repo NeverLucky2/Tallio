@@ -435,3 +435,37 @@ describe('addTransfer / updateTransfer with source-leg splits', () => {
     })).toThrow(/does not match/i);
   });
 });
+
+describe('deleteAccount with split-line counterparts on other accounts', () => {
+  const seed = {
+    accounts: [
+      { id: 'a_chase', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 1000 },
+      { id: 'a_cash',  name: 'Cash',  type: 'bank', icon: '💵', openingBalance: 0 },
+    ],
+    transactions: [],
+  };
+
+  it('strips orphan transferIds from split lines on remaining transactions', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    let parentId;
+    act(() => {
+      parentId = result.current.addTransaction({
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        splits: [
+          { id: 's1', amount: -100, categoryId: 'c_grocery',   description: 'Groceries' },
+          { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+          { id: 's3', amount:  -50, transferId: 'tr_cash',     description: 'Cash back' },
+        ],
+      }, { splitTargets: new Map([['s3', 'a_cash']]) });
+    });
+    expect(result.current.transactions.find(t => t.transferId === 'tr_cash')).toBeDefined();
+
+    act(() => { result.current.deleteAccount('a_cash'); });
+
+    const parent = result.current.transactions.find(t => t.id === parentId);
+    expect(parent).toBeDefined();
+    const s3 = parent.splits.find(s => s.id === 's3');
+    expect(s3.transferId).toBeUndefined();
+    expect(s3.description).toBe('Cash back');
+  });
+});

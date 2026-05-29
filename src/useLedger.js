@@ -38,7 +38,31 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
 
   const deleteAccount = useCallback((id) => {
     setAccounts(prev => prev.filter(a => a.id !== id));
-    setTransactions(prev => prev.filter(t => t.accountId !== id));
+    setTransactions(prev => {
+      const survivingByTransferId = new Map();
+      for (const t of prev) {
+        if (t.accountId === id) continue;
+        if (t.transferId) {
+          const list = survivingByTransferId.get(t.transferId) || [];
+          list.push(t);
+          survivingByTransferId.set(t.transferId, list);
+        }
+      }
+      return prev
+        .filter(t => t.accountId !== id)
+        .map(t => {
+          if (!Array.isArray(t.splits)) return t;
+          const cleaned = t.splits.map(s => {
+            if (!s.transferId) return s;
+            const peers = survivingByTransferId.get(s.transferId) || [];
+            const hasCounterpart = peers.some(p => p.id !== t.id);
+            if (hasCounterpart) return s;
+            const { transferId, ...rest } = s;
+            return rest;
+          });
+          return { ...t, splits: cleaned };
+        });
+    });
   }, []);
 
   const addTransaction = useCallback((txn, opts = {}) => {
