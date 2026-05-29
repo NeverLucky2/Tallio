@@ -86,9 +86,8 @@ function flowOf(t, categoriesById) {
 
 // Income / Spending / Savings over flow-countable rows in scope+period. NET IS SAVINGS.
 export function incomeExpenseSummary(transactions, categoriesById, opts = {}) {
-  const rows = filterRows(transactions, opts);
   let income = 0, expenseSigned = 0, savingsSigned = 0;
-  for (const t of rows) {
+  for (const t of flattenForReports(filterRows(transactions, opts))) {
     const f = flowOf(t, categoriesById);
     if (!f) continue;
     const amt = Number.isFinite(t.amount) ? t.amount : 0;
@@ -104,9 +103,8 @@ export function incomeExpenseSummary(transactions, categoriesById, opts = {}) {
 
 // Expense-flow totals per category, descending. total = magnitude (refunds reduce it).
 export function spendingByCategory(transactions, categoriesById, opts = {}) {
-  const rows = filterRows(transactions, opts);
   const signed = new Map();
-  for (const t of rows) {
+  for (const t of flattenForReports(filterRows(transactions, opts))) {
     if (flowOf(t, categoriesById) !== 'expense') continue;
     const amt = Number.isFinite(t.amount) ? t.amount : 0;
     signed.set(t.categoryId, (signed.get(t.categoryId) || 0) + amt);
@@ -131,7 +129,7 @@ export function spendingByCategory(transactions, categoriesById, opts = {}) {
 export function cashFlowByMonth(transactions, categoriesById, opts = {}, months = null) {
   const list = months || monthsInRange(opts.start || null, opts.end || null, transactions);
   const byMonth = new Map(list.map(mo => [mo, { month: mo, income: 0, spending: 0, net: 0 }]));
-  for (const t of filterRows(transactions, opts)) {
+  for (const t of flattenForReports(filterRows(transactions, opts))) {
     const f = flowOf(t, categoriesById);
     if (f !== 'income' && f !== 'expense') continue;
     const b = byMonth.get(typeof t.date === 'string' ? t.date.slice(0, 7) : '');

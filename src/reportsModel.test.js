@@ -373,3 +373,62 @@ describe('flattenForReports', () => {
     expect(r0.description).toBe('Parent desc');
   });
 });
+
+describe('reports with split transactions', () => {
+  const categoriesById = new Map([
+    ['c_groceries',    { id: 'c_groceries',    name: 'Groceries',         flow: 'expense', icon: '🛒', color: '#000' }],
+    ['c_household',    { id: 'c_household',    name: 'Household',         flow: 'expense', icon: '🧴', color: '#111' }],
+    ['c_home_improve', { id: 'c_home_improve', name: 'Home Improvement',  flow: 'expense', icon: '🏠', color: '#222' }],
+    ['c_credit',       { id: 'c_credit',       name: 'Tax Credit',        flow: 'income',  icon: '↩', color: '#333' }],
+  ]);
+
+  const bigCostco = {
+    id: 't_costco_big', accountId: 'a_chase', date: '2026-05-20', amount: -4300,
+    payee: 'Costco', description: 'Costco big shop',
+    splits: [
+      { id: 's1', amount:  -180, categoryId: 'c_groceries',    description: 'Weekly groceries' },
+      { id: 's2', amount:   -40, categoryId: 'c_household',    description: 'Soap' },
+      { id: 's3', amount: -4080, categoryId: 'c_home_improve', description: 'Solar kit' },
+    ],
+  };
+
+  it('spendingByCategory attributes each split line to its own category', () => {
+    const out = spendingByCategory([bigCostco], categoriesById);
+    const byName = Object.fromEntries(out.map(e => [e.name, e.total]));
+    expect(byName.Groceries).toBe(180);
+    expect(byName.Household).toBe(40);
+    expect(byName['Home Improvement']).toBe(4080);
+  });
+
+  it('incomeExpenseSummary counts a positive (refund) split as income when its category is income-flow', () => {
+    const refund = {
+      id: 't_refund', accountId: 'a1', date: '2026-05-05', amount: -120,
+      splits: [
+        { id: 's1', amount: -200, categoryId: 'c_groceries', description: 'Items' },
+        { id: 's2', amount:  +80, categoryId: 'c_credit',    description: 'Coupon refund' },
+      ],
+    };
+    const sum = incomeExpenseSummary([refund], categoriesById);
+    expect(sum.spending).toBe(200);
+    expect(sum.income).toBe(80);
+  });
+
+  it('cashFlowByMonth assigns split lines to the parent\'s month', () => {
+    const months = ['2026-05'];
+    const out = cashFlowByMonth([bigCostco], categoriesById, { start: '2026-05-01', end: '2026-05-31' }, months);
+    expect(out[0].spending).toBe(180 + 40 + 4080);
+  });
+
+  it('a transfer split line is excluded from spending totals', () => {
+    const costcoCashBack = {
+      id: 't_cashback', accountId: 'a1', date: '2026-05-20', amount: -180,
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_groceries', description: 'Groceries' },
+        { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
+        { id: 's3', amount:  -50, transferId: 'tr_cash',     description: 'Cash back' },
+      ],
+    };
+    expect(spendingByCategory([costcoCashBack], categoriesById)
+      .reduce((s, e) => s + e.total, 0)).toBe(130);
+  });
+});
