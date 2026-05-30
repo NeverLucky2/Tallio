@@ -19,6 +19,7 @@ export default function SplitsEditor({
   const [lines, setLines] = useState(initialSplits);
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
   const [error, setError] = useState(null);
+  const [pendingRemainder, setPendingRemainder] = useState(false);
 
   const parentCents = Math.round(parentAmount * 100);
   const sumCents = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? Math.round(l.amount * 100) : 0), 0);
@@ -32,6 +33,7 @@ export default function SplitsEditor({
 
   const tryDone = () => {
     setError(null);
+    if (!balanced) { setPendingRemainder(true); return; }
     try {
       validateSplits({ amount: parentAmount, splits: lines });
     } catch (e) {
@@ -39,6 +41,11 @@ export default function SplitsEditor({
       return;
     }
     onDone({ splits: lines, splitTargets: targets });
+  };
+
+  const confirmRemainder = () => {
+    setPendingRemainder(false);
+    onDone({ splits: [...lines, makeRemainderLine()], splitTargets: targets });
   };
 
   const categoryLines = lines.filter(l => l.categoryId);
@@ -137,6 +144,17 @@ export default function SplitsEditor({
           <button type="button" className="btn" onClick={onCancel}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={tryDone}>Done</button>
         </div>
+        {pendingRemainder && (
+          <div className="split-confirm" role="alertdialog" aria-label="Unallocated remainder">
+            <p className="split-confirm-msg">
+              The remaining {fmtSigned(remainingCents)} will be added as an “Other” line so the split balances the bank deposit. Continue?
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setPendingRemainder(false)}>Go back to edit</button>
+              <button type="button" className="btn btn-primary" onClick={confirmRemainder}>OK, add it</button>
+            </div>
+          </div>
+        )}
         {error && <p className="field-error">{error}</p>}
       </div>
     </div>

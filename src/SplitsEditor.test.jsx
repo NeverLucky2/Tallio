@@ -22,7 +22,7 @@ function setup(props = {}) {
       parentAmount={-180}
       parentPayee="Costco"
       parentDate="2026-05-20"
-      categories={categories}
+      categories={props.categories ?? categories}
       accounts={accounts}
       initialSplits={props.initialSplits ?? [
         { id: 's1', amount: -100, categoryId: 'c_grocery',   description: 'Groceries' },
@@ -177,16 +177,56 @@ describe('SplitsEditor remainder allocation', () => {
 describe('SplitsEditor Done validation and Unsplit', () => {
   afterEach(() => cleanup());
 
-  it('Done shows an inline error when the sum does not match parent amount', async () => {
+  it('Done with an unallocated remainder asks to confirm adding an Other line (no error, no onDone yet)', async () => {
     const { onDone } = setup({
       initialSplits: [
-        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // -50 + -80 = -130, parent -180
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // sum -130, parent -180
         { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
       ],
     });
-    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
     expect(onDone).not.toHaveBeenCalled();
-    expect(screen.getByText(/does not match/i)).toBeTruthy();
+    expect(screen.getByText(/will be added as an/i)).toBeTruthy();
+  });
+
+  it('Done stays direct when already balanced (no confirm prompt)', async () => {
+    const { onDone } = setup(); // default -100 / -80 = -180, balanced
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/will be added as an/i)).toBeNull();
+  });
+
+  it('confirm "Go back to edit" dismisses the prompt without calling onDone', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /go back to edit/i }));
+    expect(screen.queryByText(/will be added as an/i)).toBeNull();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('confirm "OK, add it" appends an Other line and calls onDone with balanced splits', async () => {
+    const cats = [...categories, { id: 'c_other', name: 'Other', icon: '📋', flow: 'expense' }];
+    const { onDone } = setup({
+      categories: cats,
+      initialSplits: [
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // remaining -50
+        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /ok, add it/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    const payload = onDone.mock.calls[0][0];
+    expect(payload.splits).toHaveLength(3);
+    const added = payload.splits[2];
+    expect(added.categoryId).toBe('c_other');
+    expect(added.amount).toBeCloseTo(-50, 5);
+    expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-180, 5);
   });
 
   it('Done succeeds when the sum matches', async () => {
