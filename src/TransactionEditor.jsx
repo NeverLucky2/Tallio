@@ -61,7 +61,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
       accountId: account.id,
       date,
       amount,
-      categoryId: hasSplits ? null : categoryId,
+      categoryId: categoryId || null,
       description: description.trim(),
       payee: isBank ? (payee.trim() || null) : null,
       checkNumber: isBank ? (checkNumber.trim() || null) : null,
@@ -93,24 +93,24 @@ export default function TransactionEditor({ account, transaction, categories, ac
           </>
         )}
 
-        {hasSplits ? (
-          <div className="field">
-            <span>Category</span>
-            <span className="split-summary">▼ {splits.length} split lines</span>
-            <button type="button" className="btn" onClick={openSplits}>Edit splits…</button>
-          </div>
-        ) : (
-          <label className="field"><span>Category</span>
-            <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
-              {groupCategoriesByFlow(categories).map(group => (
-                <optgroup key={group.flow} label={group.label}>
-                  {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-                </optgroup>
-              ))}
-            </select>
+        <div className="field">
+          <span>Category</span>
+          <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
+            {groupCategoriesByFlow(categories).map(group => (
+              <optgroup key={group.flow} label={group.label}>
+                {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          {hasSplits ? (
+            <>
+              <span className="split-summary">▼ {splits.length} split lines</span>
+              <button type="button" className="btn" onClick={openSplits}>Edit splits…</button>
+            </>
+          ) : (
             <button type="button" className="btn" onClick={openSplits}>Split…</button>
-          </label>
-        )}
+          )}
+        </div>
 
         <div className="field">
           <span>Amount</span>

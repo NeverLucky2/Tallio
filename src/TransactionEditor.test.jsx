@@ -101,16 +101,31 @@ describe('TransactionEditor split wire-up', () => {
     expect(screen.getByLabelText(/^amount$/i).disabled).toBe(true);
   });
 
-  it('an existing split transaction shows the summary chip and a hidden category field', () => {
+  it('an existing split transaction shows the summary chip AND keeps the editable category field', () => {
     setupSplit({
       id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
-      categoryId: null, description: 'Costco', payee: 'Costco',
+      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
       splits: [
         { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
       ],
     });
     expect(screen.getByText(/2 split lines/i)).toBeTruthy();
-    expect(screen.queryByLabelText(/^category$/i)).toBeNull();
+    const select = screen.getByLabelText(/^category$/i);
+    expect(select).toBeTruthy();
+    expect(select.value).toBe('c_pay');
+  });
+
+  it('saving a split transaction keeps its main categoryId (not null)', async () => {
+    const { onSave } = setupSplit({
+      id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
+      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onSave.mock.calls[0][0].categoryId).toBe('c_pay');
   });
 });
