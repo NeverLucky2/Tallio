@@ -80,13 +80,31 @@ export const TRANSFER_SEED_CATEGORIES = [
   { name: 'Internal Transfer',   icon: '⇄',  color: '#a47dea', flow: 'transfer', keywords: [], templates: [], builtin: true },
 ];
 
-// Append any transfer seed whose `name` isn't already present (assigning a fresh
-// id). Idempotent: returns the SAME array reference when nothing is missing.
-export function withTransferSeeds(categories) {
+// Append any seed whose `name` isn't already present (assigning a fresh id).
+// Idempotent: returns the SAME array reference when nothing is missing.
+function appendMissingByName(categories, seeds) {
   const list = Array.isArray(categories) ? categories : [];
   const names = new Set(list.map(c => c && c.name));
-  const missing = TRANSFER_SEED_CATEGORIES
-    .filter(s => !names.has(s.name))
+  const missing = seeds
+    .filter(s => s && !names.has(s.name))
     .map(s => ({ ...s, id: nanoid(8) }));
   return missing.length ? [...list, ...missing] : list;
+}
+
+// Append any transfer seed whose `name` isn't already present. Idempotent.
+export function withTransferSeeds(categories) {
+  return appendMissingByName(categories, TRANSFER_SEED_CATEGORIES);
+}
+
+// Builtins added to DEFAULT_CATEGORIES after the initial v4 release. Users who
+// migrated before these existed get no category backfill from
+// initializeFromStorage, so we re-append them (by name) on every load. Taxes is
+// the single source of truth in DEFAULT_CATEGORIES (no duplicate definition).
+export const BACKFILL_CATEGORIES = [
+  DEFAULT_CATEGORIES.find(c => c.name === 'Taxes'),
+].filter(Boolean);
+
+// Append any missing post-release builtin (currently just Taxes). Idempotent.
+export function withBackfillCategories(categories) {
+  return appendMissingByName(categories, BACKFILL_CATEGORIES);
 }

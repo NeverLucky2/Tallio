@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, V3_SEED_CATEGORIES, TRANSFER_SEED_CATEGORIES, withTransferSeeds } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, V3_SEED_CATEGORIES, TRANSFER_SEED_CATEGORIES, withTransferSeeds, BACKFILL_CATEGORIES, withBackfillCategories } from './categoriesDefaults.js';
 
 describe('DEFAULT_CATEGORIES', () => {
   it('exports 14 seed categories', () => {
@@ -93,5 +93,25 @@ describe('transfer seed categories', () => {
     expect(names).toContain('Groceries');
     expect(names.filter(n => n === 'Credit Card Payment')).toHaveLength(1);
     expect(names).toContain('Internal Transfer');
+  });
+});
+
+describe('builtin backfill categories', () => {
+  it('BACKFILL_CATEGORIES contains the Taxes builtin', () => {
+    expect(BACKFILL_CATEGORIES.map(c => c.name)).toContain('Taxes');
+  });
+
+  it('withBackfillCategories appends Taxes when missing, with a string id', () => {
+    const out = withBackfillCategories([{ id: 'x', name: 'Groceries', flow: 'expense' }]);
+    const taxes = out.find(c => c.name === 'Taxes');
+    expect(taxes).toBeTruthy();
+    expect(typeof taxes.id).toBe('string');
+  });
+
+  it('does not duplicate Taxes when already present and returns the same reference', () => {
+    const existing = [{ id: 't', name: 'Taxes', flow: 'expense' }];
+    const out = withBackfillCategories(existing);
+    expect(out).toBe(existing);
+    expect(out.filter(c => c.name === 'Taxes')).toHaveLength(1);
   });
 });
