@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import useCategories from './useCategories.js';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, TRANSFER_SEED_CATEGORIES } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, TRANSFER_SEED_CATEGORIES, BACKFILL_CATEGORIES } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'billtracker-categories';
 
@@ -23,14 +23,21 @@ describe('useCategories', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
     const { result } = renderHook(() => useCategories());
     expect(result.current.categories.find(c => c.id === 'cz')).toEqual(seeded[0]);
-    expect(result.current.categories).toHaveLength(1 + TRANSFER_SEED_CATEGORIES.length);
+    expect(result.current.categories).toHaveLength(1 + TRANSFER_SEED_CATEGORIES.length + BACKFILL_CATEGORIES.length);
+  });
+
+  it('backfills the Taxes category for stored data that lacks it', () => {
+    const seeded = [{ id: 'cz', name: 'Zoo', icon: '🦓', color: '#000000', keywords: [], templates: [], builtin: false }];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    const { result } = renderHook(() => useCategories());
+    expect(result.current.categories.find(c => c.name === 'Taxes')).toBeTruthy();
   });
 
   it('does not duplicate transfer seeds that are already stored (idempotent load)', () => {
     const stored = TRANSFER_SEED_CATEGORIES.map((s, i) => ({ ...s, id: `t${i}` }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     const { result } = renderHook(() => useCategories());
-    expect(result.current.categories).toHaveLength(TRANSFER_SEED_CATEGORIES.length);
+    expect(result.current.categories).toHaveLength(TRANSFER_SEED_CATEGORIES.length + BACKFILL_CATEGORIES.length);
   });
 
   it('addCategory preserves a transfer flow (not coerced to expense)', () => {

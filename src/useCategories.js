@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'billtracker-categories';
 const PERSIST_DEBOUNCE_MS = 250;
@@ -16,7 +16,7 @@ function load() {
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return seed();
-    return withTransferSeeds(parsed);
+    return withBackfillCategories(withTransferSeeds(parsed));
   } catch {
     return seed();
   }
