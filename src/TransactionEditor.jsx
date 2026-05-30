@@ -65,7 +65,8 @@ export default function TransactionEditor({ account, transaction, categories, ac
       description: description.trim(),
       payee: isBank ? (payee.trim() || null) : null,
       checkNumber: isBank ? (checkNumber.trim() || null) : null,
-      ...(hasSplits ? { splits, splitTargets } : {}),
+      splits: hasSplits ? splits : null,
+      ...(hasSplits ? { splitTargets } : {}),
     });
   };
 

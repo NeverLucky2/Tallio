@@ -101,6 +101,25 @@ describe('TransactionEditor split wire-up', () => {
     expect(screen.getByLabelText(/^amount$/i).disabled).toBe(true);
   });
 
+  it('Unsplit on a committed split collapses to a single category and saves without splits', async () => {
+    const { onSave } = setupSplit({
+      id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
+      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
+      splits: [
+        { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
+      ],
+    });
+    window.confirm = vi.fn(() => true);
+    await userEvent.click(screen.getByRole('button', { name: /edit splits/i }));
+    await userEvent.click(screen.getByRole('button', { name: /unsplit/i }));
+    expect(screen.queryByText(/split lines/i)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.splits == null).toBe(true); // splits cleared, not leaked
+    expect(saved.categoryId).toBe('c_shop');
+  });
+
   it('an existing split transaction shows the summary chip AND keeps the editable category field', () => {
     setupSplit({
       id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
