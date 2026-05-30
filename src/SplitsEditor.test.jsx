@@ -149,11 +149,27 @@ describe('SplitsEditor +Add / ×Delete', () => {
     expect(screen.getAllByRole('row')).toHaveLength(3); // header + 2 remaining
   });
 
-  it('Delete is disabled when there are exactly 2 lines', () => {
+  it('Delete is enabled at 2 lines and disabled once only 1 remains', async () => {
     setup();
     const deleteBtns = screen.getAllByRole('button', { name: /delete line/i });
-    expect(deleteBtns[0].disabled).toBe(true);
-    expect(deleteBtns[1].disabled).toBe(true);
+    expect(deleteBtns[0].disabled).toBe(false);
+    await userEvent.click(deleteBtns[0]); // drop to a single line
+    expect(screen.getByRole('button', { name: /delete line/i }).disabled).toBe(true);
+  });
+});
+
+describe('SplitsEditor Done with a single line', () => {
+  afterEach(() => cleanup());
+
+  it('collapses to that line as a normal category (splits: null)', async () => {
+    const { onDone } = setup({
+      initialSplits: [
+        { id: 's1', amount: -180, categoryId: 'c_grocery', description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /done/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone.mock.calls[0][0]).toMatchObject({ splits: null, categoryId: 'c_grocery' });
   });
 });
 

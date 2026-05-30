@@ -92,10 +92,18 @@ describe('TransactionEditor split wire-up', () => {
     expect(screen.getByRole('button', { name: /^split…?$/i })).toBeTruthy();
   });
 
-  it('opening Split then Done commits the split (amount becomes locked)', async () => {
+  it('opening Split seeds a single starter line (user adds the rest)', async () => {
     setupSplit();
     await userEvent.type(screen.getByLabelText(/^amount$/i), '100');
     await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
+    expect(screen.getAllByLabelText(/line amount/i)).toHaveLength(1);
+  });
+
+  it('opening Split, adding a line, then Done commits the split (amount becomes locked)', async () => {
+    setupSplit();
+    await userEvent.type(screen.getByLabelText(/^amount$/i), '100');
+    await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /add line/i })); // now 2 lines
     await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
     expect(screen.getByText(/2 split lines/i)).toBeTruthy();
     expect(screen.getByLabelText(/^amount$/i).disabled).toBe(true);

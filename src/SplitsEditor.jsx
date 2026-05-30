@@ -36,6 +36,11 @@ export default function SplitsEditor({
 
   const tryDone = () => {
     setError(null);
+    if (lines.length < 2) {
+      // A single line isn't a split — collapse back to a normal category.
+      onDone({ splits: null, categoryId: lines[0]?.categoryId });
+      return;
+    }
     if (!balanced) { setPendingRemainder(true); return; }
     try {
       validateSplits({ amount: parentAmount, splits: lines });
@@ -128,7 +133,7 @@ export default function SplitsEditor({
                       type="button"
                       aria-label="Delete line"
                       className="btn-icon"
-                      disabled={lines.length <= 2}
+                      disabled={lines.length <= 1}
                       onClick={() => setLines(prev => prev.filter((_, i) => i !== idx))}
                     >×</button>
                   </td>

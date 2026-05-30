@@ -36,7 +36,6 @@ export default function TransactionEditor({ account, transaction, categories, ac
   const openSplits = () => {
     setPendingSeed(hasSplits ? null : [
       { id: nanoid(8), amount: parentAmount || 0, categoryId, description: '' },
-      { id: nanoid(8), amount: 0,                 categoryId, description: '' },
     ]);
     setSplitsOpen(true);
   };
