@@ -3473,6 +3473,10 @@
 .btn-small { padding: 2px 8px; font-size: 0.8em; }
 .split-confirm { margin-top: 10px; padding: 12px 14px; border-radius: 8px; background: rgba(240, 198, 116, 0.08); border: 1px solid rgba(240, 198, 116, 0.35); }
 .split-confirm-msg { margin: 0 0 10px; font-size: 0.9em; color: #d4d4d4; }
+.txn-split-cat { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.split-line-row .dir-toggle { display: inline-flex; margin-right: 6px; vertical-align: middle; }
+.split-line-row .dir-toggle .dir-btn { padding: 2px 6px; font-size: 0.8em; }
+.split-line-row .input { width: 7rem; }
 .btn-icon {
   background: transparent;
   border: none;
