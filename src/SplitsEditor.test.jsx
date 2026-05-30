@@ -167,6 +167,48 @@ describe('SplitsEditor category grouping', () => {
   });
 });
 
+describe('SplitsEditor per-line direction', () => {
+  afterEach(() => cleanup());
+
+  it('a negative line shows Out active and the magnitude as a positive number', () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    const outBtns = screen.getAllByRole('button', { name: /line out/i });
+    expect(outBtns[0].className).toContain('active');
+    const amounts = screen.getAllByLabelText(/line amount/i);
+    expect(Number(amounts[0].value)).toBe(100);
+  });
+
+  it('flipping a line to In flips its committed sign (remaining reflects it)', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' }, // balanced at -180
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    const inBtns = screen.getAllByRole('button', { name: /line in/i });
+    await userEvent.click(inBtns[0]); // s1 becomes +100; sum = +20; remaining = -180 - 20 = -200
+    expect(screen.getByText(/Remaining to allocate: -200\.00/)).toBeTruthy();
+  });
+
+  it('a freshly added line defaults to Out, so a typed magnitude becomes negative', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    await userEvent.click(screen.getByRole('button', { name: /add line/i }));
+    const amounts = screen.getAllByLabelText(/line amount/i);
+    await userEvent.type(amounts[2], '50'); // new line, Out default → -50; sum = -230; remaining = -180 - (-230) = +50
+    expect(screen.getByText(/Remaining to allocate: \+50\.00/)).toBeTruthy();
+  });
+});
+
 describe('SplitsEditor remainder allocation', () => {
   afterEach(() => cleanup());
 

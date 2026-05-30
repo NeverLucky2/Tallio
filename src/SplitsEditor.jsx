@@ -21,6 +21,8 @@ export default function SplitsEditor({
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
   const [error, setError] = useState(null);
   const [pendingRemainder, setPendingRemainder] = useState(false);
+  const [dirs, setDirs] = useState(new Map());
+  const dirOf = (line) => dirs.get(line.id) ?? (line.amount < 0 ? 'out' : line.amount > 0 ? 'in' : 'out');
 
   const parentCents = Math.round(parentAmount * 100);
   const sumCents = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? Math.round(l.amount * 100) : 0), 0);
@@ -84,6 +86,11 @@ export default function SplitsEditor({
                   updateLine({ categoryId: undefined, transferId: line.transferId || `tr_${line.id}` });
                 }
               };
+              const setLineMagnitude = (mag) => updateLine({ amount: (dirOf(line) === 'in' ? 1 : -1) * Math.abs(mag) });
+              const setLineDir = (dir) => {
+                setDirs(prev => new Map(prev).set(line.id, dir));
+                updateLine({ amount: (dir === 'in' ? 1 : -1) * Math.abs(line.amount) });
+              };
               return (
                 <tr key={line.id} className="split-line-row">
                   <td>
@@ -110,7 +117,11 @@ export default function SplitsEditor({
                     <input type="text" aria-label="Line description" className="input" value={line.description || ''} onChange={(e) => updateLine({ description: e.target.value })} />
                   </td>
                   <td className="right">
-                    <input type="number" step="0.01" aria-label="Line amount" className="input" value={line.amount} onChange={(e) => updateLine({ amount: parseFloat(e.target.value) || 0 })} />
+                    <span className="dir-toggle" role="group" aria-label="Line direction">
+                      <button type="button" className={`dir-btn${dirOf(line) === 'out' ? ' active' : ''}`} aria-label="Line out" onClick={() => setLineDir('out')}>− Out</button>
+                      <button type="button" className={`dir-btn${dirOf(line) === 'in' ? ' active' : ''}`} aria-label="Line in" onClick={() => setLineDir('in')}>+ In</button>
+                    </span>
+                    <input type="number" step="0.01" min="0" aria-label="Line amount" className="input" value={Math.abs(line.amount)} onChange={(e) => setLineMagnitude(parseFloat(e.target.value) || 0)} />
                   </td>
                   <td>
                     <button
