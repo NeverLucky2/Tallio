@@ -194,6 +194,7 @@ describe('TransferEditor split source-leg wire-up', () => {
     setupTransfer();
     await userEvent.type(screen.getByLabelText(/amount/i), '325.40');
     await userEvent.click(screen.getByRole('button', { name: /split source leg…?/i }));
-    expect(screen.getByText(/bank impact: -325.40/i)).toBeTruthy();
+    expect(screen.getByText(/Balanced/)).toBeTruthy();
+    expect(screen.getByText(/Bank: -325\.40/)).toBeTruthy();
   });
 });

@@ -3464,6 +3464,15 @@
 .split-sum.ok { color: #3ddba0; }
 .split-sum.mismatch { color: #ef9999; }
 .split-summary { font-weight: 600; letter-spacing: 1px; color: #d4a853; }
+.split-remaining { padding: 6px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.95em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.split-remaining.ok { color: #3ddba0; }
+.split-remaining.mismatch { color: #f0c674; }
+.split-balanced { font-weight: 600; }
+.split-remaining-detail { color: rgba(212, 212, 212, 0.55); font-size: 0.85em; }
+.split-remaining-label { font-weight: 600; }
+.btn-small { padding: 2px 8px; font-size: 0.8em; }
+.split-confirm { margin-top: 10px; padding: 12px 14px; border-radius: 8px; background: rgba(240, 198, 116, 0.08); border: 1px solid rgba(240, 198, 116, 0.35); }
+.split-confirm-msg { margin: 0 0 10px; font-size: 0.9em; color: #d4d4d4; }
 .btn-icon {
   background: transparent;
   border: none;
