@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { validateSplits } from './accountsModel.js';
+import { OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
 
 export default function SplitsEditor({
   parentAccountId,
@@ -19,8 +20,15 @@ export default function SplitsEditor({
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
   const [error, setError] = useState(null);
 
-  const sum = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? l.amount : 0), 0);
-  const sumOk = Math.round(sum * 100) === Math.round(parentAmount * 100);
+  const parentCents = Math.round(parentAmount * 100);
+  const sumCents = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? Math.round(l.amount * 100) : 0), 0);
+  const remainingCents = parentCents - sumCents;
+  const balanced = remainingCents === 0;
+
+  const otherCategoryId = (categories.find(c => c.name === OTHER_CATEGORY_NAME) || categories[0] || {}).id;
+  const fmtSigned = (cents) => (cents > 0 ? '+' : '') + (cents / 100).toFixed(2);
+  const makeRemainderLine = () => ({ id: nanoid(8), amount: remainingCents / 100, categoryId: otherCategoryId, description: '' });
+  const addRemainderLine = () => setLines(prev => [...prev, makeRemainderLine()]);
 
   const tryDone = () => {
     setError(null);
@@ -111,8 +119,18 @@ export default function SplitsEditor({
             setLines(prev => [...prev, { id: nanoid(8), amount: 0, categoryId: categories[0]?.id || '', description: '' }]);
           }}>+ Add line</button>
         </div>
-        <div className={`split-sum ${sumOk ? 'ok' : 'mismatch'}`}>
-          Sum of lines: {sum.toFixed(2)} · Bank impact: {parentAmount.toFixed(2)}
+        <div className={`split-remaining ${balanced ? 'ok' : 'mismatch'}`}>
+          {balanced ? (
+            <>
+              <span className="split-balanced">✓ Balanced</span>
+              <span className="split-remaining-detail">Lines: {(sumCents / 100).toFixed(2)} · Bank: {parentAmount.toFixed(2)}</span>
+            </>
+          ) : (
+            <>
+              <span className="split-remaining-label">Remaining to allocate: {fmtSigned(remainingCents)}</span>
+              <button type="button" className="btn btn-small" onClick={addRemainderLine}>+ Add remainder as line</button>
+            </>
+          )}
         </div>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={doUnsplit} disabled={!canUnsplit}>Unsplit</button>

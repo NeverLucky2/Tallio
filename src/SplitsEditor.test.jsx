@@ -61,19 +61,27 @@ describe('SplitsEditor', () => {
 describe('SplitsEditor editing', () => {
   afterEach(() => cleanup());
 
-  it('editing an amount input updates the sum footer', async () => {
+  it('the status bar shows Balanced when lines sum to the parent amount', () => {
     setup({
       initialSplits: [
         { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
       ],
     });
-    // Initial sum is -100 + -80 = -180, matches parentAmount → ok.
-    expect(screen.getByText(/Sum of lines: -180\.00/)).toBeTruthy();
-    // Bump line 1 up so sum stops matching.
+    expect(screen.getByText(/Balanced/)).toBeTruthy();
+    expect(screen.getByText(/Lines: -180\.00/)).toBeTruthy();
+  });
+
+  it('editing an amount surfaces the signed remaining-to-allocate amount', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
+        { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
+      ],
+    });
     const amount0 = screen.getAllByLabelText(/line amount/i)[0];
-    await userEvent.type(amount0, '0'); // -100 becomes -1000
-    expect(screen.getByText(/Sum of lines: -1080\.00/)).toBeTruthy();
+    await userEvent.type(amount0, '0'); // -100 becomes -1000; sum -1080; remaining +900
+    expect(screen.getByText(/Remaining to allocate: \+900\.00/)).toBeTruthy();
   });
 
   it('flipping a row from Category to Transfer swaps picker controls', async () => {
@@ -146,6 +154,23 @@ describe('SplitsEditor +Add / ×Delete', () => {
     const deleteBtns = screen.getAllByRole('button', { name: /delete line/i });
     expect(deleteBtns[0].disabled).toBe(true);
     expect(deleteBtns[1].disabled).toBe(true);
+  });
+});
+
+describe('SplitsEditor remainder allocation', () => {
+  afterEach(() => cleanup());
+
+  it('"+ Add remainder as line" appends a line equal to the remainder and balances', async () => {
+    setup({
+      initialSplits: [
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // sum -130, parent -180, remaining -50
+        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
+      ],
+    });
+    expect(screen.getByText(/Remaining to allocate: -50\.00/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /add remainder as line/i }));
+    expect(screen.getAllByRole('row')).toHaveLength(4); // header + 3 lines
+    expect(screen.getByText(/Balanced/)).toBeTruthy();
   });
 });
 
