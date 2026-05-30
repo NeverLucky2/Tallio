@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import CategoryEditor from './CategoryEditor.jsx';
+import { groupCategoriesByFlow } from './categoriesView.js';
 
 function countItemsPerCategory(bills) {
   const counts = new Map();
@@ -63,13 +64,10 @@ export default function ManageCategoriesScreen({
       <div className="manage-body">
         <aside className="manage-list">
           <div className="manage-list-title">{categories.length} categories</div>
-          {(['income', 'expense', 'savings', 'transfer']).map(flow => {
-            const inFlow = categories.filter(c => (c.flow || 'expense') === flow);
-            if (inFlow.length === 0) return null;
-            return (
-              <div key={flow} className="manage-list-flow-group">
-                <div className="manage-list-flow-label">{flow}</div>
-                {inFlow.map(cat => {
+          {groupCategoriesByFlow(categories).map(group => (
+              <div key={group.flow} className="manage-list-flow-group">
+                <div className="manage-list-flow-label">{group.flow}</div>
+                {group.items.map(cat => {
                   const count = itemCounts.get(cat.id) || 0;
                   return (
                     <button
@@ -90,8 +88,7 @@ export default function ManageCategoriesScreen({
                   );
                 })}
               </div>
-            );
-          })}
+          ))}
         </aside>
 
         <main className="manage-editor">

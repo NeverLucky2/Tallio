@@ -157,6 +157,16 @@ describe('SplitsEditor +Add / ×Delete', () => {
   });
 });
 
+describe('SplitsEditor category grouping', () => {
+  afterEach(() => cleanup());
+
+  it('renders category options grouped into flow optgroups', () => {
+    setup();
+    const labels = [...document.querySelectorAll('optgroup')].map(g => g.label);
+    expect(labels).toContain('Expense');
+  });
+});
+
 describe('SplitsEditor remainder allocation', () => {
   afterEach(() => cleanup());
 

@@ -14,7 +14,9 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
   const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : todayISO());
   const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (initialAmount != null ? String(initialAmount) : ''));
   const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : '');
-  const transferCats = (categories || []).filter(c => c && c.flow === 'transfer');
+  const transferCats = (categories || [])
+    .filter(c => c && c.flow === 'transfer')
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const [categoryId, setCategoryId] = useState(
     transfer
       ? (transfer.fromLeg.categoryId || '')

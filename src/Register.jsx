@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
+import { groupCategoriesByFlow } from './categoriesView.js';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -68,7 +69,11 @@ export default function Register({ account, transactions, accounts = [], categor
         <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
         <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Category filter">
           <option value="">All categories</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          {groupCategoriesByFlow(categories).map(group => (
+            <optgroup key={group.flow} label={group.label}>
+              {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </optgroup>
+          ))}
         </select>
       </div>
 

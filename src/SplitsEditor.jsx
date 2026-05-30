@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { validateSplits } from './accountsModel.js';
 import { OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
+import { groupCategoriesByFlow } from './categoriesView.js';
 
 export default function SplitsEditor({
   parentAccountId,
@@ -97,7 +98,11 @@ export default function SplitsEditor({
                       </select>
                     ) : (
                       <select aria-label="Category" className="select" value={line.categoryId || ''} onChange={(e) => updateLine({ categoryId: e.target.value })}>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                        {groupCategoriesByFlow(categories).map(group => (
+                          <optgroup key={group.flow} label={group.label}>
+                            {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                          </optgroup>
+                        ))}
                       </select>
                     )}
                   </td>
