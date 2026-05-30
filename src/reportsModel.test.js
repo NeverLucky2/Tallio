@@ -196,6 +196,24 @@ describe('recurringCharges', () => {
     expect(netflix.avgAmount).toBeCloseTo(15.99, 2);
     expect(rows[1]).toMatchObject({ label: 'OldApp', active: false });
   });
+
+  it('does not flag a split parent as a recurring expense when no line is expense, even if its main category is expense', () => {
+    const cats = new Map([
+      ['exp', { id: 'exp', name: 'Misc',     flow: 'expense' }],
+      ['inc', { id: 'inc', name: 'Paycheck', flow: 'income' }],
+      ['sav', { id: 'sav', name: 'Roth',     flow: 'savings' }],
+    ]);
+    const now = new Date('2026-05-31');
+    const mk = (id, date) => ({
+      id, accountId: 'a', date, amount: 3000, payee: 'Acme', categoryId: 'exp',
+      splits: [
+        { id: id + 'a', amount: 4000, categoryId: 'inc' },
+        { id: id + 'b', amount: -1000, categoryId: 'sav' },
+      ],
+    });
+    const rows = recurringCharges([mk('p1', '2026-04-15'), mk('p2', '2026-05-15')], cats, { now });
+    expect(rows.some(r => /acme/i.test(r.label || ''))).toBe(false);
+  });
 });
 
 describe('findDuplicates', () => {
