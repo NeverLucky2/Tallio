@@ -22,6 +22,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
   const [splits, setSplits] = useState(transaction?.splits ?? null);
   const [splitTargets, setSplitTargets] = useState(new Map());
   const [splitsOpen, setSplitsOpen] = useState(false);
+  const [pendingSeed, setPendingSeed] = useState(null);
 
   const hasSplits = Array.isArray(splits) && splits.length > 0;
   const isBank = layoutFor(account.type, typesById) === 'bank';
@@ -33,16 +34,15 @@ export default function TransactionEditor({ account, transaction, categories, ac
   })();
 
   const openSplits = () => {
-    if (!hasSplits) {
-      setSplits([
-        { id: nanoid(8), amount: parentAmount || 0, categoryId, description: '' },
-        { id: nanoid(8), amount: 0,                 categoryId, description: '' },
-      ]);
-    }
+    setPendingSeed(hasSplits ? null : [
+      { id: nanoid(8), amount: parentAmount || 0, categoryId, description: '' },
+      { id: nanoid(8), amount: 0,                 categoryId, description: '' },
+    ]);
     setSplitsOpen(true);
   };
 
   const onSplitsDone = ({ splits: nextSplits, splitTargets: nextTargets, categoryId: promotedCategoryId }) => {
+    setPendingSeed(null);
     if (nextSplits === null) {
       setSplits(null);
       setSplitTargets(new Map());
@@ -137,7 +137,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
             parentDate={date}
             categories={categories}
             accounts={accounts}
-            initialSplits={splits || []}
+            initialSplits={splits || pendingSeed || []}
             initialSplitTargets={splitTargets}
             onDone={onSplitsDone}
             onCancel={() => setSplitsOpen(false)}

@@ -1,6 +1,6 @@
 // src/TransactionEditor.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TransactionEditor from './TransactionEditor.jsx';
 
@@ -80,6 +80,25 @@ describe('TransactionEditor split wire-up', () => {
     setupSplit();
     await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
     expect(screen.getByRole('button', { name: /done/i })).toBeTruthy();
+  });
+
+  it('opening Split then Cancel leaves the transaction unsplit and the amount editable', async () => {
+    setupSplit();
+    await userEvent.type(screen.getByLabelText(/^amount$/i), '100');
+    await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
+    await userEvent.click(within(document.querySelector('.split-editor')).getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByText(/split lines/i)).toBeNull();
+    expect(screen.getByLabelText(/^amount$/i).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: /^split…?$/i })).toBeTruthy();
+  });
+
+  it('opening Split then Done commits the split (amount becomes locked)', async () => {
+    setupSplit();
+    await userEvent.type(screen.getByLabelText(/^amount$/i), '100');
+    await userEvent.click(screen.getByRole('button', { name: /^split…?$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    expect(screen.getByText(/2 split lines/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^amount$/i).disabled).toBe(true);
   });
 
   it('an existing split transaction shows the summary chip and a hidden category field', () => {
