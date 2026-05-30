@@ -110,6 +110,13 @@ describe('TransactionRow split parent', () => {
     expect(screen.getByText(/2 split lines/)).toBeTruthy();
   });
 
+  it('shows the main category name alongside the split chevron when the parent has a categoryId', () => {
+    const row = { ...splitRow, categoryId: 'c_grocery' };
+    render(<table><tbody><TransactionRow layout="bank" row={row} categoriesById={splitCategoriesById} onEdit={vi.fn()} /></tbody></table>);
+    expect(screen.getByText('Groceries')).toBeTruthy();      // main category cell (collapsed)
+    expect(screen.getByText(/2 split lines/)).toBeTruthy();   // chevron still present
+  });
+
   it('clicking the chevron expands and shows per-line sub-rows', async () => {
     render(<table><tbody><TransactionRow layout="bank" row={splitRow} categoriesById={splitCategoriesById} onEdit={vi.fn()} /></tbody></table>);
     expect(screen.queryByText('Soap')).toBeNull(); // collapsed

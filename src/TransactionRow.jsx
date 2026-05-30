@@ -56,8 +56,14 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
   const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
   const transferCategory = transfer && row.categoryId && categoriesById ? (categoriesById.get(row.categoryId) || null) : null;
 
+  const mainCat = isSplit && row.categoryId && categoriesById ? categoriesById.get(row.categoryId) : null;
   const categoryCell = isSplit
-    ? <SplitChevron expanded={expanded} onClick={() => setExpanded(!expanded)} count={row.splits.length} />
+    ? (
+        <span className="txn-split-cat">
+          {mainCat && <CategoryCell categoriesById={categoriesById} categoryId={row.categoryId} />}
+          <SplitChevron expanded={expanded} onClick={() => setExpanded(!expanded)} count={row.splits.length} />
+        </span>
+      )
     : (transfer ? <TransferChip info={transfer} category={transferCategory} onNavigate={onNavigate} /> : <CategoryCell categoriesById={categoriesById} categoryId={row.categoryId} />);
 
   if (layout === 'bank') {
