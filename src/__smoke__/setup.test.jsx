@@ -18,7 +18,7 @@ describe('end-to-end: v3 bills migrate to v4 accounts, balances, export', () => 
         { id: 'i2', description: 'Refund', amount: -20, category: 'Groceries', date: '2026-05-10' },
       ]},
     ];
-    const storage = makeFakeStorage({ 'billtracker-bills': JSON.stringify(v1Bills) });
+    const storage = makeFakeStorage({ 'tallio-bills': JSON.stringify(v1Bills) });
     const { accounts, transactions, migrationError } = initializeFromStorage(storage);
     expect(migrationError).toBeNull();
     expect(accounts).toHaveLength(1);

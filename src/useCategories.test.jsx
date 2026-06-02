@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import useCategories from './useCategories.js';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, TRANSFER_SEED_CATEGORIES, BACKFILL_CATEGORIES } from './categoriesDefaults.js';
 
-const STORAGE_KEY = 'billtracker-categories';
+const STORAGE_KEY = 'tallio-categories';
 
 beforeEach(() => {
   localStorage.clear();
@@ -199,7 +199,7 @@ describe('useCategories', () => {
   it('exposes storageError when localStorage.setItem throws', async () => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key) {
-      if (key === 'billtracker-categories') {
+      if (key === 'tallio-categories') {
         const err = new Error('Quota exceeded');
         err.name = 'QuotaExceededError';
         throw err;
@@ -263,7 +263,7 @@ describe('useCategories', () => {
   it('clearStorageError resets storageError to null', async () => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key) {
-      if (key === 'billtracker-categories') throw new Error('Quota');
+      if (key === 'tallio-categories') throw new Error('Quota');
       return original.apply(this, arguments);
     };
     try {

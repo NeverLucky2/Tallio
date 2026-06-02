@@ -1,7 +1,7 @@
 // src/useReportAcks.js
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-const STORAGE_KEY = 'billtracker-report-acks';
+const STORAGE_KEY = 'tallio-report-acks';
 const PERSIST_DEBOUNCE_MS = 250;
 
 const empty = () => ({ subscriptions: {}, dismissedDuplicates: [] });

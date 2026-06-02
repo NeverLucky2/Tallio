@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import useReportAcks from './useReportAcks.js';
 
-const KEY = 'billtracker-report-acks';
+const KEY = 'tallio-report-acks';
 beforeEach(() => localStorage.clear());
 
 describe('useReportAcks', () => {

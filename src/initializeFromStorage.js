@@ -3,14 +3,14 @@ import { migrateBills, migrateToV2, migrateToV3 } from './spendingMath.js';
 import { migrateToV4 } from './accountsMigration.js';
 import { DEFAULT_CATEGORIES, V3_SEED_CATEGORIES } from './categoriesDefaults.js';
 
-const BILLS_KEY          = 'billtracker-bills';
-const CATS_KEY           = 'billtracker-categories';
-const ACCOUNTS_KEY       = 'billtracker-accounts';
-const TXN_KEY            = 'billtracker-transactions';
-const VERSION_KEY        = 'billtracker-schema-version';
-const V1_BACKUP_KEY      = 'billtracker-pre-categories-backup';
-const V2_CATS_BACKUP_KEY = 'billtracker-categories-v2-backup';
-const V3_BILLS_BACKUP_KEY = 'billtracker-pre-accounts-backup';
+const BILLS_KEY          = 'tallio-bills';
+const CATS_KEY           = 'tallio-categories';
+const ACCOUNTS_KEY       = 'tallio-accounts';
+const TXN_KEY            = 'tallio-transactions';
+const VERSION_KEY        = 'tallio-schema-version';
+const V1_BACKUP_KEY      = 'tallio-pre-categories-backup';
+const V2_CATS_BACKUP_KEY = 'tallio-categories-v2-backup';
+const V3_BILLS_BACKUP_KEY = 'tallio-pre-accounts-backup';
 
 // Returns { accounts, transactions, migrationError }.
 // migrationError is null on success, or { message, recovered } on failure.

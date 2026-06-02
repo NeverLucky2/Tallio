@@ -45,7 +45,7 @@ describe('useLedger', () => {
     expect(result.current.transactions.find(t => t.id === tid).amount).toBe(-25);
     act(() => { result.current.deleteTransaction(tid); });
     expect(result.current.transactions).toHaveLength(1);
-    expect(JSON.parse(localStorage.getItem('billtracker-transactions'))).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem('tallio-transactions'))).toHaveLength(1);
   });
 
   it('snapshot/restore round-trips for undo', () => {

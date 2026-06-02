@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 
-const KEY_STORAGE = 'billtracker-anthropic-key';
-const MODEL_STORAGE = 'billtracker-anthropic-model';
-const UI_SCALE_STORAGE = 'billtracker-ui-scale';
+const KEY_STORAGE = 'tallio-anthropic-key';
+const MODEL_STORAGE = 'tallio-anthropic-model';
+const UI_SCALE_STORAGE = 'tallio-ui-scale';
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 export const DEFAULT_UI_SCALE = 1.1;
