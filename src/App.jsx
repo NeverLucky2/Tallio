@@ -17,6 +17,7 @@ import TransferEditor from './TransferEditor.jsx';
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import UndoButton from './UndoButton.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
@@ -126,13 +127,20 @@ function Tallio() {
 
   // Undo: snapshots of the whole ledger + report acknowledgments.
   const [history, setHistory] = useState([]);
-  const pushHistory = () => setHistory(prev => [...prev.slice(-19), { ledger: ledger.snapshot(), acks: acks.exportSnapshot() }]);
+  const pushHistory = () => setHistory(prev => [...prev.slice(-19), {
+    ledger: ledger.snapshot(),
+    acks: acks.exportSnapshot(),
+    categories: cats.snapshot(),
+    accountTypes: accountTypes.snapshot(),
+  }]);
   const undo = () => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
       const entry = prev[prev.length - 1];
       ledger.restore(entry.ledger);
       acks.restore(entry.acks);
+      cats.restore(entry.categories);
+      accountTypes.restore(entry.accountTypes);
       return prev.slice(0, -1);
     });
   };
@@ -417,7 +425,7 @@ function Tallio() {
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
             <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}</button>
-            <button onClick={undo} disabled={history.length === 0} className={`btn btn-undo${history.length > 0 ? ' active' : ''}`}>↩ Undo{history.length > 0 ? ` (${history.length})` : ''}</button>
+            <UndoButton count={history.length} onUndo={undo} />
             <button onClick={exportData} className="btn">↗ Export</button>
           </div>
         </header>
