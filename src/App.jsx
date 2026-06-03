@@ -145,6 +145,23 @@ function Tallio() {
     });
   };
 
+  // Ctrl/Cmd+Z triggers Undo, except while typing in a field (preserve native text undo).
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const k = e.key ? e.key.toLowerCase() : '';
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || k !== 'z') return;
+      const el = e.target;
+      const tag = el && el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (el && el.isContentEditable)) return;
+      e.preventDefault();
+      undoRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Capture / scan / pairing state (carried over unchanged).
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
