@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ChipEditor({ values, onAdd, onRemove, placeholder }) {
+export default function ChipEditor({ values, onAdd, onRemove, onPromote, placeholder }) {
   const [draft, setDraft] = useState('');
 
   const submit = () => {
@@ -15,6 +15,18 @@ export default function ChipEditor({ values, onAdd, onRemove, placeholder }) {
       {(values || []).map(v => (
         <span key={v} className="chip">
           {v}
+          {onPromote && (
+            <button
+              type="button"
+              className="chip-promote"
+              aria-label={`Promote ${v} to sub-category`}
+              title="Make this a sub-category"
+              onClick={() => onPromote(v)}
+              style={{ marginLeft: 4 }}
+            >
+              ↑
+            </button>
+          )}
           <button
             type="button"
             className="chip-remove"

@@ -57,4 +57,17 @@ describe('ChipEditor', () => {
     expect(onRemove).toHaveBeenCalledWith('EXISTING');
     expect(onAdd).not.toHaveBeenCalled();
   });
+
+  it('renders a promote button per chip only when onPromote is provided, and calls it', async () => {
+    const onPromote = vi.fn();
+    render(<ChipEditor values={['FEDERAL TAX']} onAdd={() => {}} onRemove={() => {}} onPromote={onPromote} placeholder="kw" />);
+    const btn = screen.getByRole('button', { name: /promote federal tax/i });
+    await userEvent.click(btn);
+    expect(onPromote).toHaveBeenCalledWith('FEDERAL TAX');
+  });
+
+  it('renders no promote button when onPromote is omitted', () => {
+    render(<ChipEditor values={['FEDERAL TAX']} onAdd={() => {}} onRemove={() => {}} placeholder="kw" />);
+    expect(screen.queryByRole('button', { name: /promote/i })).toBeNull();
+  });
 });
