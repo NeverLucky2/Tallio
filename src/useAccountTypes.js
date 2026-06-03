@@ -54,5 +54,10 @@ export default function useAccountTypes() {
 
   const clearStorageError = useCallback(() => setStorageError(null), []);
 
-  return { types, typesById, addType, updateType, deleteType, storageError, clearStorageError };
+  const snapshot = useCallback(() => types, [types]);
+  const restore = useCallback((snap) => {
+    setTypes(Array.isArray(snap) ? snap : []);
+  }, []);
+
+  return { types, typesById, addType, updateType, deleteType, snapshot, restore, storageError, clearStorageError };
 }

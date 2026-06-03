@@ -41,4 +41,15 @@ describe('useAccountTypes', () => {
     act(() => { result.current.addType({ label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health' }); });
     expect(JSON.parse(localStorage.getItem('tallio-account-types'))).toHaveLength(8);
   });
+
+  it('snapshot/restore round-trips for undo', () => {
+    const { result } = renderHook(() => useAccountTypes());
+    const first = result.current.types[0];
+    let snap;
+    act(() => { snap = result.current.snapshot(); });
+    act(() => { result.current.updateType(first.id, { label: 'Changed Label' }); });
+    expect(result.current.typesById.get(first.id).label).toBe('Changed Label');
+    act(() => { result.current.restore(snap); });
+    expect(result.current.typesById.get(first.id).label).toBe(first.label);
+  });
 });
