@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories, normalizeCategories } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'tallio-categories';
 const PERSIST_DEBOUNCE_MS = 250;
 
 function seed() {
-  return withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) })));
+  return normalizeCategories(withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) }))));
 }
 
 function load() {
@@ -16,7 +16,7 @@ function load() {
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return seed();
-    return withBackfillCategories(withTransferSeeds(parsed));
+    return normalizeCategories(withBackfillCategories(withTransferSeeds(parsed)));
   } catch {
     return seed();
   }

@@ -22,7 +22,7 @@ describe('useCategories', () => {
     const seeded = [{ id: 'cz', name: 'Zoo', icon: '🦓', color: '#000000', keywords: [], templates: [], builtin: false }];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
     const { result } = renderHook(() => useCategories());
-    expect(result.current.categories.find(c => c.id === 'cz')).toEqual(seeded[0]);
+    expect(result.current.categories.find(c => c.id === 'cz')).toEqual({ ...seeded[0], subcategories: [] });
     expect(result.current.categories).toHaveLength(1 + TRANSFER_SEED_CATEGORIES.length + BACKFILL_CATEGORIES.length);
   });
 
@@ -288,5 +288,12 @@ describe('useCategories', () => {
     expect(result.current.getById(target.id).name).toBe('Renamed!!');
     act(() => { result.current.restore(snap); });
     expect(result.current.getById(target.id).name).toBe(target.name);
+  });
+
+  it('normalizes every seeded category to have a subcategories array', () => {
+    const { result } = renderHook(() => useCategories());
+    for (const c of result.current.categories) {
+      expect(Array.isArray(c.subcategories)).toBe(true);
+    }
   });
 });

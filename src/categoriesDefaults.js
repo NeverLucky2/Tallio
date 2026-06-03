@@ -108,3 +108,17 @@ export const BACKFILL_CATEGORIES = [
 export function withBackfillCategories(categories) {
   return appendMissingByName(categories, BACKFILL_CATEGORIES);
 }
+
+// Ensure every category has a subcategories array, and every sub has a keywords
+// array. Idempotent; returns a fresh array. Run on load so stored data created
+// before sub-categories existed gets the new shape.
+export function normalizeCategories(categories) {
+  const list = Array.isArray(categories) ? categories : [];
+  return list.map(c => ({
+    ...c,
+    subcategories: (Array.isArray(c.subcategories) ? c.subcategories : []).map(s => ({
+      ...s,
+      keywords: Array.isArray(s.keywords) ? s.keywords : [],
+    })),
+  }));
+}

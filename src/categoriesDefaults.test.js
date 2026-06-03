@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, V3_SEED_CATEGORIES, TRANSFER_SEED_CATEGORIES, withTransferSeeds, BACKFILL_CATEGORIES, withBackfillCategories } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, V3_SEED_CATEGORIES, TRANSFER_SEED_CATEGORIES, withTransferSeeds, BACKFILL_CATEGORIES, withBackfillCategories, normalizeCategories } from './categoriesDefaults.js';
 
 describe('DEFAULT_CATEGORIES', () => {
   it('exports 14 seed categories', () => {
@@ -113,5 +113,25 @@ describe('builtin backfill categories', () => {
     const out = withBackfillCategories(existing);
     expect(out).toBe(existing);
     expect(out.filter(c => c.name === 'Taxes')).toHaveLength(1);
+  });
+});
+
+describe('normalizeCategories', () => {
+  it('adds an empty subcategories array to a category that lacks one', () => {
+    const out = normalizeCategories([{ id: 'c1', name: 'Taxes', keywords: [] }]);
+    expect(out[0].subcategories).toEqual([]);
+  });
+
+  it('preserves existing subs and fills a missing keywords array on each', () => {
+    const out = normalizeCategories([
+      { id: 'c1', name: 'Taxes', keywords: [], subcategories: [{ id: 's1', name: 'Federal Tax' }] },
+    ]);
+    expect(out[0].subcategories[0]).toEqual({ id: 's1', name: 'Federal Tax', keywords: [] });
+  });
+
+  it('is idempotent', () => {
+    const once = normalizeCategories([{ id: 'c1', name: 'Taxes', keywords: [] }]);
+    const twice = normalizeCategories(once);
+    expect(twice).toEqual(once);
   });
 });
