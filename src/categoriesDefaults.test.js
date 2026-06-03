@@ -134,4 +134,11 @@ describe('normalizeCategories', () => {
     const twice = normalizeCategories(once);
     expect(twice).toEqual(once);
   });
+
+  it('is idempotent on categories that already have subs', () => {
+    const once = normalizeCategories([
+      { id: 'c1', name: 'Taxes', subcategories: [{ id: 's1', name: 'Federal Tax', keywords: ['FEDERAL TAX'] }] },
+    ]);
+    expect(normalizeCategories(once)).toEqual(once);
+  });
 });

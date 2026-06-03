@@ -296,4 +296,13 @@ describe('useCategories', () => {
       expect(Array.isArray(c.subcategories)).toBe(true);
     }
   });
+
+  it('normalizes stored categories that predate sub-categories on load', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      { id: 'cz', name: 'Zoo', icon: '🦓', color: '#000000', keywords: [], templates: [], builtin: false },
+    ]));
+    const { result } = renderHook(() => useCategories());
+    const zoo = result.current.categories.find(c => c.id === 'cz');
+    expect(zoo.subcategories).toEqual([]);
+  });
 });
