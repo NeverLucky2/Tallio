@@ -328,6 +328,8 @@ function Tallio() {
           onAddTemplate={(catId, t) => { pushHistory(); cats.addTemplate(catId, t); }}
           onRemoveTemplate={(catId, t) => { pushHistory(); cats.removeTemplate(catId, t); }}
           onMoveAll={() => {}}
+          onUndo={undo}
+          undoCount={history.length}
         />
       )}
 
@@ -338,6 +340,8 @@ function Tallio() {
           onClose={() => setScreen('main')}
           onSaveType={saveAccountType}
           onDeleteType={deleteAccountType}
+          onUndo={undo}
+          undoCount={history.length}
         />
       )}
 

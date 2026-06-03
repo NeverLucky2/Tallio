@@ -1,8 +1,9 @@
 // src/AccountTypesScreen.jsx
 import React, { useState, useMemo } from 'react';
 import AccountTypeEditor from './AccountTypeEditor.jsx';
+import UndoButton from './UndoButton.jsx';
 
-export default function AccountTypesScreen({ types, accounts, onClose, onSaveType, onDeleteType }) {
+export default function AccountTypesScreen({ types, accounts, onClose, onSaveType, onDeleteType, onUndo, undoCount = 0 }) {
   const [editing, setEditing] = useState(null);          // { type } | { type: null } | null
   const [pendingDelete, setPendingDelete] = useState(null); // { type, count }
   const [reassignTo, setReassignTo] = useState('');
@@ -27,7 +28,10 @@ export default function AccountTypesScreen({ types, accounts, onClose, onSaveTyp
       <div className="screen">
         <div className="screen-header">
           <h2 className="screen-title">Account Types</h2>
-          <button type="button" className="btn" onClick={onClose}>Done</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <UndoButton count={undoCount} onUndo={onUndo} />
+            <button type="button" className="btn" onClick={onClose}>Done</button>
+          </div>
         </div>
 
         <div className="type-list">

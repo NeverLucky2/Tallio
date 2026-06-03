@@ -76,4 +76,14 @@ describe('ManageCategoriesScreen', () => {
     expect(screen.getByText('Utilities').parentElement.textContent).toContain('2');
     expect(screen.getByText('Dining').parentElement.textContent).toContain('1');
   });
+
+  it('renders an Undo button that enables on undoCount and calls onUndo', async () => {
+    const onUndo = vi.fn();
+    render(<ManageCategoriesScreen categories={cats} {...noopProps} onUndo={onUndo} undoCount={2} />);
+    const btn = screen.getByRole('button', { name: /undo/i });
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe('↩ Undo (2)');
+    await userEvent.click(btn);
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
 });

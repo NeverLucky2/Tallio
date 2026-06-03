@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import CategoryEditor from './CategoryEditor.jsx';
+import UndoButton from './UndoButton.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
 function countItemsPerCategory(bills) {
@@ -24,6 +25,8 @@ export default function ManageCategoriesScreen({
   onAddTemplate,
   onRemoveTemplate,
   onMoveAll,
+  onUndo,
+  undoCount = 0,
 }) {
   const [selectedId, setSelectedId] = useState(categories[0]?.id);
 
@@ -58,7 +61,10 @@ export default function ManageCategoriesScreen({
       <header className="manage-header">
         <button type="button" className="btn" onClick={onClose}>‹ Back</button>
         <h1 className="manage-title">Manage Categories</h1>
-        <button type="button" className="btn btn-primary" onClick={handleAdd}>+ Add Category</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <UndoButton count={undoCount} onUndo={onUndo} />
+          <button type="button" className="btn btn-primary" onClick={handleAdd}>+ Add Category</button>
+        </div>
       </header>
 
       <div className="manage-body">
