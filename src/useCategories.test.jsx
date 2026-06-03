@@ -345,7 +345,8 @@ describe('useCategories', () => {
     act(() => { result.current.addSubKeyword(taxes.id, subId, 'FEDERAL TAX'); });
     let sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
     expect(sub.keywords).toEqual(['FEDERAL TAX']);
-    act(() => { result.current.removeSubKeyword(taxes.id, subId, 'FEDERAL TAX'); });
+    // removeSubKeyword with mixed-case, padded input still removes the stored uppercase keyword
+    act(() => { result.current.removeSubKeyword(taxes.id, subId, '  federal tax  '); });
     sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
     expect(sub.keywords).toEqual([]);
   });

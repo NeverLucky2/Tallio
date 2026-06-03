@@ -159,7 +159,7 @@ export default function useCategories() {
   }, []);
 
   const removeSubKeyword = useCallback((catId, subId, keyword) => {
-    const kw = (keyword || '').toUpperCase();
+    const kw = (keyword || '').trim().toUpperCase();
     setCategories(prev => prev.map(c => {
       if (c.id !== catId) return c;
       return { ...c, subcategories: (c.subcategories || []).map(s =>
