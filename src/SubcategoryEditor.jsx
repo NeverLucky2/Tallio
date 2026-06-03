@@ -6,6 +6,8 @@ export default function SubcategoryEditor({ category, sub, onBack, onUpdate, onA
   const [nameError, setNameError] = useState('');
 
   useEffect(() => {
+    // Re-sync the local name draft when the edited sub changes (e.g. switching subs or undo).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(sub.name);
     setNameError('');
   }, [sub.id, sub.name]);
