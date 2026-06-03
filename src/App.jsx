@@ -105,7 +105,7 @@ const CameraCapture = ({ onCapture, onClose }) => {
 
 // ---- Main App ----
 
-function BillTracker() {
+function Tallio() {
   // One-time schema migration runs here (v1→v4). initializeFromStorage returns the
   // flat ledger ({ accounts, transactions }) plus any migration error to surface.
   const [{ accounts: initAccounts, transactions: initTransactions, migrationError }] =
@@ -236,7 +236,7 @@ function BillTracker() {
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `billtracker-${new Date().toISOString().split('T')[0]}.zip`; a.click();
+    a.href = url; a.download = `tallio-${new Date().toISOString().split('T')[0]}.zip`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -405,7 +405,7 @@ function BillTracker() {
       <div className="container">
         <header className="header">
           <div className="brand">
-            <h1 className="brand-title">Bill<span className="brand-title-accent">Tracker</span></h1>
+            <h1 className="brand-title">Tall<span className="brand-title-accent">io</span></h1>
             <p className="brand-sub">Accounts</p>
           </div>
           <div className="header-actions">
@@ -475,5 +475,5 @@ export default function App() {
   if (typeof window !== 'undefined' && window.location.pathname === '/pair') {
     return <PhoneCapture />;
   }
-  return <BillTracker />;
+  return <Tallio />;
 }

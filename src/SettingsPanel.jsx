@@ -108,7 +108,7 @@ export default function SettingsPanel({ settings, onClose, banner }) {
           </div>
 
           <p className="settings-privacy">
-            Key is stored only in this browser. Never sent to BillTracker servers.
+            Key is stored only in this browser. Never sent to Tallio servers.
           </p>
         </div>
 

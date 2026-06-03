@@ -28,10 +28,10 @@ describe('useSettings uiScale', () => {
     const { result } = renderHook(() => useSettings());
     act(() => result.current.save({ uiScale: 1.2 }));
     expect(result.current.uiScale).toBe(1.2);
-    expect(localStorage.getItem('billtracker-ui-scale')).toBe('1.2');
+    expect(localStorage.getItem('tallio-ui-scale')).toBe('1.2');
   });
   it('hydrates and clamps an out-of-range stored value', () => {
-    localStorage.setItem('billtracker-ui-scale', '9');
+    localStorage.setItem('tallio-ui-scale', '9');
     const { result } = renderHook(() => useSettings());
     expect(result.current.uiScale).toBe(UI_SCALE_MAX); // 1.5
   });

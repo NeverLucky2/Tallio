@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories } from './categoriesDefaults.js';
 
-const STORAGE_KEY = 'billtracker-categories';
+const STORAGE_KEY = 'tallio-categories';
 const PERSIST_DEBOUNCE_MS = 250;
 
 function seed() {

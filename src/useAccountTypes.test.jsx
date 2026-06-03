@@ -13,7 +13,7 @@ describe('useAccountTypes', () => {
   });
 
   it('hydrates from storage when present', () => {
-    localStorage.setItem('billtracker-account-types', JSON.stringify([
+    localStorage.setItem('tallio-account-types', JSON.stringify([
       { id: 'hsa', label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health', icon: '🏥', builtin: false },
     ]));
     const { result } = renderHook(() => useAccountTypes());
@@ -39,6 +39,6 @@ describe('useAccountTypes', () => {
   it('persists changes to localStorage', () => {
     const { result } = renderHook(() => useAccountTypes());
     act(() => { result.current.addType({ label: 'HSA', klass: 'asset', layout: 'compact', group: 'Health' }); });
-    expect(JSON.parse(localStorage.getItem('billtracker-account-types'))).toHaveLength(8);
+    expect(JSON.parse(localStorage.getItem('tallio-account-types'))).toHaveLength(8);
   });
 });

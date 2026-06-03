@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { nanoid } from 'nanoid';
 import { DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 
-const TYPES_KEY = 'billtracker-account-types';
+const TYPES_KEY = 'tallio-account-types';
 
 // Owns the account-type registry: load/seed/persist + CRUD. Mirrors useCategories.
 export default function useAccountTypes() {

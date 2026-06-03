@@ -3,8 +3,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { validateSplits } from './accountsModel.js';
 
-const ACCOUNTS_KEY = 'billtracker-accounts';
-const TXN_KEY = 'billtracker-transactions';
+const ACCOUNTS_KEY = 'tallio-accounts';
+const TXN_KEY = 'tallio-transactions';
 
 // Owns the two flat arrays so undo can snapshot/restore them together.
 // `initial` comes from initializeFromStorage: { accounts, transactions }.
