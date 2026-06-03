@@ -278,4 +278,15 @@ describe('useCategories', () => {
       Storage.prototype.setItem = original;
     }
   });
+
+  it('snapshot/restore round-trips for undo (a rename is revertible)', () => {
+    const { result } = renderHook(() => useCategories());
+    const target = result.current.categories[0];
+    let snap;
+    act(() => { snap = result.current.snapshot(); });
+    act(() => { result.current.updateCategory(target.id, { name: 'Renamed!!' }); });
+    expect(result.current.getById(target.id).name).toBe('Renamed!!');
+    act(() => { result.current.restore(snap); });
+    expect(result.current.getById(target.id).name).toBe(target.name);
+  });
 });

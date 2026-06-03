@@ -125,6 +125,11 @@ export default function useCategories() {
 
   const clearStorageError = useCallback(() => setStorageError(null), []);
 
+  const snapshot = useCallback(() => categories, [categories]);
+  const restore = useCallback((snap) => {
+    setCategories(Array.isArray(snap) ? snap : []);
+  }, []);
+
   const autoCategorize = useCallback(
     (description) => ruleAutoCategorize(description, categories, otherId()),
     [categories, otherId]
@@ -167,6 +172,8 @@ export default function useCategories() {
     autoCategorize,
     applyCategoryToItems,
     findItemsInCategory,
+    snapshot,
+    restore,
     storageError,
     clearStorageError,
   };
