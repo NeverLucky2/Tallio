@@ -123,6 +123,51 @@ export default function useCategories() {
     ));
   }, []);
 
+  const addSub = useCallback((catId, { name } = {}) => {
+    const id = nanoid(8);
+    const nm = (name || '').trim() || 'New sub-category';
+    setCategories(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, subcategories: [...(c.subcategories || []), { id, name: nm, keywords: [] }] }
+    ));
+    return id;
+  }, []);
+
+  const updateSub = useCallback((catId, subId, patch) => {
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s => s.id === subId ? { ...s, ...patch, id: s.id } : s) };
+    }));
+  }, []);
+
+  const deleteSub = useCallback((catId, subId) => {
+    setCategories(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, subcategories: (c.subcategories || []).filter(s => s.id !== subId) }
+    ));
+  }, []);
+
+  const addSubKeyword = useCallback((catId, subId, raw) => {
+    const kw = (raw || '').trim().toUpperCase();
+    if (!kw) return;
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s => {
+        if (s.id !== subId) return s;
+        if ((s.keywords || []).includes(kw)) return s;
+        return { ...s, keywords: [...(s.keywords || []), kw] };
+      }) };
+    }));
+  }, []);
+
+  const removeSubKeyword = useCallback((catId, subId, keyword) => {
+    const kw = (keyword || '').toUpperCase();
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s =>
+        s.id === subId ? { ...s, keywords: (s.keywords || []).filter(k => k !== kw) } : s
+      ) };
+    }));
+  }, []);
+
   const clearStorageError = useCallback(() => setStorageError(null), []);
 
   const snapshot = useCallback(() => categories, [categories]);
@@ -169,6 +214,11 @@ export default function useCategories() {
     removeKeyword,
     addTemplate,
     removeTemplate,
+    addSub,
+    updateSub,
+    deleteSub,
+    addSubKeyword,
+    removeSubKeyword,
     autoCategorize,
     applyCategoryToItems,
     findItemsInCategory,

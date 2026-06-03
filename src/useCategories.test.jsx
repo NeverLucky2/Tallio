@@ -305,4 +305,48 @@ describe('useCategories', () => {
     const zoo = result.current.categories.find(c => c.id === 'cz');
     expect(zoo.subcategories).toEqual([]);
   });
+
+  it('addSub appends a sub with a fresh id and empty keywords; returns the id', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    const sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.keywords).toEqual([]);
+  });
+
+  it('updateSub patches name without changing the sub id', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Fed' }); });
+    act(() => { result.current.updateSub(taxes.id, subId, { name: 'Federal Tax' }); });
+    const sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.id).toBe(subId);
+  });
+
+  it('deleteSub removes the sub', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    act(() => { result.current.deleteSub(taxes.id, subId); });
+    expect(result.current.getById(taxes.id).subcategories.find(s => s.id === subId)).toBeUndefined();
+  });
+
+  it('addSubKeyword uppercases and dedupes; removeSubKeyword strips', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    act(() => { result.current.addSubKeyword(taxes.id, subId, 'federal tax'); });
+    act(() => { result.current.addSubKeyword(taxes.id, subId, 'FEDERAL TAX'); });
+    let sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.keywords).toEqual(['FEDERAL TAX']);
+    act(() => { result.current.removeSubKeyword(taxes.id, subId, 'FEDERAL TAX'); });
+    sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.keywords).toEqual([]);
+  });
 });
