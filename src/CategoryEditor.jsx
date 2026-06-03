@@ -60,6 +60,9 @@ export default function CategoryEditor({
   onAddTemplate,
   onRemoveTemplate,
   onDelete,
+  onAddSub,
+  onEditSub,
+  onPromoteKeyword,
 }) {
   const [name, setName] = useState(category.name);
   const [nameError, setNameError] = useState('');
@@ -140,8 +143,33 @@ export default function CategoryEditor({
           values={category.keywords}
           onAdd={onAddKeyword}
           onRemove={onRemoveKeyword}
+          onPromote={onPromoteKeyword}
           placeholder="Add keyword (e.g. PEOPLES GAS)"
         />
+      </div>
+
+      <div className="cat-editor-section">
+        <div className="cat-editor-section-title">
+          Sub-categories <span className="cat-editor-section-hint">({(category.subcategories || []).length})</span>
+        </div>
+        <div className="sub-list">
+          {(category.subcategories || []).map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className="sub-list-row"
+              onClick={() => onEditSub(s.id)}
+              style={{ display: 'flex', width: '100%', gap: 8, alignItems: 'center', textAlign: 'left', padding: '6px 10px' }}
+            >
+              <span className="sub-list-name">{s.name}</span>
+              {(s.keywords || []).length > 0 && (
+                <span className="sub-list-kw" style={{ opacity: 0.6 }}>— {s.keywords.join(', ')}</span>
+              )}
+              <span style={{ marginLeft: 'auto' }}>›</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" className="btn" onClick={onAddSub}>+ Add sub-category</button>
       </div>
 
       <div className="cat-editor-section">

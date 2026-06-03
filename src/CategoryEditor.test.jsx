@@ -222,4 +222,27 @@ describe('CategoryEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: /continue/i }));
     expect(onUpdate).toHaveBeenCalledWith({ flow: 'expense' });
   });
+
+  it('lists sub-categories, adds one, drills into one, and promotes a keyword', async () => {
+    const onAddSub = vi.fn();
+    const onEditSub = vi.fn();
+    const onPromoteKeyword = vi.fn();
+    const withSub = { ...cat, subcategories: [{ id: 's1', name: 'Federal Tax', keywords: ['FEDERAL TAX'] }] };
+    render(
+      <CategoryEditor
+        category={withSub} itemCount={0}
+        otherCategories={[]} onMoveAll={() => {}}
+        onUpdate={() => {}} onAddKeyword={() => {}} onRemoveKeyword={() => {}}
+        onAddTemplate={() => {}} onRemoveTemplate={() => {}} onDelete={() => {}}
+        onAddSub={onAddSub} onEditSub={onEditSub} onPromoteKeyword={onPromoteKeyword}
+      />
+    );
+    expect(screen.getByText('Federal Tax')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /add sub-category/i }));
+    expect(onAddSub).toHaveBeenCalled();
+    await userEvent.click(screen.getByText('Federal Tax'));
+    expect(onEditSub).toHaveBeenCalledWith('s1');
+    await userEvent.click(screen.getByRole('button', { name: /promote peoples gas/i }));
+    expect(onPromoteKeyword).toHaveBeenCalledWith('PEOPLES GAS');
+  });
 });
