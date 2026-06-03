@@ -350,4 +350,16 @@ describe('useCategories', () => {
     sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
     expect(sub.keywords).toEqual([]);
   });
+
+  it('promoteKeywordToSub moves a parent keyword onto a new Title-Cased sub', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.promoteKeywordToSub(taxes.id, 'FEDERAL TAX'); });
+    const cat = result.current.getById(taxes.id);
+    expect(cat.keywords).not.toContain('FEDERAL TAX');
+    const sub = cat.subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.keywords).toEqual(['FEDERAL TAX']);
+  });
 });

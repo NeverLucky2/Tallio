@@ -168,6 +168,22 @@ export default function useCategories() {
     }));
   }, []);
 
+  const promoteKeywordToSub = useCallback((catId, keyword) => {
+    const kw = (keyword || '').trim().toUpperCase();
+    if (!kw) return null;
+    const id = nanoid(8);
+    const name = kw.toLowerCase().replace(/\b\w/g, ch => ch.toUpperCase());
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return {
+        ...c,
+        keywords: (c.keywords || []).filter(k => k !== kw),
+        subcategories: [...(c.subcategories || []), { id, name, keywords: [kw] }],
+      };
+    }));
+    return id;
+  }, []);
+
   const clearStorageError = useCallback(() => setStorageError(null), []);
 
   const snapshot = useCallback(() => categories, [categories]);
@@ -219,6 +235,7 @@ export default function useCategories() {
     deleteSub,
     addSubKeyword,
     removeSubKeyword,
+    promoteKeywordToSub,
     autoCategorize,
     applyCategoryToItems,
     findItemsInCategory,
