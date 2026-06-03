@@ -194,6 +194,7 @@ function Tallio() {
 
   // Account-type CRUD (reassign-then-delete coordinated here since App holds ledger.updateAccount)
   const saveAccountType = (data) => {
+    pushHistory();
     if (data.id) accountTypes.updateType(data.id, data);
     else accountTypes.addType(data);
   };
@@ -319,13 +320,13 @@ function Tallio() {
           categories={cats.categories}
           bills={[]} /* category screen still accepts a bills prop for keyword apply; pass [] in Phase 1 */
           onClose={() => setScreen('main')}
-          onAddCategory={(p) => cats.addCategory(p)}
-          onUpdateCategory={(id, patch) => cats.updateCategory(id, patch)}
-          onDeleteCategory={(id) => cats.deleteCategory(id, [])}
-          onAddKeyword={(catId, kw) => cats.addKeyword(catId, kw, [])}
-          onRemoveKeyword={(catId, kw) => cats.removeKeyword(catId, kw)}
-          onAddTemplate={(catId, t) => cats.addTemplate(catId, t)}
-          onRemoveTemplate={(catId, t) => cats.removeTemplate(catId, t)}
+          onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
+          onUpdateCategory={(id, patch) => { pushHistory(); cats.updateCategory(id, patch); }}
+          onDeleteCategory={(id) => { pushHistory(); return cats.deleteCategory(id, []); }}
+          onAddKeyword={(catId, kw) => { pushHistory(); return cats.addKeyword(catId, kw, []); }}
+          onRemoveKeyword={(catId, kw) => { pushHistory(); cats.removeKeyword(catId, kw); }}
+          onAddTemplate={(catId, t) => { pushHistory(); cats.addTemplate(catId, t); }}
+          onRemoveTemplate={(catId, t) => { pushHistory(); cats.removeTemplate(catId, t); }}
           onMoveAll={() => {}}
         />
       )}
