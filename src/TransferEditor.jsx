@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
+import UndoButton from './UndoButton.jsx';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
@@ -125,6 +126,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         {sameAccount && <p className="field-error">From and To must be different accounts.</p>}
 
         <div className="dialog-actions">
+          <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save transfer</button>

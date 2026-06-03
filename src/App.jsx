@@ -373,6 +373,7 @@ function Tallio() {
           account={editingAccount.account || null}
           types={accountTypes.types}
           onSave={saveAccount} onDelete={deleteAccount} onClose={() => setEditingAccount(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
       {editingTxn && selectedAccount && (
@@ -383,6 +384,7 @@ function Tallio() {
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
       {editingTransfer && (
@@ -396,6 +398,7 @@ function Tallio() {
           initialAmount={editingTransfer.initialAmount ?? null}
           transfer={editingTransfer.transfer || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
 
