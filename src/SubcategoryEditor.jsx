@@ -56,7 +56,7 @@ export default function SubcategoryEditor({ category, sub, onBack, onUpdate, onA
 
       <div className="cat-editor-footer">
         <button type="button" className="btn btn-danger" onClick={onDelete}>Delete sub-category</button>
-        <span className="cat-editor-delete-hint">Deleting moves its transactions back to {category.name}.</span>
+        <span className="cat-editor-delete-hint">Deleting removes this sub-category.</span>
       </div>
     </div>
   );
