@@ -25,6 +25,7 @@ import UndoButton from './UndoButton.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
+import { listImages } from './imageStore.js';
 import './App.css';
 import pkg from '../package.json';
 
@@ -258,11 +259,29 @@ function Tallio() {
     setEditingTransfer({ mode: 'new', ...draft });
   };
 
-  const exportData = () => {
+  const exportData = async () => {
+    let images = [];
+    try {
+      const recs = await listImages();
+      images = await Promise.all(recs.map(async (r) => ({
+        id: r.id, name: r.name, group: r.group, type: r.type,
+        w: r.w, h: r.h, palette: r.palette, createdAt: r.createdAt,
+        bytes: new Uint8Array(await r.blob.arrayBuffer()),
+        thumbBytes: r.thumb ? new Uint8Array(await r.thumb.arrayBuffer()) : null,
+      })));
+    } catch { /* no images / IndexedDB unavailable */ }
+
+    let appearanceSettings = null;
+    try {
+      const raw = window.localStorage.getItem('tallio-appearance');
+      if (raw) appearanceSettings = JSON.parse(raw);
+    } catch { /* ignore */ }
+
     const bytes = buildArchive({
       accounts: ledger.accounts, transactions: ledger.transactions,
       categories: cats.categories, accountTypes: accountTypes.types,
       reportAcks: acks.exportSnapshot(),
+      images, appearance: appearanceSettings,
       schemaVersion: 4, appVersion: pkg.version, now: new Date(),
     });
     const blob = new Blob([bytes], { type: 'application/zip' });
