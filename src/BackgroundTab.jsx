@@ -13,6 +13,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
   const { base, presetId, effects, intensity } = background;
 
   const toggle = (key) => updateBackground({ effects: { ...effects, [key]: !effects[key] } });
+  const anyEffect = effects.aurora || effects.pulse;
 
   const photoIds = background.photoIds || [];
   const togglePhoto = (id) => updateBackground({ photoIds: togglePhotoSelection(photoIds, id, background.mode) });
@@ -136,6 +137,18 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
         value={intensity}
         onChange={(e) => updateBackground({ intensity: Number(e.target.value) })}
       />
+
+      {anyEffect && (
+        <>
+          <label className="appearance-label" htmlFor="bg-effect-strength">Effect strength — subtle ↔ vivid</label>
+          <input
+            id="bg-effect-strength" type="range" min="0" max="100" className="bg-intensity"
+            aria-label="Effect strength"
+            value={background.effectStrength ?? 50}
+            onChange={(e) => updateBackground({ effectStrength: Number(e.target.value) })}
+          />
+        </>
+      )}
     </div>
   );
 }
