@@ -58,4 +58,22 @@ describe('useAppearance', () => {
     expect(result.current.background.intensity).toBe(80);
     expect(result.current.background.effects.aurora).toBe(true);
   });
+
+  it('defaults the background to empty framing and effectStrength 50', () => {
+    const { result } = renderHook(() => useAppearance());
+    expect(result.current.background.framing).toEqual({});
+    expect(result.current.background.effectStrength).toBe(50);
+  });
+
+  it('back-fills new background fields for a saved config that predates them', () => {
+    window.localStorage.setItem('tallio-appearance', JSON.stringify({
+      themeId: 'nocturne',
+      background: { base: 'photos', photoIds: ['x'], intensity: 40 },
+    }));
+    const { result } = renderHook(() => useAppearance());
+    expect(result.current.background.framing).toEqual({});
+    expect(result.current.background.effectStrength).toBe(50);
+    expect(result.current.background.photoIds).toEqual(['x']); // saved value preserved
+    expect(result.current.background.intensity).toBe(40);
+  });
 });
