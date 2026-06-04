@@ -1,5 +1,5 @@
 import React from 'react';
-import { intensityToLayers } from './backgroundMath.js';
+import { intensityToLayers, effectOpacity } from './backgroundMath.js';
 import { getWallpaper } from './wallpapers.js';
 import { clampFraming } from './backgroundPhotos.js';
 
@@ -9,7 +9,7 @@ function prefersReducedMotion() {
 }
 
 export default function BackgroundLayer({ background, photos = [], activeIndex = 0, reducedMotion }) {
-  const { base = 'solid', presetId = null, effects = {}, intensity = 25, framing = {} } = background || {};
+  const { base = 'solid', presetId = null, effects = {}, intensity = 25, framing = {}, effectStrength = 50 } = background || {};
   const rm = reducedMotion ?? prefersReducedMotion();
   const active = base !== 'solid' || effects.aurora || effects.pulse;
   const scrimAlpha = active ? intensityToLayers(intensity).scrimAlpha : 0;
@@ -28,6 +28,7 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
         '--fx-3': activePalette[2] || activePalette[0],
       }
     : undefined;
+  const effectStyle = { ...(fxStyle || {}), opacity: effectOpacity(effectStrength) };
 
   // Frost card surfaces only when an actual image sits behind them; over a solid
   // base (even with effects on) cards stay fully opaque for readability.
@@ -69,17 +70,18 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
         );
       })}
 
+      {active && <div className="bg-scrim" style={{ opacity: scrimAlpha }} />}
+
       {effects.aurora && (
-        <div className="bg-aurora" style={fxStyle}>
+        <div className="bg-aurora" style={effectStyle}>
           <span className="bg-blob b1" /><span className="bg-blob b2" /><span className="bg-blob b3" />
         </div>
       )}
       {effects.pulse && (
-        <div className="bg-pulse" style={fxStyle}>
+        <div className="bg-pulse" style={effectStyle}>
           <span className="bg-glow g1" /><span className="bg-glow g2" />
         </div>
       )}
-      {active && <div className="bg-scrim" style={{ opacity: scrimAlpha }} />}
     </div>
   );
 }
