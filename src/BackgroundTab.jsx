@@ -1,5 +1,6 @@
 import React from 'react';
 import { WALLPAPERS } from './wallpapers.js';
+import { togglePhotoSelection } from './backgroundPhotos.js';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -14,10 +15,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
   const toggle = (key) => updateBackground({ effects: { ...effects, [key]: !effects[key] } });
 
   const photoIds = background.photoIds || [];
-  const togglePhoto = (id) => {
-    const next = photoIds.includes(id) ? photoIds.filter(x => x !== id) : [...photoIds, id];
-    updateBackground({ photoIds: next });
-  };
+  const togglePhoto = (id) => updateBackground({ photoIds: togglePhotoSelection(photoIds, id, background.mode) });
   const groups = Array.from(new Set(images.map(i => i.group).filter(Boolean)));
 
   return (
