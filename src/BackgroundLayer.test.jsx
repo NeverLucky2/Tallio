@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import BackgroundLayer from './BackgroundLayer.jsx';
+import { getWallpaper } from './wallpapers.js';
 
 const bg = (over = {}) => ({ base: 'solid', effects: { aurora: false, pulse: false }, intensity: 25, ...over });
 
@@ -29,5 +30,28 @@ describe('BackgroundLayer', () => {
   it('adds the reduced-motion class when reducedMotion is true', () => {
     const { container } = render(<BackgroundLayer background={bg({ effects: { aurora: true, pulse: false } })} reducedMotion={true} />);
     expect(container.querySelector('.bg-layer').className).toContain('bg-reduced-motion');
+  });
+});
+
+describe('BackgroundLayer preset base', () => {
+  afterEach(() => cleanup());
+
+  it('renders a wallpaper layer with the preset gradient and a scrim', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'preset', presetId: 'dusk' })} reducedMotion={false} />,
+    );
+    const wp = container.querySelector('.bg-wallpaper');
+    expect(wp).not.toBeNull();
+    expect(wp.style.background).toContain('gradient');
+    expect(container.querySelector('.bg-scrim')).not.toBeNull(); // non-solid base is active
+  });
+
+  it('renders nothing extra for an unknown preset id', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'preset', presetId: 'nope' })} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-wallpaper')).toBeNull();
+    // sanity: getWallpaper agrees
+    expect(getWallpaper('nope')).toBeNull();
   });
 });
