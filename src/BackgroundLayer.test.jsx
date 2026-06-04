@@ -82,3 +82,39 @@ describe('BackgroundLayer photos base', () => {
     expect(container.querySelector('.bg-photo')).toBeNull();
   });
 });
+
+describe('BackgroundLayer effect palette', () => {
+  afterEach(() => cleanup());
+
+  it('colors aurora from the active photo palette via --fx vars', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: ['#ff0000', '#00ff00', '#0000ff'] }];
+    const { container } = render(
+      <BackgroundLayer
+        background={bg({ base: 'photos', effects: { aurora: true, pulse: false } })}
+        photos={photos} activeIndex={0} reducedMotion={false}
+      />,
+    );
+    const aurora = container.querySelector('.bg-aurora');
+    expect(aurora.style.getPropertyValue('--fx-1')).toBe('#ff0000');
+    expect(aurora.style.getPropertyValue('--fx-2')).toBe('#00ff00');
+    expect(aurora.style.getPropertyValue('--fx-3')).toBe('#0000ff');
+  });
+
+  it('colors effects from the wallpaper palette for a preset base', () => {
+    const { container } = render(
+      <BackgroundLayer
+        background={bg({ base: 'preset', presetId: 'dusk', effects: { aurora: true, pulse: false } })}
+        reducedMotion={false}
+      />,
+    );
+    const aurora = container.querySelector('.bg-aurora');
+    expect(aurora.style.getPropertyValue('--fx-1')).toBe('#3b1d5e'); // dusk palette[0]
+  });
+
+  it('sets no --fx vars over a solid base (theme fallback applies)', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ effects: { aurora: true, pulse: false } })} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-aurora').style.getPropertyValue('--fx-1')).toBe('');
+  });
+});
