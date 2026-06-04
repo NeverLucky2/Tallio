@@ -28,13 +28,14 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
     updateBackground({ framing: { ...framing, [id]: next } });
   };
 
-  // Object URL for the editor preview (jsdom throws on createObjectURL — guard it).
+  // Object URL for the editor preview: created when the editor opens, revoked on
+  // change/close (jsdom throws on createObjectURL — guard it). setState-in-effect
+  // is intentional here — the URL is an external resource tied to this lifecycle.
   useEffect(() => {
-    if (!editingId) { setEditUrl(null); return undefined; }
-    const img = images.find(i => i.id === editingId);
-    if (!img || !img.blob) { setEditUrl(null); return undefined; }
+    const img = editingId ? images.find(i => i.id === editingId) : null;
     let url = null;
-    try { url = URL.createObjectURL(img.blob); } catch { url = null; }
+    if (img && img.blob) { try { url = URL.createObjectURL(img.blob); } catch { url = null; } }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditUrl(url);
     return () => { if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } } };
   }, [editingId, images]);
