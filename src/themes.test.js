@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hexToRgb, mix, alpha, relativeLuminance, contrastRatio, deriveTheme } from './themes.js';
+import { hexToRgb, mix, alpha, relativeLuminance, contrastRatio, deriveTheme, PRESETS, essentialsForTheme } from './themes.js';
 
 describe('color helpers', () => {
   it('parses hex to rgb', () => {
@@ -80,5 +80,57 @@ describe('deriveTheme', () => {
   it('lets overrides win', () => {
     const t = deriveTheme(ESSENTIALS, { '--text-muted': '#6a7896' });
     expect(t['--text-muted']).toBe('#6a7896');
+  });
+});
+
+describe('PRESETS', () => {
+  it('ships exactly the six expected presets', () => {
+    expect(PRESETS.map(p => p.id)).toEqual(['nocturne','parchment','slate','forest','twilight','graphite']);
+  });
+
+  it('every preset has 6 essentials and a name', () => {
+    for (const p of PRESETS) {
+      expect(p.name, p.id).toBeTruthy();
+      expect(Object.keys(p.essentials).sort()).toEqual(['accent','bg','expense','income','surface','text']);
+    }
+  });
+
+  it('Nocturne reproduces the current :root palette exactly', () => {
+    const nocturne = PRESETS.find(p => p.id === 'nocturne');
+    const t = deriveTheme(nocturne.essentials, nocturne.overrides);
+    expect(t).toEqual({
+      '--bg': '#09090f',
+      '--bg-raised': '#0f1118',
+      '--bg-card': '#13161f',
+      '--bg-card-hover': '#161b28',
+      '--bg-input': '#0b0e16',
+      '--border': 'rgba(255, 255, 255, 0.055)',
+      '--border-strong': 'rgba(255, 255, 255, 0.1)',
+      '--border-focus': 'rgba(212, 168, 83, 0.45)',
+      '--text': '#ede9e0',
+      '--text-muted': '#6a7896',
+      '--text-dim': '#35415a',
+      '--accent': '#d4a853',
+      '--accent-dim': 'rgba(212, 168, 83, 0.12)',
+      '--accent-border': 'rgba(212, 168, 83, 0.28)',
+      '--green': '#3ddba0',
+      '--green-dim': 'rgba(61, 219, 160, 0.1)',
+      '--green-border': 'rgba(61, 219, 160, 0.22)',
+      '--red': '#e06c6c',
+      '--red-dim': 'rgba(224, 108, 108, 0.1)',
+      '--red-border': 'rgba(224, 108, 108, 0.25)',
+      '--blue': '#5b8dff',
+      '--blue-dim': 'rgba(91, 141, 255, 0.13)',
+      '--blue-border': 'rgba(91, 141, 255, 0.25)',
+      '--purple': '#a47dea',
+      '--purple-dim': 'rgba(164, 125, 234, 0.1)',
+      '--purple-border': 'rgba(164, 125, 234, 0.22)',
+    });
+  });
+
+  it('essentialsForTheme returns custom essentials for the custom id', () => {
+    const custom = { bg: '#101010', surface: '#1a1a1a', text: '#eeeeee', accent: '#ff8800', income: '#33cc88', expense: '#dd5555' };
+    expect(essentialsForTheme('custom', custom)).toEqual(custom);
+    expect(essentialsForTheme('nocturne', null)).toEqual(PRESETS[0].essentials);
   });
 });
