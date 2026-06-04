@@ -119,6 +119,27 @@ describe('BackgroundLayer effect palette', () => {
   });
 });
 
+describe('BackgroundLayer photo framing', () => {
+  afterEach(() => cleanup());
+
+  it('applies background-position and scale transform from framing', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: [] }];
+    const background = bg({ base: 'photos', framing: { a: { posX: 20, posY: 80, zoom: 2 } } });
+    const { container } = render(<BackgroundLayer background={background} photos={photos} activeIndex={0} reducedMotion={false} />);
+    const layer = container.querySelector('.bg-photo');
+    expect(layer.style.backgroundPosition).toBe('20% 80%');
+    expect(layer.style.transform).toBe('scale(2)');
+  });
+
+  it('defaults to centered, no zoom when a photo has no framing', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: [] }];
+    const { container } = render(<BackgroundLayer background={bg({ base: 'photos' })} photos={photos} reducedMotion={false} />);
+    const layer = container.querySelector('.bg-photo');
+    expect(layer.style.backgroundPosition).toBe('50% 50%');
+    expect(layer.style.transform).toBe('scale(1)');
+  });
+});
+
 describe('BackgroundLayer surface variables', () => {
   afterEach(() => {
     cleanup();
