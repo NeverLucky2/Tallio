@@ -128,6 +128,17 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
             <div className="bg-photo-gallery">
               {images.map(img => (
                 <div key={img.id} className="bg-photo-item">
+                  {confirmDeleteId === img.id ? (
+                    <div className="bg-photo-confirm">
+                      <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete</button>
+                      <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button" className="bg-photo-delete" aria-label={`delete ${img.name}`}
+                      onClick={() => setConfirmDeleteId(img.id)}
+                    >×</button>
+                  )}
                   {renamingId === img.id ? (
                     <input
                       className="bg-photo-rename" aria-label={`Name for ${img.name}`}
@@ -157,14 +168,6 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
                       type="button" className="bg-photo-action" aria-label={`rename ${img.name}`}
                       onClick={() => { setRenamingId(img.id); setRenameDraft(img.name); }}
                     >Rename</button>
-                    {confirmDeleteId === img.id ? (
-                      <>
-                        <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete?</button>
-                        <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                      </>
-                    ) : (
-                      <button type="button" className="bg-photo-action" aria-label={`delete ${img.name}`} onClick={() => setConfirmDeleteId(img.id)}>Delete</button>
-                    )}
                   </div>
                 </div>
               ))}
