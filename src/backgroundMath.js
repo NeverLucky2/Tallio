@@ -11,3 +11,11 @@ export function intensityToLayers(intensity) {
     surfaceBlur: +lerp(0, 10, t).toFixed(1),
   };
 }
+
+// Maps the 0..100 effect-strength slider to an opacity multiplier applied to the
+// ambient effect layers (subtle 0.15 -> vivid 1.0). Default 50 when unset.
+export function effectOpacity(strength) {
+  const s = Number.isFinite(Number(strength)) ? Number(strength) : 50;
+  const t = Math.max(0, Math.min(100, s)) / 100;
+  return +(0.15 + t * 0.85).toFixed(3);
+}
