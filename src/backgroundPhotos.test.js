@@ -1,7 +1,7 @@
 // src/backgroundPhotos.test.js
 import { describe, it, expect } from 'vitest';
 import {
-  resolvePhotoIds, clampFraming, togglePhotoSelection, pruneDeletedPhoto, focalFromPointer,
+  resolvePhotoIds, clampFraming, togglePhotoSelection, pruneDeletedPhoto, panFraming,
 } from './backgroundPhotos.js';
 
 const metas = [
@@ -63,15 +63,19 @@ describe('pruneDeletedPhoto', () => {
   });
 });
 
-describe('focalFromPointer', () => {
-  it('maps a pointer position within a rect to 0..100 percentages', () => {
-    const rect = { left: 100, top: 50, width: 200, height: 100 };
-    expect(focalFromPointer(rect, 200, 100)).toEqual({ posX: 50, posY: 50 }); // center
-    expect(focalFromPointer(rect, 100, 50)).toEqual({ posX: 0, posY: 0 });    // top-left
-    expect(focalFromPointer(rect, 300, 150)).toEqual({ posX: 100, posY: 100 }); // bottom-right
+describe('panFraming', () => {
+  it('drags the image with the cursor: dragging right reveals the left (posX decreases)', () => {
+    expect(panFraming({ posX: 50, posY: 50, zoom: 1 }, 50, 0, 100, 100)).toEqual({ posX: 0, posY: 50 });
+    expect(panFraming({ posX: 50, posY: 50, zoom: 1 }, -50, 0, 100, 100)).toEqual({ posX: 100, posY: 50 });
   });
-  it('clamps pointers outside the rect', () => {
-    const rect = { left: 0, top: 0, width: 100, height: 100 };
-    expect(focalFromPointer(rect, -20, 200)).toEqual({ posX: 0, posY: 100 });
+  it('drags vertically (dragging down reveals the top, posY decreases)', () => {
+    expect(panFraming({ posX: 50, posY: 50 }, 0, 25, 100, 100)).toEqual({ posX: 50, posY: 25 });
+  });
+  it('clamps the result to 0..100', () => {
+    expect(panFraming({ posX: 50, posY: 50 }, 200, 200, 100, 100)).toEqual({ posX: 0, posY: 0 });
+    expect(panFraming({ posX: 50, posY: 50 }, -200, -200, 100, 100)).toEqual({ posX: 100, posY: 100 });
+  });
+  it('returns the start position when the rect size is 0 (safe)', () => {
+    expect(panFraming({ posX: 30, posY: 40 }, 10, 10, 0, 0)).toEqual({ posX: 30, posY: 40 });
   });
 });

@@ -48,11 +48,14 @@ export function pruneDeletedPhoto(background, id) {
   return { photoIds, framing };
 }
 
-// Convert a pointer position (within a DOMRect-like) to focal 0..100 percentages.
-export function focalFromPointer(rect, clientX, clientY) {
-  const pct = (val, start, size) => {
-    if (!size) return 50;
-    return Math.round(Math.max(0, Math.min(1, (val - start) / size)) * 100);
+// Pan the focal point by a pointer-drag delta so the image follows the cursor:
+// dragging right (dx > 0) reveals the left side, so posX decreases. Returns the
+// new clamped {posX, posY}; the rect size scales the drag to the 0..100 range.
+export function panFraming(start, dx, dy, width, height) {
+  const f = clampFraming(start);
+  const clamp = (n) => Math.max(0, Math.min(100, Math.round(n)));
+  return {
+    posX: width ? clamp(f.posX - (dx / width) * 100) : clamp(f.posX),
+    posY: height ? clamp(f.posY - (dy / height) * 100) : clamp(f.posY),
   };
-  return { posX: pct(clientX, rect.left, rect.width), posY: pct(clientY, rect.top, rect.height) };
 }
