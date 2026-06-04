@@ -23,11 +23,11 @@ function loadInitial() {
   }
 }
 
-function resolveTokens(state) {
-  if (state.themeId === 'custom' && state.customTheme) {
-    return deriveTheme(state.customTheme);
+function resolveTokens(themeId, customTheme) {
+  if (themeId === 'custom' && customTheme) {
+    return deriveTheme(customTheme);
   }
-  const preset = PRESETS.find(p => p.id === state.themeId) || PRESETS[0];
+  const preset = PRESETS.find(p => p.id === themeId) || PRESETS[0];
   return deriveTheme(preset.essentials, preset.overrides);
 }
 
@@ -37,7 +37,7 @@ export default function useAppearance() {
   // Apply the active theme to :root whenever it changes (free live preview).
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const tokens = resolveTokens(state);
+    const tokens = resolveTokens(state.themeId, state.customTheme);
     const root = document.documentElement;
     for (const [k, v] of Object.entries(tokens)) root.style.setProperty(k, v);
   }, [state.themeId, state.customTheme]);

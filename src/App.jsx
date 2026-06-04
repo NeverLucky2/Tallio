@@ -4,6 +4,8 @@ import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
+import useAppearance from './useAppearance.js';
+import AppearanceScreen from './AppearanceScreen.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
@@ -165,6 +167,7 @@ function Tallio() {
   // Capture / scan / pairing state (carried over unchanged).
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
+  const appearance = useAppearance();
   // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale));
@@ -389,6 +392,9 @@ function Tallio() {
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
+      {screen === 'appearance' && (
+        <AppearanceScreen appearance={appearance} onClose={() => setScreen('main')} />
+      )}
       {showSettings && <SettingsPanel settings={settings} onClose={closeSettings} banner={settingsBanner} />}
 
       {editingAccount && (
@@ -449,6 +455,7 @@ function Tallio() {
           </div>
           <div className="header-actions">
             <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">⚙</button>
+            <button type="button" onClick={() => setScreen('appearance')} className="btn-icon" aria-label="Appearance">🎨</button>
             <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
             <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
             <button type="button" onClick={() => setScreen('reports')} className="btn">📊 Reports</button>
