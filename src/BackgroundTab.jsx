@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WALLPAPERS } from './wallpapers.js';
-import { togglePhotoSelection, clampFraming, focalFromPointer } from './backgroundPhotos.js';
+import { togglePhotoSelection, clampFraming, focalFromPointer, pruneDeletedPhoto } from './backgroundPhotos.js';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -8,7 +8,7 @@ const BASES = [
   { id: 'photos', label: 'Your photos' },
 ];
 
-export default function BackgroundTab({ appearance, images = [], onUpload }) {
+export default function BackgroundTab({ appearance, images = [], onUpload, onRename, onDelete }) {
   const { background, updateBackground } = appearance;
   const { base, presetId, effects, intensity } = background;
 
@@ -53,6 +53,21 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
   const onFocalPointer = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setFraming(editingId, focalFromPointer(rect, e.clientX, e.clientY));
+  };
+
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const commitRename = (id) => {
+    if (onRename && renameDraft.trim()) onRename(id, renameDraft.trim());
+    setRenamingId(null);
+  };
+  const doDelete = (id) => {
+    if (onDelete) onDelete(id);
+    updateBackground(pruneDeletedPhoto(background, id));
+    setConfirmDeleteId(null);
+    if (editingId === id) setEditingId(null);
   };
 
   return (
@@ -103,20 +118,44 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
             <div className="bg-photo-gallery">
               {images.map(img => (
                 <div key={img.id} className="bg-photo-item">
-                  <button
-                    type="button"
-                    aria-label={`select ${img.name}`}
-                    className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
-                    onClick={() => togglePhoto(img.id)}
-                  >
-                    {img.name}
-                  </button>
-                  {photoIds.includes(img.id) && (
+                  {renamingId === img.id ? (
+                    <input
+                      className="bg-photo-rename" aria-label={`Name for ${img.name}`}
+                      autoFocus value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => commitRename(img.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitRename(img.id); }}
+                    />
+                  ) : (
                     <button
-                      type="button" className="bg-photo-action" aria-label={`adjust ${img.name}`}
-                      onClick={() => setEditingId(editingId === img.id ? null : img.id)}
-                    >Adjust</button>
+                      type="button"
+                      aria-label={`select ${img.name}`}
+                      className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
+                      onClick={() => togglePhoto(img.id)}
+                    >
+                      {img.name}
+                    </button>
                   )}
+                  <div className="bg-photo-actions">
+                    {photoIds.includes(img.id) && (
+                      <button
+                        type="button" className="bg-photo-action" aria-label={`adjust ${img.name}`}
+                        onClick={() => setEditingId(editingId === img.id ? null : img.id)}
+                      >Adjust</button>
+                    )}
+                    <button
+                      type="button" className="bg-photo-action" aria-label={`rename ${img.name}`}
+                      onClick={() => { setRenamingId(img.id); setRenameDraft(img.name); }}
+                    >Rename</button>
+                    {confirmDeleteId === img.id ? (
+                      <>
+                        <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete?</button>
+                        <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <button type="button" className="bg-photo-action" aria-label={`delete ${img.name}`} onClick={() => setConfirmDeleteId(img.id)}>Delete</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -43,6 +43,8 @@ export default function AppearanceScreen({ appearance, onClose }) {
             appearance={appearance}
             images={library.images}
             onUpload={(file) => library.addFromFile(file, {})}
+            onRename={(id, name) => library.updateMeta(id, { name })}
+            onDelete={(id) => library.remove(id)}
           />
         )}
         {tab === 'icons' && <p className="appearance-placeholder">Image icons — coming soon (Phase 3).</p>}

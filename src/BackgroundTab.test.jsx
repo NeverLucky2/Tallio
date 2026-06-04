@@ -173,3 +173,30 @@ describe('BackgroundTab framing editor', () => {
     expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 52, posY: 50, zoom: 1 } } });
   });
 });
+
+describe('BackgroundTab rename + delete', () => {
+  afterEach(() => cleanup());
+
+  const images = [{ id: 'a', name: 'Beach', group: 'Scenery' }];
+
+  it('renames an image via the rename field', () => {
+    const onRename = vi.fn();
+    const { appearance } = makeAppearance({ base: 'photos', photoIds: [] });
+    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={onRename} onDelete={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /rename Beach/i }));
+    const input = getByLabelText('Name for Beach');
+    fireEvent.change(input, { target: { value: 'Sunset Cove' } });
+    fireEvent.blur(input);
+    expect(onRename).toHaveBeenCalledWith('a', 'Sunset Cove');
+  });
+
+  it('deletes an image after confirm and prunes it from the selection', () => {
+    const onDelete = vi.fn();
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'], framing: { a: { posX: 10, posY: 10, zoom: 1 } } });
+    const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={vi.fn()} onDelete={onDelete} />);
+    fireEvent.click(getByRole('button', { name: /delete Beach/i }));
+    fireEvent.click(getByRole('button', { name: /confirm delete Beach/i }));
+    expect(onDelete).toHaveBeenCalledWith('a');
+    expect(updateBackground).toHaveBeenCalledWith({ photoIds: [], framing: {} });
+  });
+});
