@@ -83,15 +83,15 @@ describe('BackgroundTab photo controls', () => {
     expect(onUpload.mock.calls[0][0]).toBe(file);
   });
 
-  it('toggles a library image into photoIds', () => {
-    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: [] });
+  it('single mode replaces the selection with the clicked image', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'single', photoIds: ['b'] });
     const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     fireEvent.click(getByRole('button', { name: /select Beach/i }));
     expect(updateBackground).toHaveBeenCalledWith({ photoIds: ['a'] });
   });
 
-  it('removes an already-selected image from photoIds', () => {
-    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a', 'b'] });
+  it('slideshow mode toggles selection membership', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'slideshow', photoIds: ['a', 'b'] });
     const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     fireEvent.click(getByRole('button', { name: /select Beach/i }));
     expect(updateBackground).toHaveBeenCalledWith({ photoIds: ['b'] });
