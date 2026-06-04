@@ -13,7 +13,11 @@ export default function useImageLibrary(deps = {}) {
   const [images, setImages] = useState([]);
 
   const reload = useCallback(async () => {
-    setImages(await api.listImages());
+    try {
+      setImages(await api.listImages());
+    } catch {
+      setImages([]); // IndexedDB unavailable (e.g. privacy mode) — degrade gracefully
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -5,6 +5,7 @@ import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import useAppearance from './useAppearance.js';
+import useBackgroundPhotos from './useBackgroundPhotos.js';
 import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
 import { extractBillFromImage } from './billExtractor.js';
@@ -169,6 +170,7 @@ function Tallio() {
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
   const appearance = useAppearance();
+  const bgPhotos = useBackgroundPhotos(appearance.background);
   // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale));
@@ -335,7 +337,11 @@ function Tallio() {
   return (
     <div className="app-root">
       <div className="app-bg-gradient" />
-      <BackgroundLayer background={appearance.background} />
+      <BackgroundLayer
+        background={appearance.background}
+        photos={bgPhotos.photos}
+        activeIndex={bgPhotos.activeIndex}
+      />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
