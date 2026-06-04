@@ -1,5 +1,5 @@
 // src/exportArchive.js
-import { zipSync } from 'fflate';
+import { zipSync, unzipSync, strFromU8 } from 'fflate';
 import { transferCounterpart } from './accountsModel.js';
 
 const CSV_HEADER = 'date,account,description,amount,category,flow,payee,check,transfer';
@@ -59,7 +59,7 @@ export function buildDataJson(accounts, transactions, categories, accountTypes, 
   }, null, 2);
 }
 
-export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks }) {
+export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, images, appearance }) {
   const categoriesById = new Map((categories || []).map(c => [c.id, c]));
   const jsonString = buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks);
   const csvString = buildTransactionsCsv(accounts, transactions, categoriesById);
@@ -70,5 +70,41 @@ export function buildArchive({ accounts, transactions, categories, accountTypes,
   const csvBytes = new Uint8Array(3 + csvContentBytes.length);
   csvBytes[0] = 0xEF; csvBytes[1] = 0xBB; csvBytes[2] = 0xBF;
   csvBytes.set(csvContentBytes, 3);
-  return zipSync({ 'data.json': jsonBytes, 'transactions.csv': csvBytes });
+
+  const files = { 'data.json': jsonBytes, 'transactions.csv': csvBytes };
+
+  if (appearance) {
+    files['appearance.json'] = new Uint8Array(Array.from(encoder.encode(JSON.stringify(appearance, null, 2))));
+  }
+  if (images && images.length) {
+    const index = images.map(({ bytes, thumbBytes, ...meta }) => meta); // eslint-disable-line no-unused-vars
+    files['images/index.json'] = new Uint8Array(Array.from(encoder.encode(JSON.stringify(index, null, 2))));
+    // Normalize to a local-realm Uint8Array — bytes may arrive from another realm
+    // (e.g. jsdom TextEncoder / a foreign ArrayBuffer), which fflate would skip.
+    for (const img of images) {
+      if (img.bytes) files[`images/${img.id}`] = new Uint8Array(img.bytes);
+      if (img.thumbBytes) files[`images/${img.id}.thumb`] = new Uint8Array(img.thumbBytes);
+    }
+  }
+
+  return zipSync(files);
+}
+
+// Reads an archive back into its parts. Image bytes are returned alongside their
+// metadata; appearance + data are parsed JSON (null when absent). The inverse of
+// buildArchive — used by import/restore.
+export function parseArchive(bytes) {
+  const files = unzipSync(bytes);
+  const data = files['data.json'] ? JSON.parse(strFromU8(files['data.json'])) : null;
+  const appearance = files['appearance.json'] ? JSON.parse(strFromU8(files['appearance.json'])) : null;
+  let images = [];
+  if (files['images/index.json']) {
+    const index = JSON.parse(strFromU8(files['images/index.json']));
+    images = index.map(meta => ({
+      ...meta,
+      bytes: files[`images/${meta.id}`] || null,
+      thumbBytes: files[`images/${meta.id}.thumb`] || null,
+    }));
+  }
+  return { data, appearance, images };
 }

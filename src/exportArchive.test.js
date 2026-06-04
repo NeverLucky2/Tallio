@@ -1,7 +1,7 @@
 // src/exportArchive.test.js
 import { describe, it, expect } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
-import { buildArchive, buildTransactionsCsv } from './exportArchive.js';
+import { buildArchive, buildTransactionsCsv, parseArchive } from './exportArchive.js';
 
 const categories = [
   { id: 'c_shop', name: 'Shopping', flow: 'expense' },
@@ -77,6 +77,48 @@ describe('export v4', () => {
     const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
     expect(data.reportAcks.subscriptions.NETFLIX.status).toBe('ongoing');
     expect(data.reportAcks.dismissedDuplicates).toEqual(['d1|d2']);
+  });
+});
+
+describe('export with appearance + images', () => {
+  const u8 = (s) => new TextEncoder().encode(s);
+
+  it('omits appearance/images keys when not provided (back-compat)', () => {
+    const bytes = buildArchive({ accounts, transactions, categories, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12') });
+    expect(Object.keys(unzipSync(bytes)).sort()).toEqual(['data.json', 'transactions.csv']);
+  });
+
+  it('bundles appearance.json when provided', () => {
+    const appearance = { themeId: 'forest', background: { base: 'solid' } };
+    const bytes = buildArchive({ accounts, transactions, categories, appearance, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12') });
+    const files = unzipSync(bytes);
+    expect(JSON.parse(strFromU8(files['appearance.json'])).themeId).toBe('forest');
+  });
+
+  it('bundles image bytes + an index and round-trips via parseArchive', () => {
+    const images = [
+      { id: 'a', name: 'Beach', group: 'Scenery', type: 'image/jpeg', w: 10, h: 10, palette: ['#111'], createdAt: 1, bytes: u8('IMGA'), thumbBytes: u8('THA') },
+      { id: 'b', name: 'Dog', group: 'Pets', type: 'image/jpeg', w: 8, h: 8, palette: ['#222'], createdAt: 2, bytes: u8('IMGB') },
+    ];
+    const appearance = { themeId: 'nocturne' };
+    const bytes = buildArchive({ accounts, transactions, categories, images, appearance, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12') });
+
+    const parsed = parseArchive(bytes);
+    expect(parsed.data.schemaVersion).toBe(4);
+    expect(parsed.appearance.themeId).toBe('nocturne');
+    expect(parsed.images.map(i => i.id).sort()).toEqual(['a', 'b']);
+    const a = parsed.images.find(i => i.id === 'a');
+    expect(strFromU8(a.bytes)).toBe('IMGA');
+    expect(strFromU8(a.thumbBytes)).toBe('THA');
+    const b = parsed.images.find(i => i.id === 'b');
+    expect(b.thumbBytes).toBeNull();
+  });
+
+  it('parseArchive returns empty images for an archive without them', () => {
+    const bytes = buildArchive({ accounts, transactions, categories, schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-12') });
+    const parsed = parseArchive(bytes);
+    expect(parsed.images).toEqual([]);
+    expect(parsed.appearance).toBeNull();
   });
 });
 
