@@ -1,7 +1,7 @@
 // src/imageStore.test.js
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { putRecord, getImage, listImages, updateImageMeta, deleteImage } from './imageStore.js';
+import { putRecord, getImage, listImages, updateImageMeta, deleteImage, putImage } from './imageStore.js';
 
 const reset = () => new Promise((resolve) => {
   const req = indexedDB.deleteDatabase('tallio-images');
@@ -52,5 +52,37 @@ describe('imageStore', () => {
     await putRecord(rec('a'));
     await deleteImage('a');
     expect(await getImage('a')).toBeUndefined();
+  });
+});
+
+describe('imageStore.putImage', () => {
+  beforeEach(reset);
+
+  it('stores a record built from the processor output + metadata', async () => {
+    const fakeProcess = async () => ({
+      blob: new Blob(['img'], { type: 'image/jpeg' }), type: 'image/jpeg',
+      w: 100, h: 80, thumb: new Blob(['t']), palette: ['#abcdef'],
+    });
+    const file = new File(['raw'], 'beach.jpg', { type: 'image/jpeg' });
+
+    const saved = await putImage(file, { group: 'Scenery' }, { process: fakeProcess });
+
+    expect(saved.id).toBeTruthy();
+    expect(typeof saved.createdAt).toBe('number');
+    expect(saved.name).toBe('beach.jpg'); // falls back to the file name
+    expect(saved.group).toBe('Scenery');
+    expect(saved.palette).toEqual(['#abcdef']);
+
+    const got = await getImage(saved.id);
+    expect(got.w).toBe(100);
+    expect(got.type).toBe('image/jpeg');
+  });
+
+  it('prefers an explicit name over the file name', async () => {
+    const fakeProcess = async () => ({ blob: new Blob(['i']), type: 'image/jpeg', w: 1, h: 1, thumb: new Blob(['t']), palette: [] });
+    const file = new File(['raw'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+    const saved = await putImage(file, { name: 'Sunset' }, { process: fakeProcess });
+    expect(saved.name).toBe('Sunset');
+    expect(saved.group).toBe('Uncategorized'); // default group
   });
 });

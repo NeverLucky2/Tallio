@@ -2,6 +2,8 @@
 // IndexedDB wrapper for large image blobs. Kept source-agnostic (file upload now,
 // phone upload later). All canvas processing lives in imageProcess.js; this file
 // is pure DB plumbing so it is testable with fake-indexeddb.
+import { nanoid } from 'nanoid';
+import { processImageFile } from './imageProcess.js';
 
 const DB_NAME = 'tallio-images';
 const STORE = 'images';
@@ -55,4 +57,18 @@ export async function updateImageMeta(id, patch) {
 
 export function deleteImage(id) {
   return withStore('readwrite', (s) => asPromise(s.delete(id)));
+}
+
+// Combines canvas processing + a DB put. The processor is injectable so tests
+// can avoid canvas; production uses processImageFile.
+export async function putImage(file, meta = {}, { process = processImageFile } = {}) {
+  const processed = await process(file);
+  const record = {
+    id: nanoid(),
+    createdAt: Date.now(),
+    name: meta.name || (file && file.name) || 'Untitled',
+    group: meta.group || 'Uncategorized',
+    ...processed,
+  };
+  return putRecord(record);
 }
