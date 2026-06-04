@@ -6,6 +6,7 @@ const STORAGE = 'tallio-appearance';
 const DEFAULT_BACKGROUND = {
   base: 'solid', presetId: null, photoIds: [], photoGroup: null,
   mode: 'single', intervalSec: 30, intensity: 25, effects: { aurora: false, pulse: false },
+  framing: {}, effectStrength: 50,
 };
 
 function defaults() {
@@ -17,7 +18,12 @@ function loadInitial() {
   try {
     const raw = window.localStorage.getItem(STORAGE);
     if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaults(),
+      ...parsed,
+      background: { ...DEFAULT_BACKGROUND, ...(parsed.background || {}) },
+    };
   } catch {
     return defaults();
   }
