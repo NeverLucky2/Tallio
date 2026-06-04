@@ -28,6 +28,26 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
       }
     : undefined;
 
+  // Frost card surfaces only when an actual image sits behind them; over a solid
+  // base (even with effects on) cards stay fully opaque for readability.
+  const imageBase = base === 'photos' || base === 'preset';
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const reset = () => {
+      root.style.setProperty('--surface-alpha', '1');
+      root.style.setProperty('--surface-blur', '0px');
+    };
+    if (imageBase) {
+      const { surfaceAlpha, surfaceBlur } = intensityToLayers(intensity);
+      root.style.setProperty('--surface-alpha', String(surfaceAlpha));
+      root.style.setProperty('--surface-blur', `${surfaceBlur}px`);
+    } else {
+      reset();
+    }
+    return reset;
+  }, [imageBase, intensity]);
+
   return (
     <div className={`bg-layer${rm ? ' bg-reduced-motion' : ''}`} aria-hidden="true">
       {wallpaper && <div className="bg-wallpaper" style={{ background: wallpaper.css }} />}
