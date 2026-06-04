@@ -3536,7 +3536,7 @@
 .bg-photo.on { opacity: 1; }
 .bg-reduced-motion .bg-photo { transition: none; }
 
-.bg-aurora .bg-blob { position: absolute; border-radius: 50%; filter: blur(64px); opacity: 0.5; }
+.bg-aurora .bg-blob { position: absolute; border-radius: 50%; filter: blur(64px); opacity: 0.5; mix-blend-mode: screen; }
 .bg-aurora .b1 { width: 42vw; height: 42vw; left: -8vw;  top: -12vh;    background: var(--fx-1, var(--accent)); animation: bgDrift1 22s ease-in-out infinite alternate; }
 .bg-aurora .b2 { width: 36vw; height: 36vw; right: -6vw; top: 4vh;      background: var(--fx-2, var(--blue));   animation: bgDrift2 26s ease-in-out infinite alternate; }
 .bg-aurora .b3 { width: 32vw; height: 32vw; left: 22vw;  bottom: -14vh; background: var(--fx-3, var(--purple)); animation: bgDrift3 19s ease-in-out infinite alternate; }
@@ -3544,7 +3544,7 @@
 @keyframes bgDrift2 { to { transform: translate(-6vw, 4vh) scale(1.1); } }
 @keyframes bgDrift3 { to { transform: translate(5vw, -5vh) scale(1.2); } }
 
-.bg-pulse .bg-glow { position: absolute; }
+.bg-pulse .bg-glow { position: absolute; mix-blend-mode: screen; }
 .bg-pulse .g1 { width: 120vw; height: 60vh; left: -10vw; top: -15vh;
   background: radial-gradient(ellipse at center, var(--fx-1, var(--accent)), transparent 60%); opacity: 0.18;
   animation: bgBreathe1 16s ease-in-out infinite alternate; }

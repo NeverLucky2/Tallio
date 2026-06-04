@@ -119,6 +119,35 @@ describe('BackgroundLayer effect palette', () => {
   });
 });
 
+describe('BackgroundLayer effect layering + strength', () => {
+  afterEach(() => cleanup());
+
+  it('paints the scrim before the effects (effects glow on top)', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos', effects: { aurora: true, pulse: false } })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />,
+    );
+    const kids = Array.from(container.querySelector('.bg-layer').children).map(c => c.className);
+    const scrimIdx = kids.findIndex(c => c.includes('bg-scrim'));
+    const auroraIdx = kids.findIndex(c => c.includes('bg-aurora'));
+    expect(scrimIdx).toBeGreaterThanOrEqual(0);
+    expect(auroraIdx).toBeGreaterThan(scrimIdx);
+  });
+
+  it('scales effect-container opacity from effectStrength', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos', effects: { aurora: true, pulse: false }, effectStrength: 100 })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-aurora').style.opacity).toBe('1');
+  });
+
+  it('uses the default strength (0.575) when effectStrength is unset', () => {
+    const b = bg({ base: 'photos', effects: { aurora: true, pulse: false } });
+    delete b.effectStrength;
+    const { container } = render(<BackgroundLayer background={b} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />);
+    expect(container.querySelector('.bg-aurora').style.opacity).toBe('0.575');
+  });
+});
+
 describe('BackgroundLayer photo framing', () => {
   afterEach(() => cleanup());
 
