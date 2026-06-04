@@ -7,7 +7,7 @@ const makeAppearance = (over = {}) => {
   const background = {
     base: 'solid', presetId: null, photoIds: [], photoGroup: null,
     mode: 'single', intervalSec: 30, intensity: 25,
-    effects: { aurora: false, pulse: false }, ...over,
+    effects: { aurora: false, pulse: false }, framing: {}, effectStrength: 50, ...over,
   };
   return { appearance: { background, updateBackground }, updateBackground };
 };
@@ -61,6 +61,19 @@ describe('BackgroundTab effects + intensity', () => {
     render(<BackgroundTab appearance={appearance} />);
     fireEvent.change(screen.getByLabelText('Background intensity'), { target: { value: '80' } });
     expect(updateBackground).toHaveBeenCalledWith({ intensity: 80 });
+  });
+
+  it('hides the effect-strength slider when no effect is on', () => {
+    const { appearance } = makeAppearance({ effects: { aurora: false, pulse: false } });
+    const { queryByLabelText } = render(<BackgroundTab appearance={appearance} />);
+    expect(queryByLabelText('Effect strength')).toBeNull();
+  });
+
+  it('shows the effect-strength slider when an effect is on and updates it', () => {
+    const { appearance, updateBackground } = makeAppearance({ effects: { aurora: true, pulse: false }, effectStrength: 50 });
+    const { getByLabelText } = render(<BackgroundTab appearance={appearance} />);
+    fireEvent.change(getByLabelText('Effect strength'), { target: { value: '80' } });
+    expect(updateBackground).toHaveBeenCalledWith({ effectStrength: 80 });
   });
 });
 
