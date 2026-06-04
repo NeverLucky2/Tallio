@@ -62,6 +62,10 @@ export default function useAppearance() {
     setState(prev => persist({ ...prev, themeId: id, customTheme: null }));
   }, [persist]);
 
+  const updateBackground = useCallback((partial) => {
+    setState(prev => persist({ ...prev, background: { ...prev.background, ...partial } }));
+  }, [persist]);
+
   return {
     themeId: state.themeId,
     customTheme: state.customTheme,
@@ -70,5 +74,6 @@ export default function useAppearance() {
     setTheme,
     updateCustom,
     resetCustomToPreset,
+    updateBackground,
   };
 }

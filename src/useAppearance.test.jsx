@@ -40,4 +40,22 @@ describe('useAppearance', () => {
     expect(result.current.customTheme).toBeNull();
     expect(read('--accent')).toBe('#d4a853');
   });
+
+  it('updateBackground merges into the background object and persists', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.updateBackground({ effects: { aurora: true, pulse: false } }));
+    expect(result.current.background.effects).toEqual({ aurora: true, pulse: false });
+    // unrelated fields preserved
+    expect(result.current.background.intensity).toBe(25);
+    const saved = JSON.parse(window.localStorage.getItem('tallio-appearance'));
+    expect(saved.background.effects.aurora).toBe(true);
+  });
+
+  it('updateBackground can set intensity without dropping effects', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.updateBackground({ effects: { aurora: true, pulse: false } }));
+    act(() => result.current.updateBackground({ intensity: 80 }));
+    expect(result.current.background.intensity).toBe(80);
+    expect(result.current.background.effects.aurora).toBe(true);
+  });
 });
