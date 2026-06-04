@@ -15,6 +15,19 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
 
   const wallpaper = base === 'preset' ? getWallpaper(presetId) : null;
 
+  const activePalette = base === 'photos'
+    ? (photos[activeIndex] && photos[activeIndex].palette)
+    : base === 'preset'
+      ? (wallpaper && wallpaper.palette)
+      : null;
+  const fxStyle = activePalette && activePalette.length
+    ? {
+        '--fx-1': activePalette[0],
+        '--fx-2': activePalette[1] || activePalette[0],
+        '--fx-3': activePalette[2] || activePalette[0],
+      }
+    : undefined;
+
   return (
     <div className={`bg-layer${rm ? ' bg-reduced-motion' : ''}`} aria-hidden="true">
       {wallpaper && <div className="bg-wallpaper" style={{ background: wallpaper.css }} />}
@@ -28,12 +41,12 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
       ))}
 
       {effects.aurora && (
-        <div className="bg-aurora">
+        <div className="bg-aurora" style={fxStyle}>
           <span className="bg-blob b1" /><span className="bg-blob b2" /><span className="bg-blob b3" />
         </div>
       )}
       {effects.pulse && (
-        <div className="bg-pulse">
+        <div className="bg-pulse" style={fxStyle}>
           <span className="bg-glow g1" /><span className="bg-glow g2" />
         </div>
       )}
