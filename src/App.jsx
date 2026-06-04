@@ -6,6 +6,7 @@ import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
 import useAppearance from './useAppearance.js';
 import AppearanceScreen from './AppearanceScreen.jsx';
+import BackgroundLayer from './BackgroundLayer.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
@@ -334,6 +335,7 @@ function Tallio() {
   return (
     <div className="app-root">
       <div className="app-bg-gradient" />
+      <BackgroundLayer background={appearance.background} />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
