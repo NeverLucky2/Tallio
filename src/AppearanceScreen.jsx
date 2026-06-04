@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ThemeTab from './ThemeTab.jsx';
 import BackgroundTab from './BackgroundTab.jsx';
+import useImageLibrary from './useImageLibrary.js';
 
 const TABS = [
   { id: 'theme', label: 'Theme' },
@@ -10,6 +11,7 @@ const TABS = [
 
 export default function AppearanceScreen({ appearance, onClose }) {
   const [tab, setTab] = useState('theme');
+  const library = useImageLibrary();
   return (
     <div className="container appearance-screen">
       <div className="header">
@@ -36,7 +38,13 @@ export default function AppearanceScreen({ appearance, onClose }) {
 
       <div className="appearance-body">
         {tab === 'theme' && <ThemeTab appearance={appearance} />}
-        {tab === 'bg' && <BackgroundTab appearance={appearance} />}
+        {tab === 'bg' && (
+          <BackgroundTab
+            appearance={appearance}
+            images={library.images}
+            onUpload={(file) => library.addFromFile(file, {})}
+          />
+        )}
         {tab === 'icons' && <p className="appearance-placeholder">Image icons — coming soon (Phase 3).</p>}
       </div>
     </div>
