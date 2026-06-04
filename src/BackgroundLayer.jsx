@@ -1,6 +1,7 @@
 import React from 'react';
 import { intensityToLayers } from './backgroundMath.js';
 import { getWallpaper } from './wallpapers.js';
+import { clampFraming } from './backgroundPhotos.js';
 
 function prefersReducedMotion() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -8,7 +9,7 @@ function prefersReducedMotion() {
 }
 
 export default function BackgroundLayer({ background, photos = [], activeIndex = 0, reducedMotion }) {
-  const { base = 'solid', presetId = null, effects = {}, intensity = 25 } = background || {};
+  const { base = 'solid', presetId = null, effects = {}, intensity = 25, framing = {} } = background || {};
   const rm = reducedMotion ?? prefersReducedMotion();
   const active = base !== 'solid' || effects.aurora || effects.pulse;
   const scrimAlpha = active ? intensityToLayers(intensity).scrimAlpha : 0;
@@ -52,13 +53,21 @@ export default function BackgroundLayer({ background, photos = [], activeIndex =
     <div className={`bg-layer${rm ? ' bg-reduced-motion' : ''}`} aria-hidden="true">
       {wallpaper && <div className="bg-wallpaper" style={{ background: wallpaper.css }} />}
 
-      {base === 'photos' && photos.map((p, i) => (
-        <div
-          key={p.id || i}
-          className={`bg-photo${i === activeIndex ? ' on' : ''}`}
-          style={{ backgroundImage: `url(${p.url})` }}
-        />
-      ))}
+      {base === 'photos' && photos.map((p, i) => {
+        const f = clampFraming(framing[p.id]);
+        return (
+          <div
+            key={p.id || i}
+            className={`bg-photo${i === activeIndex ? ' on' : ''}`}
+            style={{
+              backgroundImage: `url(${p.url})`,
+              backgroundPosition: `${f.posX}% ${f.posY}%`,
+              transform: `scale(${f.zoom})`,
+              transformOrigin: `${f.posX}% ${f.posY}%`,
+            }}
+          />
+        );
+      })}
 
       {effects.aurora && (
         <div className="bg-aurora" style={fxStyle}>
