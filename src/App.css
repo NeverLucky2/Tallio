@@ -3575,3 +3575,11 @@
 .bg-toggle.on .bg-toggle-knob { background: var(--green); }
 .bg-toggle.on .bg-toggle-knob::after { left: 15px; }
 .bg-intensity { width: 100%; max-width: 320px; }
+
+.bg-base-selector { display: flex; gap: 8px; margin-bottom: 14px; }
+.bg-base-btn { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 12px; cursor: pointer; }
+.bg-base-btn.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-dim); }
+.bg-wallpaper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.bg-wallpaper-swatch { position: relative; height: 56px; border: 2px solid transparent; border-radius: var(--r-md); cursor: pointer; overflow: hidden; }
+.bg-wallpaper-swatch.selected { border-color: var(--accent); }
+.bg-wallpaper-name { position: absolute; left: 6px; bottom: 4px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
