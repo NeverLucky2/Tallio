@@ -7,11 +7,18 @@ const BASES = [
   { id: 'photos', label: 'Your photos' },
 ];
 
-export default function BackgroundTab({ appearance }) {
+export default function BackgroundTab({ appearance, images = [], onUpload }) {
   const { background, updateBackground } = appearance;
   const { base, presetId, effects, intensity } = background;
 
   const toggle = (key) => updateBackground({ effects: { ...effects, [key]: !effects[key] } });
+
+  const photoIds = background.photoIds || [];
+  const togglePhoto = (id) => {
+    const next = photoIds.includes(id) ? photoIds.filter(x => x !== id) : [...photoIds, id];
+    updateBackground({ photoIds: next });
+  };
+  const groups = Array.from(new Set(images.map(i => i.group).filter(Boolean)));
 
   return (
     <div className="background-tab">
@@ -42,6 +49,69 @@ export default function BackgroundTab({ appearance }) {
               <span className="bg-wallpaper-name">{w.name}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {base === 'photos' && (
+        <div className="bg-photos">
+          <label className="bg-upload-btn">
+            ↑ Upload photo
+            <input
+              type="file" accept="image/*" aria-label="Upload photo" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files[0]; if (f && onUpload) onUpload(f); e.target.value = ''; }}
+            />
+          </label>
+
+          {images.length === 0 ? (
+            <p className="appearance-hint">No photos yet — upload one to get started.</p>
+          ) : (
+            <div className="bg-photo-gallery">
+              {images.map(img => (
+                <button
+                  key={img.id} type="button"
+                  aria-label={`select ${img.name}`}
+                  className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
+                  onClick={() => togglePhoto(img.id)}
+                >
+                  {img.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-mode-toggles">
+            <button
+              type="button" className={`bg-mode-btn${background.mode === 'single' ? ' on' : ''}`}
+              aria-pressed={background.mode === 'single'} onClick={() => updateBackground({ mode: 'single' })}
+            >Single</button>
+            <button
+              type="button" className={`bg-mode-btn${background.mode === 'slideshow' ? ' on' : ''}`}
+              aria-pressed={background.mode === 'slideshow'} onClick={() => updateBackground({ mode: 'slideshow' })}
+            >Slideshow</button>
+          </div>
+
+          {background.mode === 'slideshow' && (
+            <label className="appearance-label" htmlFor="bg-interval">
+              Interval
+              <input
+                id="bg-interval" type="number" min="5" max="600" className="bg-interval-input"
+                aria-label="Slideshow interval (seconds)" value={background.intervalSec}
+                onChange={(e) => updateBackground({ intervalSec: Number(e.target.value) })}
+              />
+            </label>
+          )}
+
+          <label className="appearance-label" htmlFor="bg-group">
+            Use a group as the slideshow source
+            <select
+              id="bg-group" className="bg-group-select" aria-label="Slideshow group source"
+              value={background.photoGroup || ''}
+              onChange={(e) => updateBackground({ photoGroup: e.target.value || null })}
+            >
+              <option value="">None (use selected photos)</option>
+              {groups.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </label>
         </div>
       )}
 
