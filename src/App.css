@@ -3599,3 +3599,6 @@
 .bg-framing-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background-color: var(--bg-card); cursor: crosshair; outline: none; }
 .bg-framing-clip:focus-visible { box-shadow: 0 0 0 2px var(--accent-border); }
 .bg-framing-img { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
+.bg-photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.bg-photo-action.danger { color: var(--red); border-color: var(--red-border); }
+.bg-photo-rename { width: 100%; padding: 9px 8px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-md); color: var(--text); }
