@@ -137,3 +137,39 @@ describe('BackgroundTab photo controls', () => {
     expect(updateBackground).toHaveBeenCalledWith({ photoGroup: 'Pets' });
   });
 });
+
+describe('BackgroundTab framing editor', () => {
+  afterEach(() => cleanup());
+
+  const images = [{ id: 'a', name: 'Beach', group: 'Scenery' }];
+
+  it('shows Adjust only for a selected photo and opens the editor with a zoom slider', () => {
+    const { appearance } = makeAppearance({ base: 'photos', photoIds: ['a'] });
+    const { getByRole, queryByLabelText, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    expect(queryByLabelText('Zoom')).toBeNull(); // editor closed
+    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    expect(getByLabelText('Zoom')).toBeTruthy();
+  });
+
+  it('does not show Adjust for an unselected photo', () => {
+    const { appearance } = makeAppearance({ base: 'photos', photoIds: [] });
+    const { queryByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    expect(queryByRole('button', { name: /adjust Beach/i })).toBeNull();
+  });
+
+  it('zoom slider writes framing for the photo', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'] });
+    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    fireEvent.change(getByLabelText('Zoom'), { target: { value: '2' } });
+    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 50, posY: 50, zoom: 2 } } });
+  });
+
+  it('arrow keys nudge the focal point', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'] });
+    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    fireEvent.keyDown(getByLabelText('Focal point — drag or use arrow keys'), { key: 'ArrowRight' });
+    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 52, posY: 50, zoom: 1 } } });
+  });
+});

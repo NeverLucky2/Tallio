@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { WALLPAPERS } from './wallpapers.js';
-import { togglePhotoSelection } from './backgroundPhotos.js';
+import { togglePhotoSelection, clampFraming, focalFromPointer } from './backgroundPhotos.js';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -18,6 +18,41 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
   const photoIds = background.photoIds || [];
   const togglePhoto = (id) => updateBackground({ photoIds: togglePhotoSelection(photoIds, id, background.mode) });
   const groups = Array.from(new Set(images.map(i => i.group).filter(Boolean)));
+
+  const framing = background.framing || {};
+  const [editingId, setEditingId] = useState(null);
+  const [editUrl, setEditUrl] = useState(null);
+
+  const setFraming = (id, patch) => {
+    const next = clampFraming({ ...framing[id], ...patch });
+    updateBackground({ framing: { ...framing, [id]: next } });
+  };
+
+  // Object URL for the editor preview (jsdom throws on createObjectURL — guard it).
+  useEffect(() => {
+    if (!editingId) { setEditUrl(null); return undefined; }
+    const img = images.find(i => i.id === editingId);
+    if (!img || !img.blob) { setEditUrl(null); return undefined; }
+    let url = null;
+    try { url = URL.createObjectURL(img.blob); } catch { url = null; }
+    setEditUrl(url);
+    return () => { if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } } };
+  }, [editingId, images]);
+
+  const onFocalKey = (e) => {
+    const f = clampFraming(framing[editingId]);
+    const step = 2;
+    const map = {
+      ArrowLeft: { posX: f.posX - step }, ArrowRight: { posX: f.posX + step },
+      ArrowUp: { posY: f.posY - step }, ArrowDown: { posY: f.posY + step },
+    };
+    if (map[e.key]) { e.preventDefault(); setFraming(editingId, map[e.key]); }
+  };
+
+  const onFocalPointer = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setFraming(editingId, focalFromPointer(rect, e.clientX, e.clientY));
+  };
 
   return (
     <div className="background-tab">
@@ -66,17 +101,62 @@ export default function BackgroundTab({ appearance, images = [], onUpload }) {
           ) : (
             <div className="bg-photo-gallery">
               {images.map(img => (
-                <button
-                  key={img.id} type="button"
-                  aria-label={`select ${img.name}`}
-                  className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
-                  onClick={() => togglePhoto(img.id)}
-                >
-                  {img.name}
-                </button>
+                <div key={img.id} className="bg-photo-item">
+                  <button
+                    type="button"
+                    aria-label={`select ${img.name}`}
+                    className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
+                    onClick={() => togglePhoto(img.id)}
+                  >
+                    {img.name}
+                  </button>
+                  {photoIds.includes(img.id) && (
+                    <button
+                      type="button" className="bg-photo-action" aria-label={`adjust ${img.name}`}
+                      onClick={() => setEditingId(editingId === img.id ? null : img.id)}
+                    >Adjust</button>
+                  )}
+                </div>
               ))}
             </div>
           )}
+
+          {editingId && (() => {
+            const f = clampFraming(framing[editingId]);
+            return (
+              <div className="bg-framing-editor">
+                <div
+                  className="bg-framing-clip"
+                  role="slider"
+                  tabIndex={0}
+                  aria-label="Focal point — drag or use arrow keys"
+                  aria-valuetext={`${f.posX}% ${f.posY}%`}
+                  onPointerDown={onFocalPointer}
+                  onKeyDown={onFocalKey}
+                >
+                  {/* Inner image uses the SAME technique as BackgroundLayer (cover + position + scale) for WYSIWYG. */}
+                  <div
+                    className="bg-framing-img"
+                    style={editUrl ? {
+                      backgroundImage: `url(${editUrl})`,
+                      backgroundPosition: `${f.posX}% ${f.posY}%`,
+                      transform: `scale(${f.zoom})`,
+                      transformOrigin: `${f.posX}% ${f.posY}%`,
+                    } : undefined}
+                  />
+                </div>
+                <label className="appearance-label" htmlFor="bg-zoom">
+                  Zoom
+                  <input
+                    id="bg-zoom" type="range" min="1" max="3" step="0.1" className="bg-intensity"
+                    aria-label="Zoom" value={f.zoom}
+                    onChange={(e) => setFraming(editingId, { zoom: Number(e.target.value) })}
+                  />
+                </label>
+                <button type="button" className="bg-mode-btn" onClick={() => setEditingId(null)}>Done</button>
+              </div>
+            );
+          })()}
 
           <div className="bg-mode-toggles">
             <button
