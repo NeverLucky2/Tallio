@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ThemeTab from './ThemeTab.jsx';
+import BackgroundTab from './BackgroundTab.jsx';
 
 const TABS = [
   { id: 'theme', label: 'Theme' },
@@ -35,7 +36,7 @@ export default function AppearanceScreen({ appearance, onClose }) {
 
       <div className="appearance-body">
         {tab === 'theme' && <ThemeTab appearance={appearance} />}
-        {tab === 'bg' && <p className="appearance-placeholder">Backgrounds — coming soon (Phase 2).</p>}
+        {tab === 'bg' && <BackgroundTab appearance={appearance} />}
         {tab === 'icons' && <p className="appearance-placeholder">Image icons — coming soon (Phase 3).</p>}
       </div>
     </div>

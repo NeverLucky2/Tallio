@@ -4,7 +4,8 @@ import AppearanceScreen from './AppearanceScreen.jsx';
 
 const appearance = {
   themeId: 'nocturne', customTheme: null,
-  setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(),
+  background: { base: 'solid', effects: { aurora: false, pulse: false }, intensity: 25 },
+  setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(), updateBackground: vi.fn(),
 };
 
 describe('AppearanceScreen', () => {
@@ -16,10 +17,10 @@ describe('AppearanceScreen', () => {
     expect(screen.getByRole('radiogroup', { name: /preset themes/i })).toBeTruthy();
   });
 
-  it('switching to Background shows the phase-2 placeholder', () => {
+  it('switching to Background shows the effect controls', () => {
     render(<AppearanceScreen appearance={appearance} onClose={() => {}} />);
     fireEvent.click(screen.getByRole('tab', { name: /background/i }));
-    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.getByRole('switch', { name: /aurora/i })).toBeTruthy();
   });
 
   it('Done calls onClose', () => {
