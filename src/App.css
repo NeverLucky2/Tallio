@@ -3516,6 +3516,8 @@
 /* ---- Ambient background effects (Appearance → Background) ---- */
 .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 
+.bg-wallpaper { position: absolute; inset: 0; background-size: cover !important; background-position: center !important; }
+
 .bg-aurora .bg-blob { position: absolute; border-radius: 50%; filter: blur(64px); opacity: 0.5; }
 .bg-aurora .b1 { width: 42vw; height: 42vw; left: -8vw;  top: -12vh;    background: var(--accent); animation: bgDrift1 22s ease-in-out infinite alternate; }
 .bg-aurora .b2 { width: 36vw; height: 36vw; right: -6vw; top: 4vh;      background: var(--blue);   animation: bgDrift2 26s ease-in-out infinite alternate; }
