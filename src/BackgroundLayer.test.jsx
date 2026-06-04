@@ -118,3 +118,24 @@ describe('BackgroundLayer effect palette', () => {
     expect(container.querySelector('.bg-aurora').style.getPropertyValue('--fx-1')).toBe('');
   });
 });
+
+describe('BackgroundLayer surface variables', () => {
+  afterEach(() => {
+    cleanup();
+    document.documentElement.removeAttribute('style');
+  });
+
+  const read = (k) => document.documentElement.style.getPropertyValue(k);
+
+  it('frosts surfaces from intensity when a photo base is active', () => {
+    render(<BackgroundLayer background={bg({ base: 'photos', intensity: 100 })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />);
+    expect(read('--surface-alpha')).toBe('0');
+    expect(read('--surface-blur')).toBe('10px');
+  });
+
+  it('keeps surfaces opaque over a solid base', () => {
+    render(<BackgroundLayer background={bg({ base: 'solid', effects: { aurora: true, pulse: false }, intensity: 100 })} reducedMotion={false} />);
+    expect(read('--surface-alpha')).toBe('1');
+    expect(read('--surface-blur')).toBe('0px');
+  });
+});

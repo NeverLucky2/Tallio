@@ -57,6 +57,8 @@
   /* Background readability knobs — driven by the Appearance intensity slider (Phase 2). */
   --surface-alpha: 1;
   --surface-blur: 0px;
+  /* Card surface: opaque at defaults (alpha 1), translucent when a photo/wallpaper is active. */
+  --surface: color-mix(in srgb, var(--bg-card) calc(var(--surface-alpha) * 100%), transparent);
 }
 
 /* ---- App Root ---- */
@@ -391,7 +393,9 @@
 }
 
 .stat-card {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 19px 21px;
@@ -626,7 +630,9 @@
 /* ---- Empty State ---- */
 
 .empty-state {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 63px 28px;
@@ -663,7 +669,9 @@
 /* ---- Bill Card ---- */
 
 .bill-card {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -994,7 +1002,9 @@
 /* ---- Panel ---- */
 
 .panel {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 19px;
@@ -1456,7 +1466,9 @@
 /* ---- Format Tags ---- */
 
 .formats-panel {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 16px 19px;
@@ -2152,7 +2164,9 @@
 /* ---- Spending Panel ---- */
 
 .spending-panel {
-  background: var(--bg-card);
+  background: var(--surface);
+  backdrop-filter: blur(var(--surface-blur));
+  -webkit-backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 19px 21px;
