@@ -3593,3 +3593,9 @@
 .bg-mode-btn.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-dim); }
 .bg-interval-input { margin-left: 8px; width: 70px; padding: 4px 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); }
 .bg-group-select { margin-left: 8px; padding: 4px 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); }
+.bg-photo-item { display: flex; flex-direction: column; gap: 4px; }
+.bg-photo-action { padding: 3px 8px; font-size: 10px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-input); color: var(--text-muted); cursor: pointer; }
+.bg-framing-editor { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); }
+.bg-framing-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background-color: var(--bg-card); cursor: crosshair; outline: none; }
+.bg-framing-clip:focus-visible { box-shadow: 0 0 0 2px var(--accent-border); }
+.bg-framing-img { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
