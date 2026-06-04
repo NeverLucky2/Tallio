@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
+import UndoButton from './UndoButton.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose }) {
+export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
   const isEdit = !!transaction;
   const initialAmount = transaction ? Math.abs(transaction.amount) : '';
   const initialDir = transaction ? (transaction.amount >= 0 ? 'in' : 'out') : 'out';
@@ -124,6 +125,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
         </div>
 
         <div className="dialog-actions">
+          <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transaction.id)}>Delete</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save}>Save</button>

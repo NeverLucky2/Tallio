@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories } from './categoriesDefaults.js';
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories, normalizeCategories } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'tallio-categories';
 const PERSIST_DEBOUNCE_MS = 250;
 
 function seed() {
-  return withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) })));
+  return normalizeCategories(withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) }))));
 }
 
 function load() {
@@ -16,7 +16,7 @@ function load() {
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return seed();
-    return withBackfillCategories(withTransferSeeds(parsed));
+    return normalizeCategories(withBackfillCategories(withTransferSeeds(parsed)));
   } catch {
     return seed();
   }
@@ -123,7 +123,73 @@ export default function useCategories() {
     ));
   }, []);
 
+  const addSub = useCallback((catId, { name } = {}) => {
+    const id = nanoid(8);
+    const nm = (name || '').trim() || 'New sub-category';
+    setCategories(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, subcategories: [...(c.subcategories || []), { id, name: nm, keywords: [] }] }
+    ));
+    return id;
+  }, []);
+
+  const updateSub = useCallback((catId, subId, patch) => {
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s => s.id === subId ? { ...s, ...patch, id: s.id } : s) };
+    }));
+  }, []);
+
+  const deleteSub = useCallback((catId, subId) => {
+    setCategories(prev => prev.map(c =>
+      c.id !== catId ? c : { ...c, subcategories: (c.subcategories || []).filter(s => s.id !== subId) }
+    ));
+  }, []);
+
+  const addSubKeyword = useCallback((catId, subId, raw) => {
+    const kw = (raw || '').trim().toUpperCase();
+    if (!kw) return;
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s => {
+        if (s.id !== subId) return s;
+        if ((s.keywords || []).includes(kw)) return s;
+        return { ...s, keywords: [...(s.keywords || []), kw] };
+      }) };
+    }));
+  }, []);
+
+  const removeSubKeyword = useCallback((catId, subId, keyword) => {
+    const kw = (keyword || '').trim().toUpperCase();
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return { ...c, subcategories: (c.subcategories || []).map(s =>
+        s.id === subId ? { ...s, keywords: (s.keywords || []).filter(k => k !== kw) } : s
+      ) };
+    }));
+  }, []);
+
+  const promoteKeywordToSub = useCallback((catId, keyword) => {
+    const kw = (keyword || '').trim().toUpperCase();
+    if (!kw) return null;
+    const id = nanoid(8);
+    const name = kw.toLowerCase().replace(/\b\w/g, ch => ch.toUpperCase());
+    setCategories(prev => prev.map(c => {
+      if (c.id !== catId) return c;
+      return {
+        ...c,
+        keywords: (c.keywords || []).filter(k => k !== kw),
+        subcategories: [...(c.subcategories || []), { id, name, keywords: [kw] }],
+      };
+    }));
+    return id;
+  }, []);
+
   const clearStorageError = useCallback(() => setStorageError(null), []);
+
+  const snapshot = useCallback(() => categories, [categories]);
+  const restore = useCallback((snap) => {
+    setCategories(Array.isArray(snap) ? snap : []);
+  }, []);
 
   const autoCategorize = useCallback(
     (description) => ruleAutoCategorize(description, categories, otherId()),
@@ -164,9 +230,17 @@ export default function useCategories() {
     removeKeyword,
     addTemplate,
     removeTemplate,
+    addSub,
+    updateSub,
+    deleteSub,
+    addSubKeyword,
+    removeSubKeyword,
+    promoteKeywordToSub,
     autoCategorize,
     applyCategoryToItems,
     findItemsInCategory,
+    snapshot,
+    restore,
     storageError,
     clearStorageError,
   };

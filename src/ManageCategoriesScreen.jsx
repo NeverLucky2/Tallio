@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import CategoryEditor from './CategoryEditor.jsx';
+import SubcategoryEditor from './SubcategoryEditor.jsx';
+import UndoButton from './UndoButton.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
+import { filterCategoriesByQuery } from './categoriesSearch.js';
 
 function countItemsPerCategory(bills) {
   const counts = new Map();
@@ -24,12 +27,27 @@ export default function ManageCategoriesScreen({
   onAddTemplate,
   onRemoveTemplate,
   onMoveAll,
+  onUndo,
+  undoCount = 0,
+  onAddSub,
+  onUpdateSub,
+  onDeleteSub,
+  onAddSubKeyword,
+  onRemoveSubKeyword,
+  onPromoteKeyword,
 }) {
   const [selectedId, setSelectedId] = useState(categories[0]?.id);
+  const [query, setQuery] = useState('');
+  const [editingSubId, setEditingSubId] = useState(null);
 
   const itemCounts = useMemo(() => countItemsPerCategory(bills), [bills]);
 
   const selected = categories.find(c => c.id === selectedId);
+
+  const visibleCategories = useMemo(() => filterCategoriesByQuery(categories, query), [categories, query]);
+  const editingSub = selected && editingSubId
+    ? (selected.subcategories || []).find(s => s.id === editingSubId)
+    : null;
 
   const otherCategories = useMemo(
     () => selected ? categories.filter(c => c.id !== selected.id) : [],
@@ -53,28 +71,50 @@ export default function ManageCategoriesScreen({
     setRecentlyAddedId(newId);
   };
 
+  const handleAddSub = () => {
+    const id = onAddSub(selected.id);
+    setEditingSubId(id);
+  };
+
+  const selectCategory = (id) => {
+    setSelectedId(id);
+    setEditingSubId(null);
+  };
+
   return (
     <div className="manage-screen">
       <header className="manage-header">
         <button type="button" className="btn" onClick={onClose}>‹ Back</button>
         <h1 className="manage-title">Manage Categories</h1>
-        <button type="button" className="btn btn-primary" onClick={handleAdd}>+ Add Category</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <UndoButton count={undoCount} onUndo={onUndo} />
+          <button type="button" className="btn btn-primary" onClick={handleAdd}>+ Add Category</button>
+        </div>
       </header>
 
       <div className="manage-body">
         <aside className="manage-list">
-          <div className="manage-list-title">{categories.length} categories</div>
-          {groupCategoriesByFlow(categories).map(group => (
+          <input
+            type="search"
+            className="cat-editor-input"
+            placeholder="Search categories…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ width: '100%', marginBottom: 8 }}
+          />
+          <div className="manage-list-title">{visibleCategories.length} categories</div>
+          {groupCategoriesByFlow(visibleCategories).map(group => (
               <div key={group.flow} className="manage-list-flow-group">
                 <div className="manage-list-flow-label">{group.flow}</div>
                 {group.items.map(cat => {
                   const count = itemCounts.get(cat.id) || 0;
+                  const subCount = (cat.subcategories || []).length;
                   return (
                     <button
                       key={cat.id}
                       type="button"
                       className={`manage-list-row${cat.id === selectedId ? ' active' : ''}`}
-                      onClick={() => setSelectedId(cat.id)}
+                      onClick={() => selectCategory(cat.id)}
                     >
                       <span
                         className="manage-list-icon"
@@ -83,6 +123,9 @@ export default function ManageCategoriesScreen({
                         {cat.icon}
                       </span>
                       <span className="manage-list-name">{cat.name}</span>
+                      {subCount > 0 && (
+                        <span className="manage-list-subcount" title={`${subCount} sub-categories`} style={{ opacity: 0.7, fontSize: '0.8em' }}>⊞{subCount}</span>
+                      )}
                       <span className="manage-list-count">{count}</span>
                     </button>
                   );
@@ -93,19 +136,35 @@ export default function ManageCategoriesScreen({
 
         <main className="manage-editor">
           {selected ? (
-            <CategoryEditor
-              key={selected.id}
-              category={selected}
-              itemCount={itemCounts.get(selected.id) || 0}
-              otherCategories={otherCategories}
-              onMoveAll={(targetId) => onMoveAll(selected.id, targetId)}
-              onUpdate={(patch) => onUpdateCategory(selected.id, patch)}
-              onAddKeyword={(kw) => onAddKeyword(selected.id, kw)}
-              onRemoveKeyword={(kw) => onRemoveKeyword(selected.id, kw)}
-              onAddTemplate={(t) => onAddTemplate(selected.id, t)}
-              onRemoveTemplate={(t) => onRemoveTemplate(selected.id, t)}
-              onDelete={() => onDeleteCategory(selected.id)}
-            />
+            editingSub ? (
+              <SubcategoryEditor
+                key={editingSub.id}
+                category={selected}
+                sub={editingSub}
+                onBack={() => setEditingSubId(null)}
+                onUpdate={(patch) => onUpdateSub(selected.id, editingSub.id, patch)}
+                onAddKeyword={(kw) => onAddSubKeyword(selected.id, editingSub.id, kw)}
+                onRemoveKeyword={(kw) => onRemoveSubKeyword(selected.id, editingSub.id, kw)}
+                onDelete={() => { onDeleteSub(selected.id, editingSub.id); setEditingSubId(null); }}
+              />
+            ) : (
+              <CategoryEditor
+                key={selected.id}
+                category={selected}
+                itemCount={itemCounts.get(selected.id) || 0}
+                otherCategories={otherCategories}
+                onMoveAll={(targetId) => onMoveAll(selected.id, targetId)}
+                onUpdate={(patch) => onUpdateCategory(selected.id, patch)}
+                onAddKeyword={(kw) => onAddKeyword(selected.id, kw)}
+                onRemoveKeyword={(kw) => onRemoveKeyword(selected.id, kw)}
+                onAddTemplate={(t) => onAddTemplate(selected.id, t)}
+                onRemoveTemplate={(t) => onRemoveTemplate(selected.id, t)}
+                onDelete={() => onDeleteCategory(selected.id)}
+                onAddSub={handleAddSub}
+                onEditSub={(subId) => setEditingSubId(subId)}
+                onPromoteKeyword={(kw) => onPromoteKeyword(selected.id, kw)}
+              />
+            )
           ) : (
             <p className="manage-empty">No category selected.</p>
           )}

@@ -4,6 +4,9 @@ import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
 import SettingsPanel from './SettingsPanel.jsx';
+import useAppearance from './useAppearance.js';
+import AppearanceScreen from './AppearanceScreen.jsx';
+import BackgroundLayer from './BackgroundLayer.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
@@ -17,6 +20,7 @@ import TransferEditor from './TransferEditor.jsx';
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import UndoButton from './UndoButton.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
@@ -126,20 +130,45 @@ function Tallio() {
 
   // Undo: snapshots of the whole ledger + report acknowledgments.
   const [history, setHistory] = useState([]);
-  const pushHistory = () => setHistory(prev => [...prev.slice(-19), { ledger: ledger.snapshot(), acks: acks.exportSnapshot() }]);
+  const pushHistory = () => setHistory(prev => [...prev.slice(-19), {
+    ledger: ledger.snapshot(),
+    acks: acks.exportSnapshot(),
+    categories: cats.snapshot(),
+    accountTypes: accountTypes.snapshot(),
+  }]);
   const undo = () => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
       const entry = prev[prev.length - 1];
       ledger.restore(entry.ledger);
       acks.restore(entry.acks);
+      cats.restore(entry.categories);
+      accountTypes.restore(entry.accountTypes);
       return prev.slice(0, -1);
     });
   };
 
+  // Ctrl/Cmd+Z triggers Undo, except while typing in a field (preserve native text undo).
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const k = e.key ? e.key.toLowerCase() : '';
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || k !== 'z') return;
+      const el = e.target;
+      const tag = el && el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (el && el.isContentEditable)) return;
+      e.preventDefault();
+      undoRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // Capture / scan / pairing state (carried over unchanged).
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
+  const appearance = useAppearance();
   // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-scale', String(settings.uiScale));
@@ -186,6 +215,7 @@ function Tallio() {
 
   // Account-type CRUD (reassign-then-delete coordinated here since App holds ledger.updateAccount)
   const saveAccountType = (data) => {
+    pushHistory();
     if (data.id) accountTypes.updateType(data.id, data);
     else accountTypes.addType(data);
   };
@@ -305,20 +335,29 @@ function Tallio() {
   return (
     <div className="app-root">
       <div className="app-bg-gradient" />
+      <BackgroundLayer background={appearance.background} />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
           categories={cats.categories}
           bills={[]} /* category screen still accepts a bills prop for keyword apply; pass [] in Phase 1 */
           onClose={() => setScreen('main')}
-          onAddCategory={(p) => cats.addCategory(p)}
-          onUpdateCategory={(id, patch) => cats.updateCategory(id, patch)}
-          onDeleteCategory={(id) => cats.deleteCategory(id, [])}
-          onAddKeyword={(catId, kw) => cats.addKeyword(catId, kw, [])}
-          onRemoveKeyword={(catId, kw) => cats.removeKeyword(catId, kw)}
-          onAddTemplate={(catId, t) => cats.addTemplate(catId, t)}
-          onRemoveTemplate={(catId, t) => cats.removeTemplate(catId, t)}
+          onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
+          onUpdateCategory={(id, patch) => { pushHistory(); cats.updateCategory(id, patch); }}
+          onDeleteCategory={(id) => { pushHistory(); return cats.deleteCategory(id, []); }}
+          onAddKeyword={(catId, kw) => { pushHistory(); return cats.addKeyword(catId, kw, []); }}
+          onRemoveKeyword={(catId, kw) => { pushHistory(); cats.removeKeyword(catId, kw); }}
+          onAddTemplate={(catId, t) => { pushHistory(); cats.addTemplate(catId, t); }}
+          onRemoveTemplate={(catId, t) => { pushHistory(); cats.removeTemplate(catId, t); }}
           onMoveAll={() => {}}
+          onAddSub={(catId) => { pushHistory(); return cats.addSub(catId, {}); }}
+          onUpdateSub={(catId, subId, patch) => { pushHistory(); cats.updateSub(catId, subId, patch); }}
+          onDeleteSub={(catId, subId) => { pushHistory(); cats.deleteSub(catId, subId); }}
+          onAddSubKeyword={(catId, subId, kw) => { pushHistory(); cats.addSubKeyword(catId, subId, kw); }}
+          onRemoveSubKeyword={(catId, subId, kw) => { pushHistory(); cats.removeSubKeyword(catId, subId, kw); }}
+          onPromoteKeyword={(catId, kw) => { pushHistory(); return cats.promoteKeywordToSub(catId, kw); }}
+          onUndo={undo}
+          undoCount={history.length}
         />
       )}
 
@@ -329,6 +368,8 @@ function Tallio() {
           onClose={() => setScreen('main')}
           onSaveType={saveAccountType}
           onDeleteType={deleteAccountType}
+          onUndo={undo}
+          undoCount={history.length}
         />
       )}
 
@@ -353,6 +394,9 @@ function Tallio() {
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
+      {screen === 'appearance' && (
+        <AppearanceScreen appearance={appearance} onClose={() => setScreen('main')} />
+      )}
       {showSettings && <SettingsPanel settings={settings} onClose={closeSettings} banner={settingsBanner} />}
 
       {editingAccount && (
@@ -360,6 +404,7 @@ function Tallio() {
           account={editingAccount.account || null}
           types={accountTypes.types}
           onSave={saveAccount} onDelete={deleteAccount} onClose={() => setEditingAccount(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
       {editingTxn && selectedAccount && (
@@ -370,6 +415,7 @@ function Tallio() {
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
       {editingTransfer && (
@@ -383,6 +429,7 @@ function Tallio() {
           initialAmount={editingTransfer.initialAmount ?? null}
           transfer={editingTransfer.transfer || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
+          onUndo={undo} undoCount={history.length}
         />
       )}
 
@@ -410,6 +457,7 @@ function Tallio() {
           </div>
           <div className="header-actions">
             <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">⚙</button>
+            <button type="button" onClick={() => setScreen('appearance')} className="btn-icon" aria-label="Appearance">🎨</button>
             <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
             <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
             <button type="button" onClick={() => setScreen('reports')} className="btn">📊 Reports</button>
@@ -417,7 +465,7 @@ function Tallio() {
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
             <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}</button>
-            <button onClick={undo} disabled={history.length === 0} className={`btn btn-undo${history.length > 0 ? ' active' : ''}`}>↩ Undo{history.length > 0 ? ` (${history.length})` : ''}</button>
+            <UndoButton count={history.length} onUndo={undo} />
             <button onClick={exportData} className="btn">↗ Export</button>
           </div>
         </header>

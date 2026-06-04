@@ -22,7 +22,7 @@ describe('useCategories', () => {
     const seeded = [{ id: 'cz', name: 'Zoo', icon: '🦓', color: '#000000', keywords: [], templates: [], builtin: false }];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
     const { result } = renderHook(() => useCategories());
-    expect(result.current.categories.find(c => c.id === 'cz')).toEqual(seeded[0]);
+    expect(result.current.categories.find(c => c.id === 'cz')).toEqual({ ...seeded[0], subcategories: [] });
     expect(result.current.categories).toHaveLength(1 + TRANSFER_SEED_CATEGORIES.length + BACKFILL_CATEGORIES.length);
   });
 
@@ -277,5 +277,89 @@ describe('useCategories', () => {
     } finally {
       Storage.prototype.setItem = original;
     }
+  });
+
+  it('snapshot/restore round-trips for undo (a rename is revertible)', () => {
+    const { result } = renderHook(() => useCategories());
+    const target = result.current.categories[0];
+    let snap;
+    act(() => { snap = result.current.snapshot(); });
+    act(() => { result.current.updateCategory(target.id, { name: 'Renamed!!' }); });
+    expect(result.current.getById(target.id).name).toBe('Renamed!!');
+    act(() => { result.current.restore(snap); });
+    expect(result.current.getById(target.id).name).toBe(target.name);
+  });
+
+  it('normalizes every seeded category to have a subcategories array', () => {
+    const { result } = renderHook(() => useCategories());
+    for (const c of result.current.categories) {
+      expect(Array.isArray(c.subcategories)).toBe(true);
+    }
+  });
+
+  it('normalizes stored categories that predate sub-categories on load', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([
+      { id: 'cz', name: 'Zoo', icon: '🦓', color: '#000000', keywords: [], templates: [], builtin: false },
+    ]));
+    const { result } = renderHook(() => useCategories());
+    const zoo = result.current.categories.find(c => c.id === 'cz');
+    expect(zoo.subcategories).toEqual([]);
+  });
+
+  it('addSub appends a sub with a fresh id and empty keywords; returns the id', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    const sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.keywords).toEqual([]);
+  });
+
+  it('updateSub patches name without changing the sub id', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Fed' }); });
+    act(() => { result.current.updateSub(taxes.id, subId, { name: 'Federal Tax' }); });
+    const sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.id).toBe(subId);
+  });
+
+  it('deleteSub removes the sub', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    act(() => { result.current.deleteSub(taxes.id, subId); });
+    expect(result.current.getById(taxes.id).subcategories.find(s => s.id === subId)).toBeUndefined();
+  });
+
+  it('addSubKeyword uppercases and dedupes; removeSubKeyword strips', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.addSub(taxes.id, { name: 'Federal Tax' }); });
+    act(() => { result.current.addSubKeyword(taxes.id, subId, 'federal tax'); });
+    act(() => { result.current.addSubKeyword(taxes.id, subId, 'FEDERAL TAX'); });
+    let sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.keywords).toEqual(['FEDERAL TAX']);
+    // removeSubKeyword with mixed-case, padded input still removes the stored uppercase keyword
+    act(() => { result.current.removeSubKeyword(taxes.id, subId, '  federal tax  '); });
+    sub = result.current.getById(taxes.id).subcategories.find(s => s.id === subId);
+    expect(sub.keywords).toEqual([]);
+  });
+
+  it('promoteKeywordToSub moves a parent keyword onto a new Title-Cased sub', () => {
+    const { result } = renderHook(() => useCategories());
+    const taxes = result.current.categories.find(c => c.name === 'Taxes');
+    let subId;
+    act(() => { subId = result.current.promoteKeywordToSub(taxes.id, 'FEDERAL TAX'); });
+    const cat = result.current.getById(taxes.id);
+    expect(cat.keywords).not.toContain('FEDERAL TAX');
+    const sub = cat.subcategories.find(s => s.id === subId);
+    expect(sub.name).toBe('Federal Tax');
+    expect(sub.keywords).toEqual(['FEDERAL TAX']);
   });
 });

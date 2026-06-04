@@ -1,8 +1,9 @@
 // src/AccountEditor.jsx
 import React, { useState } from 'react';
 import { DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
+import UndoButton from './UndoButton.jsx';
 
-export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose }) {
+export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
   const isEdit = !!account;
   const [name, setName] = useState(account?.name || '');
   const [type, setType] = useState(account?.type || 'untyped');
@@ -41,6 +42,7 @@ export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, 
         <p className="dialog-hint">For a credit card or loan, enter the amount owed as a negative number.</p>
 
         <div className="dialog-actions">
+          <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(account.id)}>Delete</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save}>Save</button>

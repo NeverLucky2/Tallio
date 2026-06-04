@@ -19,6 +19,12 @@ const noopProps = {
   onRemoveTemplate: () => {},
   onMoveAll: () => {},
   bills: [],
+  onAddSub: () => 's1',
+  onUpdateSub: () => {},
+  onDeleteSub: () => {},
+  onAddSubKeyword: () => {},
+  onRemoveSubKeyword: () => {},
+  onPromoteKeyword: () => {},
 };
 
 describe('ManageCategoriesScreen', () => {
@@ -75,5 +81,40 @@ describe('ManageCategoriesScreen', () => {
     // Render uses "(N)" suffix on rows.
     expect(screen.getByText('Utilities').parentElement.textContent).toContain('2');
     expect(screen.getByText('Dining').parentElement.textContent).toContain('1');
+  });
+
+  it('renders an Undo button that enables on undoCount and calls onUndo', async () => {
+    const onUndo = vi.fn();
+    render(<ManageCategoriesScreen categories={cats} {...noopProps} onUndo={onUndo} undoCount={2} />);
+    const btn = screen.getByRole('button', { name: /undo/i });
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe('↩ Undo (2)');
+    await userEvent.click(btn);
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it('filters the list by the search box (matching category and sub names)', async () => {
+    const withSubs = [
+      { id: 'c1', name: 'Taxes', icon: '🏛️', color: '#EAB308', keywords: [], templates: [], builtin: true,
+        subcategories: [{ id: 's1', name: 'Federal Tax', keywords: [] }] },
+      { id: 'c2', name: 'Groceries', icon: '🛒', color: '#10B981', keywords: [], templates: [], builtin: true, subcategories: [] },
+    ];
+    render(<ManageCategoriesScreen categories={withSubs} {...noopProps} />);
+    await userEvent.type(screen.getByPlaceholderText(/search categories/i), 'federal');
+    const list = document.querySelector('.manage-list');
+    expect(list.textContent).toContain('Taxes');
+    expect(list.textContent).not.toContain('Groceries');
+  });
+
+  it('drills into a sub-category and back', async () => {
+    const withSubs = [
+      { id: 'c1', name: 'Taxes', icon: '🏛️', color: '#EAB308', keywords: [], templates: [], builtin: true,
+        subcategories: [{ id: 's1', name: 'Federal Tax', keywords: [] }] },
+    ];
+    render(<ManageCategoriesScreen categories={withSubs} {...noopProps} />);
+    await userEvent.click(screen.getByText('Federal Tax'));
+    expect(screen.getByText(/taxes › federal tax/i)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /back to taxes/i }));
+    expect(screen.getByText(/editing: taxes/i)).toBeTruthy();
   });
 });
