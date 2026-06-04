@@ -55,3 +55,30 @@ describe('BackgroundLayer preset base', () => {
     expect(getWallpaper('nope')).toBeNull();
   });
 });
+
+describe('BackgroundLayer photos base', () => {
+  afterEach(() => cleanup());
+
+  const photos = [
+    { id: 'a', url: 'blob:a', palette: ['#111111'] },
+    { id: 'b', url: 'blob:b', palette: ['#222222'] },
+  ];
+
+  it('stacks one layer per photo and marks the active one', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos' })} photos={photos} activeIndex={1} reducedMotion={false} />,
+    );
+    const layers = container.querySelectorAll('.bg-photo');
+    expect(layers.length).toBe(2);
+    expect(layers[0].className).not.toContain('on');
+    expect(layers[1].className).toContain('on');
+    expect(layers[1].style.backgroundImage).toContain('blob:b');
+  });
+
+  it('renders no photo layers when the list is empty', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos' })} photos={[]} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-photo')).toBeNull();
+  });
+});

@@ -7,7 +7,7 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export default function BackgroundLayer({ background, reducedMotion }) {
+export default function BackgroundLayer({ background, photos = [], activeIndex = 0, reducedMotion }) {
   const { base = 'solid', presetId = null, effects = {}, intensity = 25 } = background || {};
   const rm = reducedMotion ?? prefersReducedMotion();
   const active = base !== 'solid' || effects.aurora || effects.pulse;
@@ -18,6 +18,14 @@ export default function BackgroundLayer({ background, reducedMotion }) {
   return (
     <div className={`bg-layer${rm ? ' bg-reduced-motion' : ''}`} aria-hidden="true">
       {wallpaper && <div className="bg-wallpaper" style={{ background: wallpaper.css }} />}
+
+      {base === 'photos' && photos.map((p, i) => (
+        <div
+          key={p.id || i}
+          className={`bg-photo${i === activeIndex ? ' on' : ''}`}
+          style={{ backgroundImage: `url(${p.url})` }}
+        />
+      ))}
 
       {effects.aurora && (
         <div className="bg-aurora">

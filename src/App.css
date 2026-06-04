@@ -3518,6 +3518,10 @@
 
 .bg-wallpaper { position: absolute; inset: 0; background-size: cover !important; background-position: center !important; }
 
+.bg-photo { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.2s ease; }
+.bg-photo.on { opacity: 1; }
+.bg-reduced-motion .bg-photo { transition: none; }
+
 .bg-aurora .bg-blob { position: absolute; border-radius: 50%; filter: blur(64px); opacity: 0.5; }
 .bg-aurora .b1 { width: 42vw; height: 42vw; left: -8vw;  top: -12vh;    background: var(--accent); animation: bgDrift1 22s ease-in-out infinite alternate; }
 .bg-aurora .b2 { width: 36vw; height: 36vw; right: -6vw; top: 4vh;      background: var(--blue);   animation: bgDrift2 26s ease-in-out infinite alternate; }
@@ -3543,6 +3547,7 @@
 .bg-reduced-motion .bg-glow { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .bg-blob, .bg-glow { animation: none; }
+  .bg-photo { transition: none; }
 }
 
 /* ---- Background tab controls ---- */
