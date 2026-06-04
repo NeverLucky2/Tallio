@@ -3583,3 +3583,13 @@
 .bg-wallpaper-swatch { position: relative; height: 56px; border: 2px solid transparent; border-radius: var(--r-md); cursor: pointer; overflow: hidden; }
 .bg-wallpaper-swatch.selected { border-color: var(--accent); }
 .bg-wallpaper-name { position: absolute; left: 6px; bottom: 4px; font-size: 10px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+.bg-photos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.bg-upload-btn { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 7px 14px; border: 1px solid var(--accent-border); border-radius: var(--r-md); background: var(--accent-dim); color: var(--accent); font-size: 12px; cursor: pointer; }
+.bg-photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.bg-photo-cell { padding: 10px 8px; border: 2px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 11px; cursor: pointer; text-align: center; }
+.bg-photo-cell.selected { border-color: var(--accent); color: var(--text); }
+.bg-mode-toggles { display: flex; gap: 8px; }
+.bg-mode-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 12px; cursor: pointer; }
+.bg-mode-btn.on { color: var(--text); border-color: var(--accent-border); background: var(--accent-dim); }
+.bg-interval-input { margin-left: 8px; width: 70px; padding: 4px 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); }
+.bg-group-select { margin-left: 8px; padding: 4px 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); }

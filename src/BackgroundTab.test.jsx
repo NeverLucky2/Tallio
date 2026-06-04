@@ -63,3 +63,64 @@ describe('BackgroundTab effects + intensity', () => {
     expect(updateBackground).toHaveBeenCalledWith({ intensity: 80 });
   });
 });
+
+describe('BackgroundTab photo controls', () => {
+  afterEach(() => cleanup());
+
+  const images = [
+    { id: 'a', name: 'Beach', group: 'Scenery' },
+    { id: 'b', name: 'Dog',   group: 'Pets' },
+  ];
+
+  it('calls onUpload when a file is chosen', () => {
+    const onUpload = vi.fn();
+    const { appearance } = makeAppearance({ base: 'photos' });
+    const { getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={onUpload} />);
+    const input = getByLabelText('Upload photo');
+    const file = new File(['x'], 'x.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    expect(onUpload.mock.calls[0][0]).toBe(file);
+  });
+
+  it('toggles a library image into photoIds', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: [] });
+    const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /select Beach/i }));
+    expect(updateBackground).toHaveBeenCalledWith({ photoIds: ['a'] });
+  });
+
+  it('removes an already-selected image from photoIds', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a', 'b'] });
+    const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /select Beach/i }));
+    expect(updateBackground).toHaveBeenCalledWith({ photoIds: ['b'] });
+  });
+
+  it('switches to slideshow mode', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'single' });
+    const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByRole('button', { name: /slideshow/i }));
+    expect(updateBackground).toHaveBeenCalledWith({ mode: 'slideshow' });
+  });
+
+  it('edits the interval (visible only in slideshow mode)', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'slideshow' });
+    const { getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.change(getByLabelText('Slideshow interval (seconds)'), { target: { value: '45' } });
+    expect(updateBackground).toHaveBeenCalledWith({ intervalSec: 45 });
+  });
+
+  it('hides the interval in single mode', () => {
+    const { appearance } = makeAppearance({ base: 'photos', mode: 'single' });
+    const { queryByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    expect(queryByLabelText('Slideshow interval (seconds)')).toBeNull();
+  });
+
+  it('sets a group source from the dropdown', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'photos' });
+    const { getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.change(getByLabelText('Slideshow group source'), { target: { value: 'Pets' } });
+    expect(updateBackground).toHaveBeenCalledWith({ photoGroup: 'Pets' });
+  });
+});
