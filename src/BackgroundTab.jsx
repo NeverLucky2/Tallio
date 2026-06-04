@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WALLPAPERS } from './wallpapers.js';
-import { togglePhotoSelection, clampFraming, focalFromPointer, pruneDeletedPhoto } from './backgroundPhotos.js';
+import { togglePhotoSelection, clampFraming, panFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -50,10 +50,20 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
     if (map[e.key]) { e.preventDefault(); setFraming(editingId, map[e.key]); }
   };
 
-  const onFocalPointer = (e) => {
+  // Drag the image to pan it (grab-and-move): record the start, then pan by delta.
+  const dragRef = useRef(null);
+  const onDragStart = (e) => {
+    if (!editingId) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setFraming(editingId, focalFromPointer(rect, e.clientX, e.clientY));
+    dragRef.current = { x: e.clientX, y: e.clientY, start: clampFraming(framing[editingId]), w: rect.width, h: rect.height };
+    if (e.currentTarget.setPointerCapture) { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
   };
+  const onDragMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setFraming(editingId, panFraming(d.start, e.clientX - d.x, e.clientY - d.y, d.w, d.h));
+  };
+  const onDragEnd = () => { dragRef.current = null; };
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -171,7 +181,10 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
                   tabIndex={0}
                   aria-label="Focal point — drag or use arrow keys"
                   aria-valuetext={`${f.posX}% ${f.posY}%`}
-                  onPointerDown={onFocalPointer}
+                  onPointerDown={onDragStart}
+                  onPointerMove={onDragMove}
+                  onPointerUp={onDragEnd}
+                  onPointerLeave={onDragEnd}
                   onKeyDown={onFocalKey}
                 >
                   {/* Inner image uses the SAME technique as BackgroundLayer (cover + position + scale) for WYSIWYG. */}

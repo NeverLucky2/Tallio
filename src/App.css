@@ -3596,9 +3596,10 @@
 .bg-photo-item { display: flex; flex-direction: column; gap: 4px; }
 .bg-photo-action { padding: 3px 8px; font-size: 10px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-input); color: var(--text-muted); cursor: pointer; }
 .bg-framing-editor { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); }
-.bg-framing-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background-color: var(--bg-card); cursor: crosshair; outline: none; }
+.bg-framing-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background-color: var(--bg-card); cursor: grab; outline: none; touch-action: none; }
+.bg-framing-clip:active { cursor: grabbing; }
 .bg-framing-clip:focus-visible { box-shadow: 0 0 0 2px var(--accent-border); }
-.bg-framing-img { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; }
+.bg-framing-img { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; pointer-events: none; }
 .bg-photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .bg-photo-action.danger { color: var(--red); border-color: var(--red-border); }
 .bg-photo-rename { width: 100%; padding: 9px 8px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-md); color: var(--text); }
