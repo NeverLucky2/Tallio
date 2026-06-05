@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHUNK_SIZE, makeImageChunks, createReassembler, ICE_SERVERS, peerIdFor } from './peerProtocol.js';
+import { CHUNK_SIZE, makeImageChunks, createReassembler, ICE_SERVERS, peerIdFor, randomId } from './peerProtocol.js';
 
 describe('CHUNK_SIZE', () => {
   it('is 16KB', () => {
@@ -10,6 +10,27 @@ describe('CHUNK_SIZE', () => {
 describe('peerIdFor', () => {
   it('prefixes session ID with bt-', () => {
     expect(peerIdFor('abc-123')).toBe('bt-abc-123');
+  });
+});
+
+describe('randomId', () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  it('returns a unique UUID-shaped string', () => {
+    const a = randomId();
+    const b = randomId();
+    expect(a).toMatch(UUID_RE);
+    expect(a).not.toBe(b);
+  });
+  it('falls back to a UUID-shaped string when crypto.randomUUID is unavailable (insecure context)', () => {
+    const orig = crypto.randomUUID;
+    try {
+      // Simulate a plain-HTTP LAN context where randomUUID is gated out.
+      Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+      const id = randomId();
+      expect(id).toMatch(UUID_RE);
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { value: orig, configurable: true });
+    }
   });
 });
 

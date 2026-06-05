@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Peer from 'peerjs';
-import { PEER_CONFIG, peerIdFor, createReassembler, FATAL_PEER_ERRORS } from './peerProtocol.js';
+import { PEER_CONFIG, peerIdFor, createReassembler, FATAL_PEER_ERRORS, randomId } from './peerProtocol.js';
 import { createBatchReceiver, makeImageAck } from './batchProtocol.js';
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
@@ -196,7 +196,7 @@ export default function useDesktopPeer({ onLibraryImage } = {}) {
     setLastImage(null);
     setReceiveProgress(0);
     setErrorMessage(null);
-    const id = crypto.randomUUID();
+    const id = randomId();
     setSessionId(id);
     setActive(true);
     setStatus('connecting');

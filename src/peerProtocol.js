@@ -24,13 +24,34 @@ export function peerIdFor(sessionId) {
   return `bt-${sessionId}`;
 }
 
+// crypto.randomUUID is only available in secure contexts (HTTPS / localhost).
+// Phone pairing is commonly tested over a plain-HTTP LAN address (`npm run dev
+// --host`), where crypto.randomUUID is undefined and throws. Fall back to a
+// v4-shaped UUID built from getRandomValues (available in insecure contexts) or
+// Math.random, keeping the same id format so PeerJS ids are unchanged.
+export function randomId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+  const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export function makeImageChunks(bytes, mime, extra = {}) {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   // extra.id (when given) becomes the shared frame id so a caller can key the
   // image on its own stable id; otherwise mint one. The remaining extra fields
   // (batchId/index/name) merge into the img-start frame only.
   const { id: overrideId, ...rest } = extra;
-  const id = overrideId || crypto.randomUUID();
+  const id = overrideId || randomId();
   const size = buffer.byteLength;
   const chunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
   const slices = [];

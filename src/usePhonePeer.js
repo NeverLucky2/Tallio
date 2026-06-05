@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Peer from 'peerjs';
-import { PEER_CONFIG, peerIdFor, makeImageChunks, FATAL_PEER_ERRORS } from './peerProtocol.js';
+import { PEER_CONFIG, peerIdFor, makeImageChunks, FATAL_PEER_ERRORS, randomId } from './peerProtocol.js';
 import { makeBatchStart, createBatchSender } from './batchProtocol.js';
 
 const SEND_ACK_TIMEOUT_MS = 30 * 1000;
@@ -163,7 +163,7 @@ export default function usePhonePeer(sessionId) {
   const sendBatch = useCallback(async (items, { onProgress, onAck } = {}) => {
     const conn = connRef.current;
     if (!conn || !conn.open) throw new Error('Not connected');
-    const batchId = crypto.randomUUID();
+    const batchId = randomId();
     const sender = createBatchSender(items); // keyed on caller-supplied item.id
     setStatus('sending');
     try {
