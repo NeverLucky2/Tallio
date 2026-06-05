@@ -1,5 +1,7 @@
 // src/Register.jsx
 import React, { useMemo, useState } from 'react';
+import Icon from './Icon.jsx';
+import { iconGlyph } from './iconValue.js';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
@@ -58,7 +60,7 @@ export default function Register({ account, transactions, accounts = [], categor
   return (
     <div className="register">
       <div className="register-header">
-        <h2 className="register-title"><span className="register-icon" aria-hidden="true">{account.icon}</span> {account.name}</h2>
+        <h2 className="register-title"><Icon value={account.icon} className="register-icon" /> {account.name}</h2>
         <span className="register-balance">{balanceLabel}</span>
         <button type="button" className="btn" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ Add transaction</button>
         <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
@@ -71,7 +73,7 @@ export default function Register({ account, transactions, accounts = [], categor
           <option value="">All categories</option>
           {groupCategoriesByFlow(categories).map(group => (
             <optgroup key={group.flow} label={group.label}>
-              {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              {group.items.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
             </optgroup>
           ))}
         </select>

@@ -1,15 +1,178 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { WALLPAPERS } from './wallpapers.js';
+import { togglePhotoSelection, clampFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
+import FramingEditor from './FramingEditor.jsx';
+import ActionMenu from './ActionMenu.jsx';
 
-export default function BackgroundTab({ appearance }) {
+const BASES = [
+  { id: 'solid', label: 'Solid' },
+  { id: 'preset', label: 'Wallpaper' },
+  { id: 'photos', label: 'Your photos' },
+];
+
+export default function BackgroundTab({ appearance, images = [], onUpload, onRename, onDelete }) {
   const { background, updateBackground } = appearance;
-  const { effects, intensity } = background;
+  const { base, presetId, effects, intensity } = background;
 
   const toggle = (key) => updateBackground({ effects: { ...effects, [key]: !effects[key] } });
+  const anyEffect = effects.aurora || effects.pulse;
+
+  const photoIds = background.photoIds || [];
+  const togglePhoto = (id) => updateBackground({ photoIds: togglePhotoSelection(photoIds, id, background.mode) });
+  const groups = Array.from(new Set(images.map(i => i.group).filter(Boolean)));
+
+  const framing = background.framing || {};
+  const [editingId, setEditingId] = useState(null);
+
+  const setFraming = (id, patch) => {
+    const next = clampFraming({ ...framing[id], ...patch });
+    updateBackground({ framing: { ...framing, [id]: next } }, `appearance:bg:framing:${id}`);
+  };
+
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const commitRename = (id) => {
+    if (onRename && renameDraft.trim()) onRename(id, renameDraft.trim());
+    setRenamingId(null);
+  };
+  const doDelete = (id) => {
+    if (onDelete) onDelete(id);
+    updateBackground(pruneDeletedPhoto(background, id));
+    setConfirmDeleteId(null);
+    if (editingId === id) setEditingId(null);
+  };
 
   return (
     <div className="background-tab">
       <div className="appearance-label">Base background</div>
-      <p className="appearance-hint">Solid (your theme). Preset wallpapers and your own photos arrive in the next update.</p>
+      <div className="bg-base-selector" role="group" aria-label="Base background">
+        {BASES.map(b => (
+          <button
+            key={b.id} type="button"
+            className={`bg-base-btn${base === b.id ? ' on' : ''}`}
+            aria-pressed={base === b.id}
+            onClick={() => updateBackground({ base: b.id })}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {base === 'preset' && (
+        <div className="bg-wallpaper-grid">
+          {WALLPAPERS.map(w => (
+            <button
+              key={w.id} type="button"
+              className={`bg-wallpaper-swatch${presetId === w.id ? ' selected' : ''}`}
+              aria-label={w.name}
+              style={{ background: w.css }}
+              onClick={() => updateBackground({ presetId: w.id })}
+            >
+              <span className="bg-wallpaper-name">{w.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {base === 'photos' && (
+        <div className="bg-photos">
+          <label className="bg-upload-btn">
+            ↑ Upload photo
+            <input
+              type="file" accept="image/*" aria-label="Upload photo" style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files[0]; if (f && onUpload) onUpload(f); e.target.value = ''; }}
+            />
+          </label>
+
+          {images.length === 0 ? (
+            <p className="appearance-hint">No photos yet — upload one to get started.</p>
+          ) : (
+            <div className="bg-photo-gallery">
+              {images.map(img => (
+                <div key={img.id} className="bg-photo-item">
+                  <ActionMenu label={`Actions for ${img.name}`} items={[
+                    ...(photoIds.includes(img.id) ? [{ label: 'Adjust framing', onSelect: () => setEditingId(editingId === img.id ? null : img.id) }] : []),
+                    { label: 'Rename', onSelect: () => { setRenamingId(img.id); setRenameDraft(img.name); } },
+                    { label: 'Delete', danger: true, onSelect: () => setConfirmDeleteId(img.id) },
+                  ]} />
+                  {renamingId === img.id ? (
+                    <input
+                      className="bg-photo-rename" aria-label={`Name for ${img.name}`}
+                      autoFocus value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => commitRename(img.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitRename(img.id); }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`select ${img.name}`}
+                      className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
+                      onClick={() => togglePhoto(img.id)}
+                    >
+                      {img.name}
+                    </button>
+                  )}
+                  {confirmDeleteId === img.id && (
+                    <div className="bg-photo-confirm">
+                      <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete</button>
+                      <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {editingId && (
+            <div className="bg-framing-editor-wrap">
+              <FramingEditor
+                blob={(images.find(i => i.id === editingId) || {}).blob}
+                framing={framing[editingId]}
+                onChange={(patch) => setFraming(editingId, patch)}
+                aspect="free"
+              />
+              <button type="button" className="bg-mode-btn" onClick={() => setEditingId(null)}>Done</button>
+            </div>
+          )}
+
+          <div className="bg-mode-toggles">
+            <button
+              type="button" className={`bg-mode-btn${background.mode === 'single' ? ' on' : ''}`}
+              aria-pressed={background.mode === 'single'} onClick={() => updateBackground({ mode: 'single' })}
+            >Single</button>
+            <button
+              type="button" className={`bg-mode-btn${background.mode === 'slideshow' ? ' on' : ''}`}
+              aria-pressed={background.mode === 'slideshow'} onClick={() => updateBackground({ mode: 'slideshow' })}
+            >Slideshow</button>
+          </div>
+
+          {background.mode === 'slideshow' && (
+            <label className="appearance-label" htmlFor="bg-interval">
+              Interval
+              <input
+                id="bg-interval" type="number" min="5" max="600" className="bg-interval-input"
+                aria-label="Slideshow interval (seconds)" value={background.intervalSec}
+                onChange={(e) => updateBackground({ intervalSec: Number(e.target.value) }, 'appearance:bg:intervalSec')}
+              />
+            </label>
+          )}
+
+          <label className="appearance-label" htmlFor="bg-group">
+            Use a group as the slideshow source
+            <select
+              id="bg-group" className="bg-group-select" aria-label="Slideshow group source"
+              value={background.photoGroup || ''}
+              onChange={(e) => updateBackground({ photoGroup: e.target.value || null })}
+            >
+              <option value="">None (use selected photos)</option>
+              {groups.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
 
       <div className="appearance-label">Effects — gentle motion behind your data</div>
       <div className="bg-effect-toggles">
@@ -32,8 +195,20 @@ export default function BackgroundTab({ appearance }) {
         id="bg-intensity" type="range" min="0" max="100" className="bg-intensity"
         aria-label="Background intensity"
         value={intensity}
-        onChange={(e) => updateBackground({ intensity: Number(e.target.value) })}
+        onChange={(e) => updateBackground({ intensity: Number(e.target.value) }, 'appearance:bg:intensity')}
       />
+
+      {anyEffect && (
+        <>
+          <label className="appearance-label" htmlFor="bg-effect-strength">Effect strength — subtle ↔ vivid</label>
+          <input
+            id="bg-effect-strength" type="range" min="0" max="100" className="bg-intensity"
+            aria-label="Effect strength"
+            value={background.effectStrength ?? 50}
+            onChange={(e) => updateBackground({ effectStrength: Number(e.target.value) }, 'appearance:bg:effectStrength')}
+          />
+        </>
+      )}
     </div>
   );
 }

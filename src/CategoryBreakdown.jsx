@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Icon from './Icon.jsx';
 import ColorPicker from './ColorPicker.jsx';
 import IconPicker from './IconPicker.jsx';
 
@@ -78,7 +79,7 @@ export default function CategoryBreakdown({ items, categories, otherCategoryId, 
                   >
                     <div className="cat-meta">
                       <div className="cat-name">
-                        <span className="cat-icon">{category.icon}</span>
+                        <Icon value={category.icon} className="cat-icon" />
                         {category.name}
                       </div>
                       <span className="cat-amount" style={{ color: category.color }}>
@@ -93,7 +94,7 @@ export default function CategoryBreakdown({ items, categories, otherCategoryId, 
                     <div className="cat-edit-popover" onClick={(e) => e.stopPropagation()}>
                       <div className="cat-edit-header">
                         <span className="cat-edit-title">
-                          {category.icon} {category.name}
+                          <Icon value={category.icon} /> {category.name}
                         </span>
                       </div>
                       <div className="cat-edit-field">
@@ -117,7 +118,7 @@ export default function CategoryBreakdown({ items, categories, otherCategoryId, 
               <div key={category.id || category.name}>
                 <div className="cat-meta">
                   <div className="cat-name">
-                    <span className="cat-icon">{category.icon}</span>
+                    <Icon value={category.icon} className="cat-icon" />
                     {category.name}
                   </div>
                   <span className="cat-amount" style={{ color: category.color }}>

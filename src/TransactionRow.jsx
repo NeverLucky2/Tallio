@@ -1,5 +1,6 @@
 // src/TransactionRow.jsx
 import React, { useState } from 'react';
+import Icon from './Icon.jsx';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 const plain = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n));
@@ -7,7 +8,7 @@ const plain = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, 
 function CategoryCell({ categoriesById, categoryId }) {
   const cat = categoriesById && categoriesById.get(categoryId);
   if (!cat) return <span className="txn-cat txn-cat-none">—</span>;
-  return <span className="txn-cat"><span className="txn-cat-icon" aria-hidden="true">{cat.icon}</span> {cat.name}</span>;
+  return <span className="txn-cat"><Icon value={cat.icon} className="txn-cat-icon" /> {cat.name}</span>;
 }
 
 function TransferChip({ info, category, onNavigate }) {
@@ -26,7 +27,7 @@ function TransferChip({ info, category, onNavigate }) {
       {category && (
         <span className="txn-transfer-type"
           style={{ color: category.color, borderColor: `${category.color}55`, background: `${category.color}1a` }}>
-          <span aria-hidden="true">{category.icon}</span> {category.name}
+          <Icon value={category.icon} /> {category.name}
         </span>
       )}
     </span>

@@ -1,6 +1,7 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
+import { iconGlyph } from './iconValue.js';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -107,7 +108,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         <label className="field"><span>Type</span>
           <select aria-label="Type" value={categoryId} onChange={onTypeChange} className="select">
             <option value="">— None —</option>
-            {transferCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {transferCats.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
           </select>
         </label>
 

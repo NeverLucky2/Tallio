@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import BackgroundLayer from './BackgroundLayer.jsx';
+import { getWallpaper } from './wallpapers.js';
 
 const bg = (over = {}) => ({ base: 'solid', effects: { aurora: false, pulse: false }, intensity: 25, ...over });
 
@@ -29,5 +30,162 @@ describe('BackgroundLayer', () => {
   it('adds the reduced-motion class when reducedMotion is true', () => {
     const { container } = render(<BackgroundLayer background={bg({ effects: { aurora: true, pulse: false } })} reducedMotion={true} />);
     expect(container.querySelector('.bg-layer').className).toContain('bg-reduced-motion');
+  });
+});
+
+describe('BackgroundLayer preset base', () => {
+  afterEach(() => cleanup());
+
+  it('renders a wallpaper layer with the preset gradient and a scrim', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'preset', presetId: 'dusk' })} reducedMotion={false} />,
+    );
+    const wp = container.querySelector('.bg-wallpaper');
+    expect(wp).not.toBeNull();
+    expect(wp.style.background).toContain('gradient');
+    expect(container.querySelector('.bg-scrim')).not.toBeNull(); // non-solid base is active
+  });
+
+  it('renders nothing extra for an unknown preset id', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'preset', presetId: 'nope' })} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-wallpaper')).toBeNull();
+    // sanity: getWallpaper agrees
+    expect(getWallpaper('nope')).toBeNull();
+  });
+});
+
+describe('BackgroundLayer photos base', () => {
+  afterEach(() => cleanup());
+
+  const photos = [
+    { id: 'a', url: 'blob:a', palette: ['#111111'] },
+    { id: 'b', url: 'blob:b', palette: ['#222222'] },
+  ];
+
+  it('stacks one layer per photo and marks the active one', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos' })} photos={photos} activeIndex={1} reducedMotion={false} />,
+    );
+    const layers = container.querySelectorAll('.bg-photo');
+    expect(layers.length).toBe(2);
+    expect(layers[0].className).not.toContain('on');
+    expect(layers[1].className).toContain('on');
+    expect(layers[1].style.backgroundImage).toContain('blob:b');
+  });
+
+  it('renders no photo layers when the list is empty', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos' })} photos={[]} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-photo')).toBeNull();
+  });
+});
+
+describe('BackgroundLayer effect palette', () => {
+  afterEach(() => cleanup());
+
+  it('colors aurora from the active photo palette via --fx vars', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: ['#ff0000', '#00ff00', '#0000ff'] }];
+    const { container } = render(
+      <BackgroundLayer
+        background={bg({ base: 'photos', effects: { aurora: true, pulse: false } })}
+        photos={photos} activeIndex={0} reducedMotion={false}
+      />,
+    );
+    const aurora = container.querySelector('.bg-aurora');
+    expect(aurora.style.getPropertyValue('--fx-1')).toBe('#ff0000');
+    expect(aurora.style.getPropertyValue('--fx-2')).toBe('#00ff00');
+    expect(aurora.style.getPropertyValue('--fx-3')).toBe('#0000ff');
+  });
+
+  it('colors effects from the wallpaper palette for a preset base', () => {
+    const { container } = render(
+      <BackgroundLayer
+        background={bg({ base: 'preset', presetId: 'dusk', effects: { aurora: true, pulse: false } })}
+        reducedMotion={false}
+      />,
+    );
+    const aurora = container.querySelector('.bg-aurora');
+    expect(aurora.style.getPropertyValue('--fx-1')).toBe('#3b1d5e'); // dusk palette[0]
+  });
+
+  it('sets no --fx vars over a solid base (theme fallback applies)', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ effects: { aurora: true, pulse: false } })} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-aurora').style.getPropertyValue('--fx-1')).toBe('');
+  });
+});
+
+describe('BackgroundLayer effect layering + strength', () => {
+  afterEach(() => cleanup());
+
+  it('paints the scrim before the effects (effects glow on top)', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos', effects: { aurora: true, pulse: false } })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />,
+    );
+    const kids = Array.from(container.querySelector('.bg-layer').children).map(c => c.className);
+    const scrimIdx = kids.findIndex(c => c.includes('bg-scrim'));
+    const auroraIdx = kids.findIndex(c => c.includes('bg-aurora'));
+    expect(scrimIdx).toBeGreaterThanOrEqual(0);
+    expect(auroraIdx).toBeGreaterThan(scrimIdx);
+  });
+
+  it('scales effect-container opacity from effectStrength', () => {
+    const { container } = render(
+      <BackgroundLayer background={bg({ base: 'photos', effects: { aurora: true, pulse: false }, effectStrength: 100 })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />,
+    );
+    expect(container.querySelector('.bg-aurora').style.opacity).toBe('1');
+  });
+
+  it('uses the default strength (0.575) when effectStrength is unset', () => {
+    const b = bg({ base: 'photos', effects: { aurora: true, pulse: false } });
+    delete b.effectStrength;
+    const { container } = render(<BackgroundLayer background={b} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />);
+    expect(container.querySelector('.bg-aurora').style.opacity).toBe('0.575');
+  });
+});
+
+describe('BackgroundLayer photo framing', () => {
+  afterEach(() => cleanup());
+
+  it('applies background-position and scale transform from framing', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: [] }];
+    const background = bg({ base: 'photos', framing: { a: { posX: 20, posY: 80, zoom: 2 } } });
+    const { container } = render(<BackgroundLayer background={background} photos={photos} activeIndex={0} reducedMotion={false} />);
+    const layer = container.querySelector('.bg-photo');
+    expect(layer.style.backgroundPosition).toBe('20% 80%');
+    expect(layer.style.transform).toBe('scale(2)');
+  });
+
+  it('defaults to centered, no zoom when a photo has no framing', () => {
+    const photos = [{ id: 'a', url: 'blob:a', palette: [] }];
+    const { container } = render(<BackgroundLayer background={bg({ base: 'photos' })} photos={photos} reducedMotion={false} />);
+    const layer = container.querySelector('.bg-photo');
+    expect(layer.style.backgroundPosition).toBe('50% 50%');
+    expect(layer.style.transform).toBe('scale(1)');
+  });
+});
+
+describe('BackgroundLayer surface variables', () => {
+  afterEach(() => {
+    cleanup();
+    document.documentElement.removeAttribute('style');
+  });
+
+  const read = (k) => document.documentElement.style.getPropertyValue(k);
+
+  it('frosts surfaces from intensity when a photo base is active', () => {
+    render(<BackgroundLayer background={bg({ base: 'photos', intensity: 100 })} photos={[{ id: 'a', url: 'blob:a' }]} reducedMotion={false} />);
+    expect(read('--surface-alpha')).toBe('0');
+    expect(read('--surface-blur')).toBe('10px');
+  });
+
+  it('keeps surfaces opaque over a solid base', () => {
+    render(<BackgroundLayer background={bg({ base: 'solid', effects: { aurora: true, pulse: false }, intensity: 100 })} reducedMotion={false} />);
+    expect(read('--surface-alpha')).toBe('1');
+    expect(read('--surface-blur')).toBe('0px');
   });
 });

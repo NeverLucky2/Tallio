@@ -1,6 +1,7 @@
 // src/TransactionEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
+import { iconGlyph } from './iconValue.js';
 import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -99,7 +100,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
           <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
             {groupCategoriesByFlow(categories).map(group => (
               <optgroup key={group.flow} label={group.label}>
-                {group.items.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                {group.items.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
               </optgroup>
             ))}
           </select>

@@ -6,10 +6,11 @@ const STORAGE = 'tallio-appearance';
 const DEFAULT_BACKGROUND = {
   base: 'solid', presetId: null, photoIds: [], photoGroup: null,
   mode: 'single', intervalSec: 30, intensity: 25, effects: { aurora: false, pulse: false },
+  framing: {}, effectStrength: 50,
 };
 
 function defaults() {
-  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {} };
+  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [] };
 }
 
 function loadInitial() {
@@ -17,7 +18,12 @@ function loadInitial() {
   try {
     const raw = window.localStorage.getItem(STORAGE);
     if (!raw) return defaults();
-    return { ...defaults(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaults(),
+      ...parsed,
+      background: { ...DEFAULT_BACKGROUND, ...(parsed.background || {}) },
+    };
   } catch {
     return defaults();
   }
@@ -66,6 +72,46 @@ export default function useAppearance() {
     setState(prev => persist({ ...prev, background: { ...prev.background, ...partial } }));
   }, [persist]);
 
+  const snapshot = useCallback(() => JSON.parse(JSON.stringify({
+    themeId: state.themeId,
+    customTheme: state.customTheme,
+    background: state.background,
+    appIcons: state.appIcons,
+    imageGroups: state.imageGroups,
+  })), [state]);
+
+  const restore = useCallback((snap) => {
+    if (!snap) return;
+    setState(prev => persist({
+      ...prev,
+      themeId: snap.themeId,
+      customTheme: snap.customTheme ?? null,
+      background: { ...DEFAULT_BACKGROUND, ...(snap.background || {}) },
+      appIcons: snap.appIcons || {},
+      imageGroups: snap.imageGroups || [],
+    }));
+  }, [persist]);
+
+  const setAppIcon = useCallback((slot, value) => {
+    setState(prev => {
+      const appIcons = { ...prev.appIcons };
+      if (value) appIcons[slot] = value; else delete appIcons[slot];
+      return persist({ ...prev, appIcons });
+    });
+  }, [persist]);
+
+  const addImageGroup = useCallback((name) => {
+    const g = (name || '').trim();
+    if (!g) return;
+    setState(prev => (prev.imageGroups.includes(g)
+      ? prev
+      : persist({ ...prev, imageGroups: [...prev.imageGroups, g] })));
+  }, [persist]);
+
+  const removeImageGroup = useCallback((name) => {
+    setState(prev => persist({ ...prev, imageGroups: prev.imageGroups.filter(g => g !== name) }));
+  }, [persist]);
+
   return {
     themeId: state.themeId,
     customTheme: state.customTheme,
@@ -75,5 +121,11 @@ export default function useAppearance() {
     updateCustom,
     resetCustomToPreset,
     updateBackground,
+    snapshot,
+    restore,
+    setAppIcon,
+    imageGroups: state.imageGroups,
+    addImageGroup,
+    removeImageGroup,
   };
 }

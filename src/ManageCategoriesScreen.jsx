@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import Icon from './Icon.jsx';
 import CategoryEditor from './CategoryEditor.jsx';
 import SubcategoryEditor from './SubcategoryEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -120,7 +121,7 @@ export default function ManageCategoriesScreen({
                         className="manage-list-icon"
                         style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}
                       >
-                        {cat.icon}
+                        <Icon value={cat.icon} />
                       </span>
                       <span className="manage-list-name">{cat.name}</span>
                       {subCount > 0 && (

@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import AppearanceScreen from './AppearanceScreen.jsx';
@@ -28,5 +29,29 @@ describe('AppearanceScreen', () => {
     render(<AppearanceScreen appearance={appearance} onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: /done/i }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('passes rename/delete handlers so the Background tab renders photo actions', () => {
+    const local = {
+      themeId: 'nocturne', customTheme: null,
+      background: { base: 'photos', presetId: null, photoIds: [], photoGroup: null, mode: 'single', intervalSec: 30, intensity: 25, effects: { aurora: false, pulse: false }, framing: {}, effectStrength: 50 },
+      appIcons: {}, setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(), updateBackground: vi.fn(),
+    };
+    render(<AppearanceScreen appearance={local} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Background' }));
+    // Empty library -> the hint shows; assert no crash + upload control present.
+    expect(screen.getByLabelText('Upload photo')).toBeTruthy();
+  });
+
+  it('Background tab can switch the base to Your photos (library wired)', () => {
+    const local = {
+      themeId: 'nocturne', customTheme: null,
+      background: { base: 'solid', presetId: null, photoIds: [], photoGroup: null, mode: 'single', intervalSec: 30, intensity: 25, effects: { aurora: false, pulse: false } },
+      appIcons: {}, setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(), updateBackground: vi.fn(),
+    };
+    render(<AppearanceScreen appearance={local} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Background' }));
+    fireEvent.click(screen.getByRole('button', { name: /your photos/i }));
+    expect(local.updateBackground).toHaveBeenCalledWith({ base: 'photos' });
   });
 });
