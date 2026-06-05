@@ -3605,6 +3605,8 @@
 .bg-framing-img { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; pointer-events: none; }
 .bg-photo-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .bg-photo-action.danger { color: var(--red); border-color: var(--red-border); }
+.bg-photo-item { position: relative; }
+.bg-photo-item .action-menu { position: absolute; top: 6px; right: 6px; z-index: 2; }
 .bg-photo-rename { width: 100%; padding: 9px 8px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-md); color: var(--text); }
 
 /* ── Phase 3: image-icons, library, ActionMenu ────────────────────────────── */

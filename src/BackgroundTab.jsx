@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { WALLPAPERS } from './wallpapers.js';
 import { togglePhotoSelection, clampFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
 import FramingEditor from './FramingEditor.jsx';
+import ActionMenu from './ActionMenu.jsx';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -91,17 +92,11 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
             <div className="bg-photo-gallery">
               {images.map(img => (
                 <div key={img.id} className="bg-photo-item">
-                  {confirmDeleteId === img.id ? (
-                    <div className="bg-photo-confirm">
-                      <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete</button>
-                      <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button" className="bg-photo-delete" aria-label={`delete ${img.name}`}
-                      onClick={() => setConfirmDeleteId(img.id)}
-                    >×</button>
-                  )}
+                  <ActionMenu label={`Actions for ${img.name}`} items={[
+                    ...(photoIds.includes(img.id) ? [{ label: 'Adjust framing', onSelect: () => setEditingId(editingId === img.id ? null : img.id) }] : []),
+                    { label: 'Rename', onSelect: () => { setRenamingId(img.id); setRenameDraft(img.name); } },
+                    { label: 'Delete', danger: true, onSelect: () => setConfirmDeleteId(img.id) },
+                  ]} />
                   {renamingId === img.id ? (
                     <input
                       className="bg-photo-rename" aria-label={`Name for ${img.name}`}
@@ -120,18 +115,12 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
                       {img.name}
                     </button>
                   )}
-                  <div className="bg-photo-actions">
-                    {photoIds.includes(img.id) && (
-                      <button
-                        type="button" className="bg-photo-action" aria-label={`adjust ${img.name}`}
-                        onClick={() => setEditingId(editingId === img.id ? null : img.id)}
-                      >Adjust</button>
-                    )}
-                    <button
-                      type="button" className="bg-photo-action" aria-label={`rename ${img.name}`}
-                      onClick={() => { setRenamingId(img.id); setRenameDraft(img.name); }}
-                    >Rename</button>
-                  </div>
+                  {confirmDeleteId === img.id && (
+                    <div className="bg-photo-confirm">
+                      <button type="button" className="bg-photo-action danger" aria-label={`confirm delete ${img.name}`} onClick={() => doDelete(img.id)}>Delete</button>
+                      <button type="button" className="bg-photo-action" aria-label={`cancel delete ${img.name}`} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

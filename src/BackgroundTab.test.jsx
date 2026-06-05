@@ -143,32 +143,36 @@ describe('BackgroundTab framing editor', () => {
 
   const images = [{ id: 'a', name: 'Beach', group: 'Scenery' }];
 
-  it('shows Adjust only for a selected photo and opens the editor with a zoom slider', () => {
+  it('Adjust framing is offered for a selected photo and opens the editor with a zoom slider', () => {
     const { appearance } = makeAppearance({ base: 'photos', photoIds: ['a'] });
-    const { getByRole, queryByLabelText, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    const { getByLabelText, getByText, queryByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     expect(queryByLabelText('Zoom')).toBeNull(); // editor closed
-    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    fireEvent.click(getByText('Adjust framing'));
     expect(getByLabelText('Zoom')).toBeTruthy();
   });
 
-  it('does not show Adjust for an unselected photo', () => {
+  it('does not offer Adjust framing for an unselected photo', () => {
     const { appearance } = makeAppearance({ base: 'photos', photoIds: [] });
-    const { queryByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
-    expect(queryByRole('button', { name: /adjust Beach/i })).toBeNull();
+    const { getByLabelText, queryByText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    expect(queryByText('Adjust framing')).toBeNull();
   });
 
   it('zoom slider writes framing for the photo', () => {
     const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'] });
-    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
-    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    const { getByLabelText, getByText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    fireEvent.click(getByText('Adjust framing'));
     fireEvent.change(getByLabelText('Zoom'), { target: { value: '2' } });
     expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 50, posY: 50, zoom: 2 } } }, 'appearance:bg:framing:a');
   });
 
   it('arrow keys nudge the focal point', () => {
     const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'] });
-    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
-    fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
+    const { getByLabelText, getByText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    fireEvent.click(getByText('Adjust framing'));
     fireEvent.keyDown(getByLabelText('Focal point — drag or use arrow keys'), { key: 'ArrowRight' });
     expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 52, posY: 50, zoom: 1 } } }, 'appearance:bg:framing:a');
   });
@@ -182,8 +186,9 @@ describe('BackgroundTab rename + delete', () => {
   it('renames an image via the rename field', () => {
     const onRename = vi.fn();
     const { appearance } = makeAppearance({ base: 'photos', photoIds: [] });
-    const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={onRename} onDelete={vi.fn()} />);
-    fireEvent.click(getByRole('button', { name: /rename Beach/i }));
+    const { getByLabelText, getByText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={onRename} onDelete={vi.fn()} />);
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    fireEvent.click(getByText('Rename'));
     const input = getByLabelText('Name for Beach');
     fireEvent.change(input, { target: { value: 'Sunset Cove' } });
     fireEvent.blur(input);
@@ -193,8 +198,9 @@ describe('BackgroundTab rename + delete', () => {
   it('deletes an image after confirm and prunes it from the selection', () => {
     const onDelete = vi.fn();
     const { appearance, updateBackground } = makeAppearance({ base: 'photos', photoIds: ['a'], framing: { a: { posX: 10, posY: 10, zoom: 1 } } });
-    const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={vi.fn()} onDelete={onDelete} />);
-    fireEvent.click(getByRole('button', { name: /delete Beach/i }));
+    const { getByLabelText, getByText, getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} onRename={vi.fn()} onDelete={onDelete} />);
+    fireEvent.click(getByLabelText('Actions for Beach'));
+    fireEvent.click(getByText('Delete'));
     fireEvent.click(getByRole('button', { name: /confirm delete Beach/i }));
     expect(onDelete).toHaveBeenCalledWith('a');
     expect(updateBackground).toHaveBeenCalledWith({ photoIds: [], framing: {} });
