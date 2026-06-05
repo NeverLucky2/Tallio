@@ -8,6 +8,7 @@ export const DEFAULT_ICON_LIBRARY = {
   images: [], urlForId: () => undefined,
   addFromFile: async () => {}, remove: async () => {},
   updateMeta: async () => {}, reload: () => {},
+  snapshot: () => [], restore: async () => {}, registerBeforeChange: () => {},
 };
 
 export const IconLibraryContext = createContext(DEFAULT_ICON_LIBRARY);

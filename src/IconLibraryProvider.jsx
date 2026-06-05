@@ -3,7 +3,7 @@
 // cache is diffed incrementally (stable urls for unchanged thumbs) so long
 // lists never flicker on add/delete/recrop. Exposes the library CRUD too so the
 // Appearance screen and <Icon> share one source of truth.
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import useImageLibrary from './useImageLibrary.js';
 import { diffIconUrls } from './iconUrlCache.js';
 import { IconLibraryContext } from './iconLibraryContext.js';
@@ -14,6 +14,10 @@ export default function IconLibraryProvider({ children }) {
   // in a state updater, which StrictMode would double-invoke and leak urls).
   const prevRef = useRef(new Map());
   const [urlMap, setUrlMap] = useState(() => new Map());
+  // A consumer (App) registers a callback fired before any library mutation, so
+  // the change can be pushed onto the global undo stack.
+  const beforeChangeRef = useRef(null);
+  const registerBeforeChange = useCallback((fn) => { beforeChangeRef.current = fn; }, []);
 
   useEffect(() => {
     const make = (blob) => { try { return URL.createObjectURL(blob); } catch { return ''; } };
@@ -30,14 +34,21 @@ export default function IconLibraryProvider({ children }) {
     return e ? e.url : undefined;
   }, [urlMap]);
 
-  const value = useMemo(() => ({
+  // Mutators wrapped to fire beforeChange first (for global undo). Plain
+  // functions: this provider only re-renders on image-state changes, so a fresh
+  // value object then is fine (and exactly when consumers should update).
+  const runBefore = () => { if (beforeChangeRef.current) beforeChangeRef.current(); };
+  const value = {
     images: lib.images,
     urlForId,
-    addFromFile: lib.addFromFile,
-    remove: lib.remove,
-    updateMeta: lib.updateMeta,
+    addFromFile: (file, meta) => { runBefore(); return lib.addFromFile(file, meta); },
+    remove: (id) => { runBefore(); return lib.remove(id); },
+    updateMeta: (id, patch) => { runBefore(); return lib.updateMeta(id, patch); },
     reload: lib.reload,
-  }), [lib.images, lib.addFromFile, lib.remove, lib.updateMeta, lib.reload, urlForId]);
+    snapshot: lib.snapshot,
+    restore: lib.restore,
+    registerBeforeChange,
+  };
 
   return <IconLibraryContext.Provider value={value}>{children}</IconLibraryContext.Provider>;
 }

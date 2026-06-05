@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, waitFor, cleanup } from '@testing-library/react';
+import { render, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
 import IconLibraryProvider from './IconLibraryProvider.jsx';
 import { useIconLibrary } from './iconLibraryContext.js';
@@ -31,5 +32,19 @@ describe('IconLibraryProvider', () => {
   it('useIconLibrary returns a safe default outside a provider', () => {
     const { getByTestId } = render(<Probe />);
     expect(getByTestId('probe').textContent).toBe('0:none');
+  });
+
+  it('runs the registered beforeChange before a library mutation', async () => {
+    await putRecord({ id: 'x', thumb: new Blob(['t']), name: 'X', group: 'G', createdAt: 1 });
+    const before = vi.fn();
+    function Reg() {
+      const libv = useIconLibrary();
+      useEffect(() => { libv.registerBeforeChange(before); }, [libv]);
+      return <button onClick={() => libv.updateMeta('x', { name: 'Y' })}>go</button>;
+    }
+    const { getByText } = render(<IconLibraryProvider><Reg /></IconLibraryProvider>);
+    await waitFor(() => expect(getByText('go')).toBeTruthy());
+    fireEvent.click(getByText('go'));
+    expect(before).toHaveBeenCalledTimes(1);
   });
 });
