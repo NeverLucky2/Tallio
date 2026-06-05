@@ -1,7 +1,7 @@
 // src/imageStore.test.js
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { putRecord, getImage, listImages, updateImageMeta, deleteImage, putImage } from './imageStore.js';
+import { putRecord, getImage, listImages, updateImageMeta, deleteImage, putImage, replaceAllImages } from './imageStore.js';
 
 const reset = () => new Promise((resolve) => {
   const req = indexedDB.deleteDatabase('tallio-images');
@@ -52,6 +52,19 @@ describe('imageStore', () => {
     await putRecord(rec('a'));
     await deleteImage('a');
     expect(await getImage('a')).toBeUndefined();
+  });
+
+  it('replaceAllImages clears the store and writes the given records', async () => {
+    await putRecord(rec('a'));
+    await putRecord(rec('b'));
+    await replaceAllImages([rec('c'), rec('d')]);
+    expect((await listImages()).map(r => r.id)).toEqual(['c', 'd']);
+  });
+
+  it('replaceAllImages with [] empties the store', async () => {
+    await putRecord(rec('a'));
+    await replaceAllImages([]);
+    expect(await listImages()).toEqual([]);
   });
 });
 

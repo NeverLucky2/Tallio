@@ -59,6 +59,15 @@ export function deleteImage(id) {
   return withStore('readwrite', (s) => asPromise(s.delete(id)));
 }
 
+// Overwrite the whole store to exactly match `records` (clear + put all) in one
+// transaction. Used by the undo system to restore a prior library snapshot.
+export function replaceAllImages(records) {
+  return withStore('readwrite', (s) => {
+    s.clear();
+    return Promise.all((records || []).map(r => asPromise(s.put(r)))).then(() => records);
+  });
+}
+
 // Combines canvas processing + a DB put. The processor is injectable so tests
 // can avoid canvas; production uses processImageFile.
 export async function putImage(file, meta = {}, { process = processImageFile } = {}) {

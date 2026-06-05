@@ -45,4 +45,16 @@ describe('useImageLibrary', () => {
     await act(async () => { await result.current.updateMeta('a', { name: 'Renamed' }); });
     await waitFor(() => expect(result.current.images[0].name).toBe('Renamed'));
   });
+
+  it('snapshot + restore round-trips the library (for undo)', async () => {
+    await putRecord(rec('a'));
+    await putRecord(rec('b', { createdAt: 2 }));
+    const { result } = renderHook(() => useImageLibrary());
+    await waitFor(() => expect(result.current.images.length).toBe(2));
+    const snap = result.current.snapshot();
+    await act(async () => { await result.current.remove('a'); });
+    await waitFor(() => expect(result.current.images.length).toBe(1));
+    await act(async () => { await result.current.restore(snap); });
+    await waitFor(() => expect(result.current.images.map(i => i.id).sort()).toEqual(['a', 'b']));
+  });
 });

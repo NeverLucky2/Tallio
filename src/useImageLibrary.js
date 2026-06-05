@@ -9,6 +9,7 @@ export default function useImageLibrary(deps = {}) {
     putImage: deps.putImage || store.putImage,
     deleteImage: deps.deleteImage || store.deleteImage,
     updateImageMeta: deps.updateImageMeta || store.updateImageMeta,
+    replaceAllImages: deps.replaceAllImages || store.replaceAllImages,
   };
   const [images, setImages] = useState([]);
 
@@ -42,5 +43,15 @@ export default function useImageLibrary(deps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
-  return { images, reload, addFromFile, remove, updateMeta };
+  // For undo: snapshot the current records (by reference — records are replaced,
+  // not mutated, so this is a valid point-in-time copy); restore overwrites the
+  // whole store back to that set.
+  const snapshot = useCallback(() => images, [images]);
+  const restore = useCallback(async (records) => {
+    await api.replaceAllImages(records || []);
+    await reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  return { images, reload, addFromFile, remove, updateMeta, snapshot, restore };
 }
