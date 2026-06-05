@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import ThemeTab from './ThemeTab.jsx';
 import BackgroundTab from './BackgroundTab.jsx';
-import useImageLibrary from './useImageLibrary.js';
+import ImageIconsTab from './ImageIconsTab.jsx';
+import UndoButton from './UndoButton.jsx';
+import { useIconLibrary } from './iconLibraryContext.js';
 
 const TABS = [
   { id: 'theme', label: 'Theme' },
@@ -9,14 +11,15 @@ const TABS = [
   { id: 'icons', label: 'Image Icons' },
 ];
 
-export default function AppearanceScreen({ appearance, onClose }) {
+export default function AppearanceScreen({ appearance, categories = [], accounts = [], accountTypes = [], onUndo, undoCount = 0, onClose }) {
   const [tab, setTab] = useState('theme');
-  const library = useImageLibrary();
+  const library = useIconLibrary();
   return (
     <div className="container appearance-screen">
       <div className="header">
         <h1 className="title">✦ Appearance</h1>
         <div className="header-actions">
+          <UndoButton count={undoCount} onUndo={onUndo} />
           <button type="button" className="btn" onClick={onClose}>Done</button>
         </div>
       </div>
@@ -47,7 +50,9 @@ export default function AppearanceScreen({ appearance, onClose }) {
             onDelete={(id) => library.remove(id)}
           />
         )}
-        {tab === 'icons' && <p className="appearance-placeholder">Image icons — coming soon (Phase 3).</p>}
+        {tab === 'icons' && (
+          <ImageIconsTab appearance={appearance} categories={categories} accounts={accounts} accountTypes={accountTypes} />
+        )}
       </div>
     </div>
   );

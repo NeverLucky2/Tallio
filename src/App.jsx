@@ -8,6 +8,7 @@ import useAppearance from './useAppearance.js';
 import useBackgroundPhotos from './useBackgroundPhotos.js';
 import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
+import Icon from './Icon.jsx';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
@@ -420,7 +421,15 @@ function Tallio() {
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
       {screen === 'appearance' && (
-        <AppearanceScreen appearance={appearance} onClose={() => setScreen('main')} />
+        <AppearanceScreen
+          appearance={appearance}
+          categories={cats.categories}
+          accounts={ledger.accounts}
+          accountTypes={accountTypes.types}
+          onUndo={undo}
+          undoCount={history.length}
+          onClose={() => setScreen('main')}
+        />
       )}
       {showSettings && <SettingsPanel settings={settings} onClose={closeSettings} banner={settingsBanner} />}
 
@@ -477,6 +486,7 @@ function Tallio() {
       <div className="container">
         <header className="header">
           <div className="brand">
+            <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" title="Your avatar" />
             <h1 className="brand-title">Tall<span className="brand-title-accent">io</span></h1>
             <p className="brand-sub">Accounts</p>
           </div>
