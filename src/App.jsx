@@ -9,6 +9,8 @@ import useBackgroundPhotos from './useBackgroundPhotos.js';
 import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
 import Icon from './Icon.jsx';
+import { useIconLibrary } from './iconLibraryContext.js';
+import { coalesceHistory } from './appearanceHistory.js';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
 import useLedger from './useLedger.js';
@@ -131,14 +133,19 @@ function Tallio() {
   const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
 
-  // Undo: snapshots of the whole ledger + report acknowledgments.
+  const appearance = useAppearance();
+  const library = useIconLibrary();
+
+  // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
-  const pushHistory = () => setHistory(prev => [...prev.slice(-19), {
+  const pushHistory = (opKey = null) => setHistory(prev => coalesceHistory(prev, () => ({
     ledger: ledger.snapshot(),
     acks: acks.exportSnapshot(),
     categories: cats.snapshot(),
     accountTypes: accountTypes.snapshot(),
-  }]);
+    appearance: appearance.snapshot(),
+    images: library.snapshot(),
+  }), opKey));
   const undo = () => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
@@ -147,6 +154,8 @@ function Tallio() {
       acks.restore(entry.acks);
       cats.restore(entry.categories);
       accountTypes.restore(entry.accountTypes);
+      appearance.restore(entry.appearance);
+      if (library.snapshot() !== entry.images) library.restore(entry.images);
       return prev.slice(0, -1);
     });
   };
@@ -168,10 +177,27 @@ function Tallio() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Library mutations (crop adjust / rename / move / delete / upload) push onto
+  // the global undo stack via this registered hook.
+  const pushHistoryRef = useRef(pushHistory);
+  pushHistoryRef.current = pushHistory;
+  const { registerBeforeChange } = library;
+  useEffect(() => { registerBeforeChange(() => pushHistoryRef.current()); }, [registerBeforeChange]);
+
+  // Appearance setters wrapped so each change pushes onto the global undo stack.
+  // Continuous controls pass an opKey so a slider/color burst coalesces into one step.
+  const appearanceForUI = {
+    ...appearance,
+    setTheme: (id) => { pushHistory(); appearance.setTheme(id); },
+    updateCustom: (partial, colorKey) => { pushHistory(colorKey ? `appearance:custom:${colorKey}` : null); appearance.updateCustom(partial); },
+    resetCustomToPreset: (id) => { pushHistory(); appearance.resetCustomToPreset(id); },
+    updateBackground: (partial, opKey) => { pushHistory(opKey || null); appearance.updateBackground(partial); },
+    setAppIcon: (slot, value) => { pushHistory(); appearance.setAppIcon(slot, value); },
+  };
+
   // Capture / scan / pairing state (carried over unchanged).
   const desktopPeer = useDesktopPeer();
   const settings = useSettings();
-  const appearance = useAppearance();
   const bgPhotos = useBackgroundPhotos(appearance.background);
   // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
   useEffect(() => {
@@ -422,7 +448,7 @@ function Tallio() {
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
       {screen === 'appearance' && (
         <AppearanceScreen
-          appearance={appearance}
+          appearance={appearanceForUI}
           categories={cats.categories}
           accounts={ledger.accounts}
           accountTypes={accountTypes.types}
