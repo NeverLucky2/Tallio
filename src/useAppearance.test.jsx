@@ -77,3 +77,32 @@ describe('useAppearance', () => {
     expect(result.current.background.intensity).toBe(40);
   });
 });
+
+describe('useAppearance — undo support', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    document.documentElement.removeAttribute('style');
+  });
+
+  it('snapshot + restore round-trips theme + background + appIcons', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.setTheme('forest'));
+    act(() => result.current.setAppIcon('headerAvatar', 'img:abc'));
+    const snap = result.current.snapshot();
+    act(() => result.current.setTheme('parchment'));
+    act(() => result.current.setAppIcon('headerAvatar', ''));
+    expect(result.current.themeId).toBe('parchment');
+    expect(result.current.appIcons.headerAvatar).toBeUndefined();
+    act(() => result.current.restore(snap));
+    expect(result.current.themeId).toBe('forest');
+    expect(result.current.appIcons.headerAvatar).toBe('img:abc');
+  });
+
+  it('setAppIcon sets a slot and clears it on empty value', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.setAppIcon('headerAvatar', 'img:zzz'));
+    expect(result.current.appIcons.headerAvatar).toBe('img:zzz');
+    act(() => result.current.setAppIcon('headerAvatar', ''));
+    expect(result.current.appIcons.headerAvatar).toBeUndefined();
+  });
+});

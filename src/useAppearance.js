@@ -72,6 +72,32 @@ export default function useAppearance() {
     setState(prev => persist({ ...prev, background: { ...prev.background, ...partial } }));
   }, [persist]);
 
+  const snapshot = useCallback(() => JSON.parse(JSON.stringify({
+    themeId: state.themeId,
+    customTheme: state.customTheme,
+    background: state.background,
+    appIcons: state.appIcons,
+  })), [state]);
+
+  const restore = useCallback((snap) => {
+    if (!snap) return;
+    setState(prev => persist({
+      ...prev,
+      themeId: snap.themeId,
+      customTheme: snap.customTheme ?? null,
+      background: { ...DEFAULT_BACKGROUND, ...(snap.background || {}) },
+      appIcons: snap.appIcons || {},
+    }));
+  }, [persist]);
+
+  const setAppIcon = useCallback((slot, value) => {
+    setState(prev => {
+      const appIcons = { ...prev.appIcons };
+      if (value) appIcons[slot] = value; else delete appIcons[slot];
+      return persist({ ...prev, appIcons });
+    });
+  }, [persist]);
+
   return {
     themeId: state.themeId,
     customTheme: state.customTheme,
@@ -81,5 +107,8 @@ export default function useAppearance() {
     updateCustom,
     resetCustomToPreset,
     updateBackground,
+    snapshot,
+    restore,
+    setAppIcon,
   };
 }
