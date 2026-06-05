@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { WALLPAPERS } from './wallpapers.js';
-import { togglePhotoSelection, clampFraming, panFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
+import { togglePhotoSelection, clampFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
+import FramingEditor from './FramingEditor.jsx';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -21,49 +22,11 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
 
   const framing = background.framing || {};
   const [editingId, setEditingId] = useState(null);
-  const [editUrl, setEditUrl] = useState(null);
 
   const setFraming = (id, patch) => {
     const next = clampFraming({ ...framing[id], ...patch });
     updateBackground({ framing: { ...framing, [id]: next } });
   };
-
-  // Object URL for the editor preview: created when the editor opens, revoked on
-  // change/close (jsdom throws on createObjectURL — guard it). setState-in-effect
-  // is intentional here — the URL is an external resource tied to this lifecycle.
-  useEffect(() => {
-    const img = editingId ? images.find(i => i.id === editingId) : null;
-    let url = null;
-    if (img && img.blob) { try { url = URL.createObjectURL(img.blob); } catch { url = null; } }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditUrl(url);
-    return () => { if (url) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } } };
-  }, [editingId, images]);
-
-  const onFocalKey = (e) => {
-    const f = clampFraming(framing[editingId]);
-    const step = 2;
-    const map = {
-      ArrowLeft: { posX: f.posX - step }, ArrowRight: { posX: f.posX + step },
-      ArrowUp: { posY: f.posY - step }, ArrowDown: { posY: f.posY + step },
-    };
-    if (map[e.key]) { e.preventDefault(); setFraming(editingId, map[e.key]); }
-  };
-
-  // Drag the image to pan it (grab-and-move): record the start, then pan by delta.
-  const dragRef = useRef(null);
-  const onDragStart = (e) => {
-    if (!editingId) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragRef.current = { x: e.clientX, y: e.clientY, start: clampFraming(framing[editingId]), w: rect.width, h: rect.height };
-    if (e.currentTarget.setPointerCapture) { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
-  };
-  const onDragMove = (e) => {
-    const d = dragRef.current;
-    if (!d) return;
-    setFraming(editingId, panFraming(d.start, e.clientX - d.x, e.clientY - d.y, d.w, d.h));
-  };
-  const onDragEnd = () => { dragRef.current = null; };
 
   const [renamingId, setRenamingId] = useState(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -174,45 +137,17 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
             </div>
           )}
 
-          {editingId && (() => {
-            const f = clampFraming(framing[editingId]);
-            return (
-              <div className="bg-framing-editor">
-                <div
-                  className="bg-framing-clip"
-                  role="slider"
-                  tabIndex={0}
-                  aria-label="Focal point — drag or use arrow keys"
-                  aria-valuetext={`${f.posX}% ${f.posY}%`}
-                  onPointerDown={onDragStart}
-                  onPointerMove={onDragMove}
-                  onPointerUp={onDragEnd}
-                  onPointerLeave={onDragEnd}
-                  onKeyDown={onFocalKey}
-                >
-                  {/* Inner image uses the SAME technique as BackgroundLayer (cover + position + scale) for WYSIWYG. */}
-                  <div
-                    className="bg-framing-img"
-                    style={editUrl ? {
-                      backgroundImage: `url(${editUrl})`,
-                      backgroundPosition: `${f.posX}% ${f.posY}%`,
-                      transform: `scale(${f.zoom})`,
-                      transformOrigin: `${f.posX}% ${f.posY}%`,
-                    } : undefined}
-                  />
-                </div>
-                <label className="appearance-label" htmlFor="bg-zoom">
-                  Zoom
-                  <input
-                    id="bg-zoom" type="range" min="1" max="3" step="0.1" className="bg-intensity"
-                    aria-label="Zoom" value={f.zoom}
-                    onChange={(e) => setFraming(editingId, { zoom: Number(e.target.value) })}
-                  />
-                </label>
-                <button type="button" className="bg-mode-btn" onClick={() => setEditingId(null)}>Done</button>
-              </div>
-            );
-          })()}
+          {editingId && (
+            <div className="bg-framing-editor-wrap">
+              <FramingEditor
+                blob={(images.find(i => i.id === editingId) || {}).blob}
+                framing={framing[editingId]}
+                onChange={(patch) => setFraming(editingId, patch)}
+                aspect="free"
+              />
+              <button type="button" className="bg-mode-btn" onClick={() => setEditingId(null)}>Done</button>
+            </div>
+          )}
 
           <div className="bg-mode-toggles">
             <button
