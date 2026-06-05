@@ -3661,6 +3661,18 @@
 .image-icon-name { display: block; font-size: 11px; color: var(--text-muted); margin-top: 5px; word-break: break-word; }
 .image-icon-rename { width: 100%; font-size: 11px; margin-top: 5px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-sm); color: var(--text); padding: 3px 5px; }
 .image-icon-move { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.image-icon-thumb-btn { position: relative; }
+.image-icon-thumb-btn.selected .image-icon-thumb { outline: 2px solid var(--accent); outline-offset: 1px; }
+.image-icon-check { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; line-height: 20px; text-align: center; }
+
+/* Group headers + management */
+.image-icons-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.image-icons-group-del { background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: var(--r-sm); }
+.image-icons-group-del:hover { color: var(--red); background: var(--bg-card-hover); }
+.image-icons-newgroup { display: flex; gap: 8px; margin: 0 0 14px; }
+.image-icons-newgroup .input { flex: 1; }
+.image-icons-selectbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--r-md); font-size: 13px; }
+.image-icons-selectbar select { margin-left: 6px; }
 .image-icon-confirm { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .image-icon-usage { font-size: 10px; color: var(--text-muted); }
 

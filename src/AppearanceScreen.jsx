@@ -11,7 +11,7 @@ const TABS = [
   { id: 'icons', label: 'Image Icons' },
 ];
 
-export default function AppearanceScreen({ appearance, categories = [], accounts = [], accountTypes = [], onUndo, undoCount = 0, onClose }) {
+export default function AppearanceScreen({ appearance, categories = [], accounts = [], accountTypes = [], onUndo, undoCount = 0, onBatch, onClose }) {
   const [tab, setTab] = useState('theme');
   const library = useIconLibrary();
   return (
@@ -51,7 +51,7 @@ export default function AppearanceScreen({ appearance, categories = [], accounts
           />
         )}
         {tab === 'icons' && (
-          <ImageIconsTab appearance={appearance} categories={categories} accounts={accounts} accountTypes={accountTypes} />
+          <ImageIconsTab appearance={appearance} categories={categories} accounts={accounts} accountTypes={accountTypes} onBatch={onBatch} />
         )}
       </div>
     </div>

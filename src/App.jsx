@@ -138,6 +138,7 @@ function Tallio() {
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
+  const batchKeyRef = useRef(null); // when set, pushHistory calls coalesce into one step
   const pushHistory = (opKey = null) => setHistory(prev => coalesceHistory(prev, () => ({
     ledger: ledger.snapshot(),
     acks: acks.exportSnapshot(),
@@ -145,7 +146,7 @@ function Tallio() {
     accountTypes: accountTypes.snapshot(),
     appearance: appearance.snapshot(),
     images: library.snapshot(),
-  }), opKey));
+  }), batchKeyRef.current || opKey));
   const undo = () => {
     setHistory(prev => {
       if (prev.length === 0) return prev;
@@ -158,6 +159,13 @@ function Tallio() {
       if (library.snapshot() !== entry.images) library.restore(entry.images);
       return prev.slice(0, -1);
     });
+  };
+
+  // Run several mutations as a single undo step (e.g. delete a group → move all
+  // its icons to Uncategorized; batch-move selected icons).
+  const runBatch = async (fn) => {
+    batchKeyRef.current = `batch:${Date.now()}`;
+    try { await fn(); } finally { batchKeyRef.current = null; }
   };
 
   // Ctrl/Cmd+Z triggers Undo, except while typing in a field (preserve native text undo).
@@ -193,6 +201,8 @@ function Tallio() {
     resetCustomToPreset: (id) => { pushHistory(); appearance.resetCustomToPreset(id); },
     updateBackground: (partial, opKey) => { pushHistory(opKey || null); appearance.updateBackground(partial); },
     setAppIcon: (slot, value) => { pushHistory(); appearance.setAppIcon(slot, value); },
+    addImageGroup: (name) => { pushHistory(); appearance.addImageGroup(name); },
+    removeImageGroup: (name) => { pushHistory(); appearance.removeImageGroup(name); },
   };
 
   // Capture / scan / pairing state (carried over unchanged).
@@ -454,6 +464,7 @@ function Tallio() {
           accountTypes={accountTypes.types}
           onUndo={undo}
           undoCount={history.length}
+          onBatch={runBatch}
           onClose={() => setScreen('main')}
         />
       )}
