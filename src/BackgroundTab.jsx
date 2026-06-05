@@ -25,7 +25,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
 
   const setFraming = (id, patch) => {
     const next = clampFraming({ ...framing[id], ...patch });
-    updateBackground({ framing: { ...framing, [id]: next } });
+    updateBackground({ framing: { ...framing, [id]: next } }, `appearance:bg:framing:${id}`);
   };
 
   const [renamingId, setRenamingId] = useState(null);
@@ -166,7 +166,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
               <input
                 id="bg-interval" type="number" min="5" max="600" className="bg-interval-input"
                 aria-label="Slideshow interval (seconds)" value={background.intervalSec}
-                onChange={(e) => updateBackground({ intervalSec: Number(e.target.value) })}
+                onChange={(e) => updateBackground({ intervalSec: Number(e.target.value) }, 'appearance:bg:intervalSec')}
               />
             </label>
           )}
@@ -206,7 +206,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
         id="bg-intensity" type="range" min="0" max="100" className="bg-intensity"
         aria-label="Background intensity"
         value={intensity}
-        onChange={(e) => updateBackground({ intensity: Number(e.target.value) })}
+        onChange={(e) => updateBackground({ intensity: Number(e.target.value) }, 'appearance:bg:intensity')}
       />
 
       {anyEffect && (
@@ -216,7 +216,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
             id="bg-effect-strength" type="range" min="0" max="100" className="bg-intensity"
             aria-label="Effect strength"
             value={background.effectStrength ?? 50}
-            onChange={(e) => updateBackground({ effectStrength: Number(e.target.value) })}
+            onChange={(e) => updateBackground({ effectStrength: Number(e.target.value) }, 'appearance:bg:effectStrength')}
           />
         </>
       )}

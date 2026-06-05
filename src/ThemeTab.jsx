@@ -50,7 +50,7 @@ export default function ThemeTab({ appearance }) {
               type="color"
               aria-label={c.label}
               value={essentials[c.key]}
-              onChange={(e) => updateCustom({ [c.key]: e.target.value })}
+              onChange={(e) => updateCustom({ [c.key]: e.target.value }, c.key)}
             />
             <span>{c.label}</span>
           </label>

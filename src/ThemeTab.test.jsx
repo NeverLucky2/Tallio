@@ -29,7 +29,7 @@ describe('ThemeTab', () => {
     const a = stub();
     render(<ThemeTab appearance={a} />);
     fireEvent.input(screen.getByLabelText(/accent/i), { target: { value: '#ff0000' } });
-    expect(a.updateCustom).toHaveBeenCalledWith({ accent: '#ff0000' });
+    expect(a.updateCustom).toHaveBeenCalledWith({ accent: '#ff0000' }, 'accent');
   });
 
   it('reset calls resetCustomToPreset with the active preset', () => {

@@ -60,7 +60,7 @@ describe('BackgroundTab effects + intensity', () => {
     const { appearance, updateBackground } = makeAppearance();
     render(<BackgroundTab appearance={appearance} />);
     fireEvent.change(screen.getByLabelText('Background intensity'), { target: { value: '80' } });
-    expect(updateBackground).toHaveBeenCalledWith({ intensity: 80 });
+    expect(updateBackground).toHaveBeenCalledWith({ intensity: 80 }, 'appearance:bg:intensity');
   });
 
   it('hides the effect-strength slider when no effect is on', () => {
@@ -73,7 +73,7 @@ describe('BackgroundTab effects + intensity', () => {
     const { appearance, updateBackground } = makeAppearance({ effects: { aurora: true, pulse: false }, effectStrength: 50 });
     const { getByLabelText } = render(<BackgroundTab appearance={appearance} />);
     fireEvent.change(getByLabelText('Effect strength'), { target: { value: '80' } });
-    expect(updateBackground).toHaveBeenCalledWith({ effectStrength: 80 });
+    expect(updateBackground).toHaveBeenCalledWith({ effectStrength: 80 }, 'appearance:bg:effectStrength');
   });
 });
 
@@ -121,7 +121,7 @@ describe('BackgroundTab photo controls', () => {
     const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'slideshow' });
     const { getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     fireEvent.change(getByLabelText('Slideshow interval (seconds)'), { target: { value: '45' } });
-    expect(updateBackground).toHaveBeenCalledWith({ intervalSec: 45 });
+    expect(updateBackground).toHaveBeenCalledWith({ intervalSec: 45 }, 'appearance:bg:intervalSec');
   });
 
   it('hides the interval in single mode', () => {
@@ -162,7 +162,7 @@ describe('BackgroundTab framing editor', () => {
     const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
     fireEvent.change(getByLabelText('Zoom'), { target: { value: '2' } });
-    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 50, posY: 50, zoom: 2 } } });
+    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 50, posY: 50, zoom: 2 } } }, 'appearance:bg:framing:a');
   });
 
   it('arrow keys nudge the focal point', () => {
@@ -170,7 +170,7 @@ describe('BackgroundTab framing editor', () => {
     const { getByRole, getByLabelText } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
     fireEvent.click(getByRole('button', { name: /adjust Beach/i }));
     fireEvent.keyDown(getByLabelText('Focal point — drag or use arrow keys'), { key: 'ArrowRight' });
-    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 52, posY: 50, zoom: 1 } } });
+    expect(updateBackground).toHaveBeenCalledWith({ framing: { a: { posX: 52, posY: 50, zoom: 1 } } }, 'appearance:bg:framing:a');
   });
 });
 
