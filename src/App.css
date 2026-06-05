@@ -3632,6 +3632,7 @@
 .action-menu { position: relative; display: inline-block; }
 .action-menu-trigger { background: rgba(0,0,0,.55); color: #fff; border: none; border-radius: var(--r-sm); width: 22px; height: 22px; line-height: 22px; cursor: pointer; font-size: 14px; }
 .action-menu-popover { position: absolute; top: 26px; right: 0; min-width: 160px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: 0 12px 34px rgba(0,0,0,.45); padding: 5px; z-index: 30; }
+.action-menu-popover.align-left { left: 0; right: auto; }
 .action-menu-item { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; font: inherit; }
 .action-menu-item:hover { background: var(--bg-card-hover); }
 .action-menu-item.danger { color: var(--red); }
@@ -3644,7 +3645,13 @@
 .image-icons-grid { display: flex; flex-wrap: wrap; gap: 14px; }
 .image-icon-cell { position: relative; text-align: center; width: 68px; }
 .image-icon-thumb { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; display: block; }
+.image-icon-thumb-btn { padding: 0; border: none; background: none; cursor: pointer; border-radius: 14px; display: block; }
+.image-icon-thumb-btn.editing { box-shadow: 0 0 0 2px var(--accent); }
 .image-icon-cell .action-menu { position: absolute; top: 4px; right: 4px; }
+
+/* Inline crop editor (click a thumb to adjust) */
+.image-icon-editor { margin: 6px 0 18px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); }
+.image-icon-editor .bg-framing-editor.framing-square .bg-framing-clip { max-width: 280px; }
 .image-icon-name { display: block; font-size: 11px; color: var(--text-muted); margin-top: 5px; word-break: break-word; }
 .image-icon-rename { width: 100%; font-size: 11px; margin-top: 5px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-sm); color: var(--text); padding: 3px 5px; }
 .image-icon-move { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
