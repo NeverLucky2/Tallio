@@ -63,6 +63,32 @@ describe('makeImageChunks', () => {
     expect(result.chunks.every(c => c.id === id)).toBe(true);
     expect(result.end.id).toBe(id);
   });
+
+  it('merges extra fields into the img-start frame', () => {
+    const bytes = new Uint8Array(10);
+    const result = makeImageChunks(bytes, 'image/png', { batchId: 'b1', index: 2, name: 'cat.png' });
+    expect(result.start.batchId).toBe('b1');
+    expect(result.start.index).toBe(2);
+    expect(result.start.name).toBe('cat.png');
+    expect(result.start.mime).toBe('image/png');
+    expect(result.start.t).toBe('img-start');
+  });
+
+  it('omits extra fields when none are given (OCR path unchanged)', () => {
+    const result = makeImageChunks(new Uint8Array(10), 'image/jpeg');
+    expect(result.start.batchId).toBeUndefined();
+    expect(result.start.index).toBeUndefined();
+    expect(Object.keys(result.start).sort()).toEqual(['chunks', 'id', 'mime', 'size', 't'].sort());
+  });
+
+  it('uses extra.id as the shared frame id when provided (no random mint)', () => {
+    const result = makeImageChunks(new Uint8Array(CHUNK_SIZE + 1), 'image/jpeg', { id: 'fixed-id', index: 1 });
+    expect(result.start.id).toBe('fixed-id');
+    expect(result.chunks.every(c => c.id === 'fixed-id')).toBe(true);
+    expect(result.end.id).toBe('fixed-id');
+    expect(result.start.index).toBe(1);
+    expect(result.start).not.toHaveProperty('id', undefined);
+  });
 });
 
 describe('createReassembler', () => {

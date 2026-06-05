@@ -24,9 +24,13 @@ export function peerIdFor(sessionId) {
   return `bt-${sessionId}`;
 }
 
-export function makeImageChunks(bytes, mime) {
+export function makeImageChunks(bytes, mime, extra = {}) {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  const id = crypto.randomUUID();
+  // extra.id (when given) becomes the shared frame id so a caller can key the
+  // image on its own stable id; otherwise mint one. The remaining extra fields
+  // (batchId/index/name) merge into the img-start frame only.
+  const { id: overrideId, ...rest } = extra;
+  const id = overrideId || crypto.randomUUID();
   const size = buffer.byteLength;
   const chunks = Math.max(1, Math.ceil(size / CHUNK_SIZE));
   const slices = [];
@@ -36,7 +40,7 @@ export function makeImageChunks(bytes, mime) {
     slices.push(buffer.slice(start, end));
   }
   return {
-    start: { t: 'img-start', id, mime, size, chunks },
+    start: { t: 'img-start', id, mime, size, chunks, ...rest },
     chunks: slices.map((data, i) => ({ t: 'img-chunk', id, i, data })),
     end: { t: 'img-end', id },
   };
