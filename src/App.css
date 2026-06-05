@@ -3624,9 +3624,15 @@
 /* Square framing clip variant for the icon crop modal. */
 .bg-framing-editor.framing-square .bg-framing-clip { aspect-ratio: 1 / 1; max-width: 240px; margin: 0 auto; }
 
+/* Generic centered modal overlay (used by ImageCropModal + the unsaved-changes
+   prompt), modeled on the app's .pair-overlay / .pair-modal. */
+.modal-overlay { position: fixed; inset: 0; background: rgba(8,8,14,0.78); backdrop-filter: blur(8px); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 21px; }
+.modal { width: 100%; max-width: 360px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); padding: 18px; }
+.modal-title { margin: 0 0 12px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
 /* Crop modal */
-.crop-modal { max-width: 320px; }
-.crop-modal .modal-title { margin: 0 0 12px; }
+.crop-modal { max-width: 340px; }
 
 /* ActionMenu (shared kebab) */
 .action-menu { position: relative; display: inline-block; }
