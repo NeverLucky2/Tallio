@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Icon from './Icon.jsx';
+import { iconGlyph } from './iconValue.js';
 import IconPicker from './IconPicker.jsx';
 import ColorPicker from './ColorPicker.jsx';
 import ChipEditor from './ChipEditor.jsx';
@@ -206,7 +207,7 @@ export default function CategoryEditor({
             >
               <option value="">— pick a category —</option>
               {(otherCategories || []).map(c => (
-                <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>
               ))}
             </select>
             <button
