@@ -4,6 +4,7 @@
 // processImageFile is verified manually via `npm run dev`; only the pure
 // dimension math (fitWithin) is unit-tested.
 import { extractPalette } from './imageColors.js';
+import { cropRect } from './iconCrop.js';
 
 export function fitWithin(w, h, max) {
   if (w <= max && h <= max) return { w, h };
@@ -41,4 +42,19 @@ export async function processImageFile(file, { maxEdge = 2560, thumbSize = 128 }
 
   if (bitmap.close) bitmap.close();
   return { blob, type: 'image/jpeg', w, h, thumb, palette };
+}
+
+// MANUAL-VERIFY (canvas): re-encode a square thumb from the full blob, baking
+// the user's crop. Used when an icon image is uploaded or its crop is adjusted.
+// The pixel math (cropRect) is pure + unit-tested; the canvas draw is verified
+// via `npm run dev`.
+export async function recropThumb(blob, framing, { thumbSize = 160 } = {}) {
+  const bitmap = await createImageBitmap(blob);
+  const { sx, sy, sw, sh } = cropRect(bitmap.width, bitmap.height, framing);
+  const c = document.createElement('canvas');
+  c.width = thumbSize; c.height = thumbSize;
+  c.getContext('2d').drawImage(bitmap, sx, sy, sw, sh, 0, 0, thumbSize, thumbSize);
+  const thumb = await toBlob(c, 'image/jpeg', 0.85);
+  if (bitmap.close) bitmap.close();
+  return thumb;
 }
