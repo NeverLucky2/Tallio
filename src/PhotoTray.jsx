@@ -23,7 +23,14 @@ export default function PhotoTray({ photos = [], connected = false, sending = fa
         <div className="phone-tray-grid">
           {photos.map(p => (
             <div key={p.id} className={`phone-tray-cell phone-tray-${p.state}`}>
-              <img className="phone-tray-thumb" src={p.previewUrl} alt={p.name} />
+              {p.heic ? (
+                <div className="phone-tray-heic">
+                  <span className="phone-tray-heic-badge">HEIC</span>
+                  {p.state !== 'done' && <span className="phone-tray-heic-note">Will convert when uploading</span>}
+                </div>
+              ) : (
+                <img className="phone-tray-thumb" src={p.previewUrl} alt={p.name} />
+              )}
               {p.state === 'sending' && (
                 <div className="phone-tray-bar"><span style={{ width: `${Math.round((p.progress || 0) * 100)}%` }} /></div>
               )}

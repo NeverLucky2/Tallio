@@ -42,6 +42,20 @@ describe('PhotoTray', () => {
     expect(screen.getByRole('button', { name: /send/i }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('shows a HEIC placeholder (no broken img) with a convert note instead of a thumbnail', () => {
+    const heicPhotos = [{ id: 'h', name: 'IMG.HEIC', previewUrl: 'blob:h', state: 'pending', progress: 0, heic: true }];
+    const { container } = render(<PhotoTray photos={heicPhotos} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(container.querySelectorAll('.phone-tray-thumb').length).toBe(0);
+    expect(container.querySelector('.phone-tray-heic')).toBeTruthy();
+    expect(screen.getByText(/will convert when uploading/i)).toBeTruthy();
+  });
+
+  it('drops the convert note once a HEIC photo is done', () => {
+    const heicDone = [{ id: 'h', name: 'IMG.HEIC', previewUrl: 'blob:h', state: 'done', progress: 1, heic: true }];
+    render(<PhotoTray photos={heicDone} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(screen.queryByText(/will convert when uploading/i)).toBeNull();
+  });
+
   it('shows a remove (×) button per non-sending photo and calls onRemove with the id', () => {
     const onRemove = vi.fn();
     const { container } = render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={onRemove} />);

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import usePhonePeer from './usePhonePeer.js';
 import { parsePairHash } from './pairLink.js';
-import { downscaleImageFile, decodeHeicIfNeeded } from './imageProcess.js';
+import { downscaleImageFile, decodeHeicIfNeeded, isHeic } from './imageProcess.js';
 import PhotoTray from './PhotoTray.jsx';
 
 export default function PhonePhotoUpload() {
@@ -27,6 +27,7 @@ export default function PhonePhotoUpload() {
       file,
       name: file.name || `Phone photo ${i + 1}`,
       previewUrl: URL.createObjectURL(file),
+      heic: isHeic(file),
       state: 'pending',
       progress: 0,
     }));
