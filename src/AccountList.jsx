@@ -1,6 +1,7 @@
 // src/AccountList.jsx
 import React, { useMemo } from 'react';
 import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
+import Icon from './Icon.jsx';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -52,7 +53,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
                   className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
                   onClick={() => onSelect(a.id)}
                 >
-                  <span className="account-row-name"><span className="account-row-icon" aria-hidden="true">{a.icon}</span> {a.name}</span>
+                  <span className="account-row-name"><Icon value={a.icon} className="account-row-icon" /> {a.name}</span>
                   <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
                 </button>
               );

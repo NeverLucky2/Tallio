@@ -1,5 +1,6 @@
 // src/CategoryBarList.jsx
 import React from 'react';
+import Icon from './Icon.jsx';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
 
@@ -14,7 +15,7 @@ export default function CategoryBarList({ items }) {
         <div key={i.categoryId || i.name}>
           <div className="cat-meta">
             <div className="cat-name">
-              <span className="cat-icon" aria-hidden="true">{i.icon}</span>
+              <Icon value={i.icon} className="cat-icon" />
               {i.name}
             </div>
             <span className="cat-amount" style={{ color: i.color }}>

@@ -1,5 +1,6 @@
 // src/AccountTypesScreen.jsx
 import React, { useState, useMemo } from 'react';
+import Icon from './Icon.jsx';
 import AccountTypeEditor from './AccountTypeEditor.jsx';
 import UndoButton from './UndoButton.jsx';
 
@@ -37,7 +38,7 @@ export default function AccountTypesScreen({ types, accounts, onClose, onSaveTyp
         <div className="type-list">
           {types.map(t => (
             <div key={t.id} className="type-row">
-              <span className="type-row-icon" aria-hidden="true">{t.icon}</span>
+              <Icon value={t.icon} className="type-row-icon" />
               <span className="type-row-label">{t.label}</span>
               <span className="type-row-meta">{t.klass} · {t.layout} · {t.group}</span>
               <button type="button" className="btn" onClick={() => setEditing({ type: t })}>Edit</button>

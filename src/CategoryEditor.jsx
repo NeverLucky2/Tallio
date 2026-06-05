@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Icon from './Icon.jsx';
 import IconPicker from './IconPicker.jsx';
 import ColorPicker from './ColorPicker.jsx';
 import ChipEditor from './ChipEditor.jsx';
@@ -101,7 +102,7 @@ export default function CategoryEditor({
     <div className="cat-editor">
       <div className="cat-editor-header">
         <span className="cat-editor-icon" style={{ background: `${category.color}22` }}>
-          {category.icon}
+          <Icon value={category.icon} />
         </span>
         <span className="cat-editor-title">Editing: {category.name}</span>
       </div>
