@@ -58,3 +58,17 @@ export async function recropThumb(blob, framing, { thumbSize = 160 } = {}) {
   if (bitmap.close) bitmap.close();
   return thumb;
 }
+
+// MANUAL-VERIFY (canvas): downscale a picked photo to a transfer-friendly JPEG
+// before it goes over the data channel. The desktop re-runs processImageFile on
+// arrival (thumb/palette/re-encode), so the phone need only cap the long edge.
+export async function downscaleImageFile(file, { maxEdge = 2560, quality = 0.85 } = {}) {
+  const bitmap = await createImageBitmap(file);
+  const { w, h } = fitWithin(bitmap.width, bitmap.height, maxEdge);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+  const blob = await toBlob(canvas, 'image/jpeg', quality);
+  if (bitmap.close) bitmap.close();
+  return blob;
+}
