@@ -108,4 +108,31 @@ describe('ImageIconsTab', () => {
     expect(v.updateMeta).toHaveBeenCalledWith('p1', { group: 'Pets' });
     expect(v.updateMeta).toHaveBeenCalledWith('p2', { group: 'Pets' });
   });
+
+  it('Select mode batch-delete asks to confirm, then removes the chosen icons', () => {
+    const v = libTwo();
+    const { getByText, getByLabelText } = renderTab(v, makeAppearance({ imageGroups: ['Family'] }));
+    fireEvent.click(getByText('Select'));
+    fireEvent.click(getByLabelText('Select Mom'));
+    fireEvent.click(getByLabelText('Select Dad'));
+    // Pressing Delete shows a confirmation; nothing is removed yet.
+    fireEvent.click(getByText('Delete'));
+    expect(getByText(/Delete 2 images\?/)).toBeTruthy();
+    expect(v.remove).not.toHaveBeenCalled();
+    // Confirming removes both selected icons.
+    fireEvent.click(getByText('Delete', { selector: '.image-icons-batchdelete-confirm .btn-danger' }));
+    expect(v.remove).toHaveBeenCalledWith('p1');
+    expect(v.remove).toHaveBeenCalledWith('p2');
+  });
+
+  it('Select mode batch-delete can be cancelled without removing anything', () => {
+    const v = libTwo();
+    const { getByText, getByLabelText, queryByText } = renderTab(v, makeAppearance({ imageGroups: ['Family'] }));
+    fireEvent.click(getByText('Select'));
+    fireEvent.click(getByLabelText('Select Mom'));
+    fireEvent.click(getByText('Delete'));
+    fireEvent.click(getByText('Cancel', { selector: '.image-icons-batchdelete-confirm .btn' }));
+    expect(queryByText(/Delete 1 image\?/)).toBeNull();
+    expect(v.remove).not.toHaveBeenCalled();
+  });
 });

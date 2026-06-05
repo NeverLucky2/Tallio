@@ -3675,6 +3675,7 @@
 .image-icons-newgroup .input { flex: 1; }
 .image-icons-selectbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--r-md); font-size: 13px; }
 .image-icons-selectbar select { margin-left: 6px; }
+.image-icons-batchdelete-confirm { display: inline-flex; align-items: center; gap: 8px; }
 .image-icon-confirm { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .image-icon-usage { font-size: 10px; color: var(--text-muted); }
 
