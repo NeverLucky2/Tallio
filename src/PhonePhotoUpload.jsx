@@ -10,6 +10,13 @@ export default function PhonePhotoUpload() {
   const [photos, setPhotos] = useState([]); // { id, file, name, previewUrl, state, progress }
   const idCounter = useRef(0);
 
+  // The phone page must not inherit the desktop's --ui-scale zoom (applied on
+  // #root). At >1 it scales the 100dvh layout past the viewport and clips the
+  // bottom action bar, so pin it to 1 here.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-scale', '1');
+  }, []);
+
   const patch = useCallback((id, fields) => {
     setPhotos(prev => prev.map(p => (p.id === id ? { ...p, ...fields } : p)));
   }, []);
@@ -37,10 +44,17 @@ export default function PhonePhotoUpload() {
     const items = [];
     for (const p of targets) {
       patch(p.id, { state: 'sending', progress: 0 });
-      const blob = await downscaleImageFile(p.file);
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      items.push({ id: p.id, bytes, mime: 'image/jpeg', name: p.name });
+      try {
+        const blob = await downscaleImageFile(p.file);
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        items.push({ id: p.id, bytes, mime: 'image/jpeg', name: p.name });
+      } catch {
+        // Browser can't decode this file (e.g. HEIC on non-Safari). Fail just
+        // this photo and keep the rest of the batch going.
+        patch(p.id, { state: 'failed', progress: 0 });
+      }
     }
+    if (!items.length) return;
     await peer.sendBatch(items, {
       onProgress: (id, prog) => patch(id, { progress: prog }),
       onAck: (id, ok) => patch(id, { state: ok ? 'done' : 'failed', progress: ok ? 1 : 0 }),
