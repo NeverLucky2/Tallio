@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import PhoneCapture from './PhoneCapture.jsx';
+import PhonePhotoUpload from './PhonePhotoUpload.jsx';
+import { parsePairHash } from './pairLink.js';
 import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
@@ -593,7 +595,8 @@ function Tallio() {
 
 export default function App() {
   if (typeof window !== 'undefined' && window.location.pathname === '/pair') {
-    return <PhoneCapture />;
+    const { mode } = parsePairHash(window.location.hash);
+    return mode === 'library' ? <PhonePhotoUpload /> : <PhoneCapture />;
   }
   return <Tallio />;
 }

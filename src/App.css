@@ -3690,3 +3690,17 @@
 .picker-image-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; background: none; border: none; cursor: pointer; padding: 2px; }
 .picker-image-cell .image-icon-thumb { width: 46px; height: 46px; border-radius: 10px; }
 .picker-image-name { font-size: 10px; color: var(--text-muted); word-break: break-word; }
+
+/* Phone batch-photo upload: review tray (phone library mode) */
+.phone-tray { display: flex; flex-direction: column; min-height: 100vh; padding: 16px; gap: 12px; background: #0a0a0f; color: #f0e6d2; box-sizing: border-box; }
+.phone-tray-topbar { display: flex; justify-content: space-between; align-items: center; }
+.phone-tray-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow-y: auto; flex: 1; align-content: start; }
+.phone-tray-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #1a1a22; }
+.phone-tray-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phone-tray-cell.phone-tray-failed { outline: 2px solid #d9534f; }
+.phone-tray-cell.phone-tray-done { outline: 2px solid #5cb85c; }
+.phone-tray-mark { position: absolute; top: 4px; right: 6px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.phone-tray-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, 0.25); }
+.phone-tray-bar > span { display: block; height: 100%; background: #f0e6d2; }
+.phone-tray-name { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 2px 4px; background: rgba(0, 0, 0, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-tray-actions { display: flex; gap: 8px; flex-wrap: wrap; }
