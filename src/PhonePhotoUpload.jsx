@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import usePhonePeer from './usePhonePeer.js';
 import { parsePairHash } from './pairLink.js';
-import { downscaleImageFile } from './imageProcess.js';
+import { downscaleImageFile, decodeHeicIfNeeded } from './imageProcess.js';
 import PhotoTray from './PhotoTray.jsx';
 
 export default function PhonePhotoUpload() {
@@ -45,7 +45,8 @@ export default function PhonePhotoUpload() {
     for (const p of targets) {
       patch(p.id, { state: 'sending', progress: 0 });
       try {
-        const blob = await downscaleImageFile(p.file);
+        const source = await decodeHeicIfNeeded(p.file); // HEIC -> JPEG (lazy heic2any)
+        const blob = await downscaleImageFile(source);
         const bytes = new Uint8Array(await blob.arrayBuffer());
         items.push({ id: p.id, bytes, mime: 'image/jpeg', name: p.name });
       } catch {
