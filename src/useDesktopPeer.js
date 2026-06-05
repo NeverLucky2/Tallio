@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Peer from 'peerjs';
 import { PEER_CONFIG, peerIdFor, createReassembler, FATAL_PEER_ERRORS } from './peerProtocol.js';
+import { createBatchReceiver, makeImageAck } from './batchProtocol.js';
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 const RECEIVE_TIMEOUT_MS = 30 * 1000;
+const EMPTY_BATCH = { id: null, count: 0, completed: 0, failed: 0, photoProgress: 0, overall: 0, status: 'idle' };
 
-export default function useDesktopPeer() {
+export default function useDesktopPeer({ onLibraryImage } = {}) {
   const [active, setActive] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [status, setStatus] = useState('idle');
@@ -13,6 +15,7 @@ export default function useDesktopPeer() {
   const [lastImage, setLastImage] = useState(null);
   const [receiveProgress, setReceiveProgress] = useState(0);
   const [expiresAt, setExpiresAt] = useState(null);
+  const [batch, setBatch] = useState(EMPTY_BATCH);
 
   const peerRef = useRef(null);
   const connRef = useRef(null);
@@ -20,6 +23,10 @@ export default function useDesktopPeer() {
   const expiryTimerRef = useRef(null);
   const receiveTimerRef = useRef(null);
   const readerRef = useRef(null);
+  const modeRef = useRef('scan');
+  const batchReceiverRef = useRef(null);
+  const onLibraryImageRef = useRef(onLibraryImage);
+  useEffect(() => { onLibraryImageRef.current = onLibraryImage; }, [onLibraryImage]);
 
   const cleanup = useCallback(() => {
     if (expiryTimerRef.current) {
@@ -43,6 +50,7 @@ export default function useDesktopPeer() {
       peerRef.current = null;
     }
     reassemblerRef.current = null;
+    batchReceiverRef.current = null;
   }, []);
 
   const armExpiry = useCallback(() => {
@@ -120,6 +128,37 @@ export default function useDesktopPeer() {
     }
   }, [armReceiveTimer, disarmReceiveTimer]);
 
+  // Library mode: route batch frames through createBatchReceiver, commit each
+  // completed photo via onLibraryImage, then ack per photo. markCommitted runs
+  // only AFTER a confirmed commit, so a nacked photo's retry re-delivers (never
+  // silently dropped). overall is computed here from committed+failed.
+  const handleLibraryData = useCallback(async (msg, conn) => {
+    if (!batchReceiverRef.current) batchReceiverRef.current = createBatchReceiver();
+    const r = batchReceiverRef.current;
+    const ev = r.onMessage(msg);
+    if (!ev) return;
+    if (ev.type === 'batch-start') {
+      setBatch({ ...EMPTY_BATCH, id: msg.batchId, count: ev.count, status: 'receiving' });
+    } else if (ev.type === 'progress') {
+      setBatch(b => ({ ...b, photoProgress: ev.photoProgress }));
+    } else if (ev.type === 'duplicate') {
+      // Already committed (ack was lost); re-ack ok without re-committing.
+      try { conn.send(makeImageAck(msg.batchId, ev.id, ev.index, true)); } catch { /* ignore */ }
+    } else if (ev.type === 'image-complete') {
+      let ok = false;
+      try { ok = !!(await (onLibraryImageRef.current && onLibraryImageRef.current({ bytes: ev.bytes, mime: ev.mime, name: ev.name, index: ev.index, batchId: msg.batchId }))); } catch { ok = false; }
+      if (ok) r.markCommitted(ev.id); // record AFTER a successful commit only
+      try { conn.send(makeImageAck(msg.batchId, ev.id, ev.index, ok)); } catch { /* ignore */ }
+      setBatch(b => {
+        const completed = ok ? b.completed + 1 : b.completed;
+        const failed = ok ? b.failed : b.failed + 1;
+        const status = (completed + failed) >= b.count && b.count > 0 ? 'done' : 'receiving';
+        const overall = b.count > 0 ? (completed + failed) / b.count : 0;
+        return { ...b, completed, failed, overall, photoProgress: 0, status };
+      });
+    }
+  }, []);
+
   const wireConnection = useCallback((conn) => {
     connRef.current = conn;
     conn.on('open', () => {
@@ -129,7 +168,8 @@ export default function useDesktopPeer() {
     });
     conn.on('data', (msg) => {
       if (connRef.current !== conn) return;
-      handleData(msg);
+      if (modeRef.current === 'library') handleLibraryData(msg, conn);
+      else handleData(msg);
     });
     conn.on('close', () => {
       if (connRef.current !== conn) return;
@@ -147,10 +187,12 @@ export default function useDesktopPeer() {
       setReceiveProgress(0);
       armExpiry();
     });
-  }, [armExpiry, disarmExpiry, handleData]);
+  }, [armExpiry, disarmExpiry, handleData, handleLibraryData]);
 
-  const start = useCallback(() => {
+  const start = useCallback((mode = 'scan') => {
     cleanup();
+    modeRef.current = mode;
+    setBatch(EMPTY_BATCH);
     setLastImage(null);
     setReceiveProgress(0);
     setErrorMessage(null);
@@ -208,6 +250,8 @@ export default function useDesktopPeer() {
     setReceiveProgress(0);
     setLastImage(null);
     setErrorMessage(null);
+    setBatch(EMPTY_BATCH);
+    modeRef.current = 'scan';
   }, [cleanup]);
 
   const consumeImage = useCallback(() => setLastImage(null), []);
@@ -222,6 +266,7 @@ export default function useDesktopPeer() {
     lastImage,
     receiveProgress,
     expiresAt,
+    batch,
     start,
     unpair,
     consumeImage,
