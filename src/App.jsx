@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import PhoneCapture from './PhoneCapture.jsx';
 import PhonePhotoUpload from './PhonePhotoUpload.jsx';
 import { parsePairHash } from './pairLink.js';
+import PhotoUploadPanel from './PhotoUploadPanel.jsx';
+import { listImageGroups } from './imageGroups.js';
 import useDesktopPeer from './useDesktopPeer.js';
 import PairingPanel from './PairingPanel.jsx';
 import useSettings from './useSettings.js';
@@ -207,8 +209,33 @@ function Tallio() {
     removeImageGroup: (name) => { pushHistory(); appearance.removeImageGroup(name); },
   };
 
-  // Capture / scan / pairing state (carried over unchanged).
-  const desktopPeer = useDesktopPeer();
+  // Capture / scan / pairing state.
+  const UNCATEGORIZED = 'Uncategorized';
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [pairingGroup, setPairingGroup] = useState(UNCATEGORIZED);
+
+  // Commit one received phone photo through the SAME pipeline as a file upload.
+  // batchKeyRef makes every photo in the batch coalesce into a single undo step.
+  const onLibraryImage = useCallback(async ({ bytes, mime, name, batchId }) => {
+    batchKeyRef.current = `photo-batch:${batchId}`;
+    try {
+      const blob = new Blob([bytes], { type: mime || 'image/jpeg' });
+      await library.addFromFile(blob, { name, group: pairingGroup });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [library, pairingGroup]);
+
+  const desktopPeer = useDesktopPeer({ onLibraryImage });
+
+  // Once a photo batch finishes (or the peer leaves library mode), stop
+  // coalescing so the next discrete edit becomes its own undo step.
+  useEffect(() => {
+    if (desktopPeer.batch.status !== 'receiving' && batchKeyRef.current && batchKeyRef.current.startsWith('photo-batch:')) {
+      batchKeyRef.current = null;
+    }
+  }, [desktopPeer.batch.status]);
   const settings = useSettings();
   const bgPhotos = useBackgroundPhotos(appearance.background);
   // Drive the global UI zoom (#root { zoom: var(--ui-scale) }) from the persisted setting.
@@ -237,6 +264,16 @@ function Tallio() {
   const openPairing = () => {
     if (!desktopPeer.active) desktopPeer.start();
     setShowPairing(true);
+  };
+
+  const openPhotoUpload = () => {
+    setPairingGroup(UNCATEGORIZED);
+    desktopPeer.start('library');
+    setShowPhotoUpload(true);
+  };
+  const closePhotoUpload = () => {
+    setShowPhotoUpload(false);
+    desktopPeer.unpair();
   };
 
   const selectedAccount = ledger.accounts.find(a => a.id === selectedAccountId) || ledger.accounts[0] || null;
@@ -458,6 +495,16 @@ function Tallio() {
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
+      {showPhotoUpload && (
+        <PhotoUploadPanel
+          peer={desktopPeer}
+          group={pairingGroup}
+          groups={listImageGroups(library.images, appearance.imageGroups)}
+          onChangeGroup={setPairingGroup}
+          onCreateGroup={(name) => { appearanceForUI.addImageGroup(name); setPairingGroup(name); }}
+          onClose={closePhotoUpload}
+        />
+      )}
       {screen === 'appearance' && (
         <AppearanceScreen
           appearance={appearanceForUI}
@@ -467,6 +514,7 @@ function Tallio() {
           onUndo={undo}
           undoCount={history.length}
           onBatch={runBatch}
+          onAddFromPhone={openPhotoUpload}
           onClose={() => setScreen('main')}
         />
       )}

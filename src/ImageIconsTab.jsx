@@ -20,7 +20,7 @@ import IconPicker from './IconPicker.jsx';
 const UNCATEGORIZED = 'Uncategorized';
 const groupOf = (im) => (im && im.group) || UNCATEGORIZED;
 
-export default function ImageIconsTab({ appearance, categories = [], accounts = [], accountTypes = [], onBatch }) {
+export default function ImageIconsTab({ appearance, categories = [], accounts = [], accountTypes = [], onBatch, onAddFromPhone }) {
   const lib = useIconLibrary();
   const runBatch = onBatch || (async (fn) => fn());
   const [query, setQuery] = useState('');
@@ -103,6 +103,7 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
           />
         </label>
         <button type="button" className="btn" onClick={() => setCreatingGroup(c => !c)}>＋ New group</button>
+        {onAddFromPhone && <button type="button" className="btn" onClick={onAddFromPhone}>📱 Add photos from phone</button>}
         <button type="button" className={`btn${selectMode ? ' btn-primary' : ''}`} onClick={toggleSelectMode}>{selectMode ? 'Done' : 'Select'}</button>
       </div>
 
