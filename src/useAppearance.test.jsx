@@ -105,4 +105,24 @@ describe('useAppearance — undo support', () => {
     act(() => result.current.setAppIcon('headerAvatar', ''));
     expect(result.current.appIcons.headerAvatar).toBeUndefined();
   });
+
+  it('addImageGroup / removeImageGroup manage the persisted group list (deduped)', () => {
+    const { result } = renderHook(() => useAppearance());
+    expect(result.current.imageGroups).toEqual([]);
+    act(() => result.current.addImageGroup('Pets'));
+    act(() => result.current.addImageGroup('Pets'));
+    expect(result.current.imageGroups).toEqual(['Pets']);
+    act(() => result.current.removeImageGroup('Pets'));
+    expect(result.current.imageGroups).toEqual([]);
+  });
+
+  it('snapshot/restore round-trips imageGroups', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.addImageGroup('Family'));
+    const snap = result.current.snapshot();
+    act(() => result.current.removeImageGroup('Family'));
+    expect(result.current.imageGroups).toEqual([]);
+    act(() => result.current.restore(snap));
+    expect(result.current.imageGroups).toEqual(['Family']);
+  });
 });

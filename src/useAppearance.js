@@ -10,7 +10,7 @@ const DEFAULT_BACKGROUND = {
 };
 
 function defaults() {
-  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {} };
+  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [] };
 }
 
 function loadInitial() {
@@ -77,6 +77,7 @@ export default function useAppearance() {
     customTheme: state.customTheme,
     background: state.background,
     appIcons: state.appIcons,
+    imageGroups: state.imageGroups,
   })), [state]);
 
   const restore = useCallback((snap) => {
@@ -87,6 +88,7 @@ export default function useAppearance() {
       customTheme: snap.customTheme ?? null,
       background: { ...DEFAULT_BACKGROUND, ...(snap.background || {}) },
       appIcons: snap.appIcons || {},
+      imageGroups: snap.imageGroups || [],
     }));
   }, [persist]);
 
@@ -96,6 +98,18 @@ export default function useAppearance() {
       if (value) appIcons[slot] = value; else delete appIcons[slot];
       return persist({ ...prev, appIcons });
     });
+  }, [persist]);
+
+  const addImageGroup = useCallback((name) => {
+    const g = (name || '').trim();
+    if (!g) return;
+    setState(prev => (prev.imageGroups.includes(g)
+      ? prev
+      : persist({ ...prev, imageGroups: [...prev.imageGroups, g] })));
+  }, [persist]);
+
+  const removeImageGroup = useCallback((name) => {
+    setState(prev => persist({ ...prev, imageGroups: prev.imageGroups.filter(g => g !== name) }));
   }, [persist]);
 
   return {
@@ -110,5 +124,8 @@ export default function useAppearance() {
     snapshot,
     restore,
     setAppIcon,
+    imageGroups: state.imageGroups,
+    addImageGroup,
+    removeImageGroup,
   };
 }
