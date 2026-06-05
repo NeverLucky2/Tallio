@@ -74,17 +74,6 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
         </label>
       </div>
 
-      {editImage && (
-        <div className="image-icon-editor">
-          <div className="appearance-label">Adjusting “{editImage.name}”</div>
-          <FramingEditor blob={editImage.blob} framing={editFraming} onChange={onFramingChange} aspect="square" />
-          <div className="modal-actions">
-            <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={saveEdit}>Done</button>
-          </div>
-        </div>
-      )}
-
       {lib.images.length === 0 && <p className="appearance-hint">No images yet — upload one to get started.</p>}
 
       {groups.map(g => (
@@ -138,6 +127,17 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
           </div>
         </div>
       ))}
+
+      {editImage && (
+        <div className="image-icon-editor">
+          <div className="appearance-label">Adjusting “{editImage.name}”</div>
+          <FramingEditor blob={editImage.blob} framing={editFraming} onChange={onFramingChange} aspect="square" />
+          <div className="modal-actions">
+            <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={saveEdit}>Done</button>
+          </div>
+        </div>
+      )}
 
       {pendingId && (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Unsaved changes" onKeyDown={(e) => { if (e.key === 'Escape') setPendingId(null); }}>

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 export default function ActionMenu({ label, items = [] }) {
   const [open, setOpen] = useState(false);
-  const [align, setAlign] = useState('right');
+  const [align, setAlign] = useState('left');
   const ref = useRef(null);
 
   useEffect(() => {
@@ -14,13 +14,15 @@ export default function ActionMenu({ label, items = [] }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  // Right-aligned by default (popover extends left). Near the left viewport edge
-  // that would clip off-screen, so flip to left-aligned. Decided at open time
-  // from the trigger's position (no set-state-in-effect).
+  // Default: open to the right (left-aligned popover). Flip to opening left
+  // (right-aligned) only when a right-opening menu would run past the right
+  // viewport edge — i.e. the rightmost icon. Decided at open time from the
+  // trigger's position (no set-state-in-effect).
   const toggle = (e) => {
     if (!open) {
       const r = e.currentTarget.getBoundingClientRect();
-      setAlign(r.left < 180 ? 'left' : 'right');
+      const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+      setAlign(r.left + 180 > vw - 8 ? 'right' : 'left');
     }
     setOpen(o => !o);
   };
