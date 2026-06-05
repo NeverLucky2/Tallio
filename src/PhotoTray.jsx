@@ -2,7 +2,7 @@ import React from 'react';
 
 const STATE_MARK = { pending: '', sending: '', done: '✓', failed: '✗' };
 
-export default function PhotoTray({ photos = [], connected = false, sending = false, onPick, onSend, onRetry, onClear }) {
+export default function PhotoTray({ photos = [], connected = false, sending = false, onPick, onSend, onRetry, onClear, onRemove }) {
   const failedCount = photos.filter(p => p.state === 'failed').length;
   const hasPhotos = photos.length > 0;
 
@@ -28,6 +28,9 @@ export default function PhotoTray({ photos = [], connected = false, sending = fa
                 <div className="phone-tray-bar"><span style={{ width: `${Math.round((p.progress || 0) * 100)}%` }} /></div>
               )}
               {STATE_MARK[p.state] && <span className="phone-tray-mark" aria-hidden="true">{STATE_MARK[p.state]}</span>}
+              {onRemove && p.state !== 'sending' && (
+                <button type="button" className="phone-tray-remove" aria-label={`Remove ${p.name}`} onClick={() => onRemove(p.id)}>×</button>
+              )}
               <span className="phone-tray-name">{p.name}</span>
             </div>
           ))}

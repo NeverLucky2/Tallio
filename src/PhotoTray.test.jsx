@@ -42,6 +42,21 @@ describe('PhotoTray', () => {
     expect(screen.getByRole('button', { name: /send/i }).hasAttribute('disabled')).toBe(true);
   });
 
+  it('shows a remove (×) button per non-sending photo and calls onRemove with the id', () => {
+    const onRemove = vi.fn();
+    const { container } = render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={onRemove} />);
+    const removeBtns = container.querySelectorAll('.phone-tray-remove');
+    expect(removeBtns.length).toBe(2);
+    fireEvent.click(removeBtns[0]);
+    expect(onRemove).toHaveBeenCalledWith('a');
+  });
+
+  it('hides the remove button while a photo is sending', () => {
+    const sendingPhotos = [{ id: 'a', name: 'a', previewUrl: 'blob:a', state: 'sending', progress: 0.5 }];
+    const { container } = render(<PhotoTray photos={sendingPhotos} connected sending onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(container.querySelectorAll('.phone-tray-remove').length).toBe(0);
+  });
+
   it('shows Retry failed (N) only when there are failures', () => {
     const onRetry = vi.fn();
     const withFail = [

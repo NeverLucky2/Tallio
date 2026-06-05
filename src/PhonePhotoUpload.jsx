@@ -26,6 +26,10 @@ export default function PhonePhotoUpload() {
     setPhotos(prev => [...prev, ...added]);
   }, []);
 
+  const onRemove = useCallback((id) => {
+    setPhotos(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const send = useCallback(async (targets) => {
     if (!targets || !targets.length) return;
     // Downscale each picked file, then send. item.id === the tray id (stable), so
@@ -75,6 +79,7 @@ export default function PhonePhotoUpload() {
       onSend={() => send(photos.filter(p => p.state === 'pending' || p.state === 'failed'))}
       onRetry={() => send(photos.filter(p => p.state === 'failed'))}
       onClear={() => setPhotos([])}
+      onRemove={onRemove}
     />
   );
 }
