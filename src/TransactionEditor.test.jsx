@@ -138,9 +138,9 @@ describe('TransactionEditor split wire-up', () => {
       ],
     });
     expect(screen.getByText(/2 split lines/i)).toBeTruthy();
-    const select = screen.getByLabelText(/^category$/i);
-    expect(select).toBeTruthy();
-    expect(select.value).toBe('c_pay');
+    const trigger = screen.getByRole('button', { name: /^category$/i });
+    expect(trigger).toBeTruthy();
+    expect(trigger.textContent).toMatch(/Paycheck/);
   });
 
   it('saving a split transaction keeps its main categoryId (not null)', async () => {
@@ -154,5 +154,54 @@ describe('TransactionEditor split wire-up', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('c_pay');
+  });
+});
+
+describe('TransactionEditor sub-category', () => {
+  afterEach(() => cleanup());
+
+  const catsWithSub = [
+    { id: 'tax', name: 'Taxes', icon: '🏛️', flow: 'expense', subcategories: [
+      { id: 'fed', name: 'Federal Tax', keywords: [] },
+    ] },
+    { id: 'c_shop', name: 'Shopping', icon: '🛍️', flow: 'expense', subcategories: [] },
+  ];
+
+  function setupSub(props = {}) {
+    const onSave = vi.fn();
+    render(
+      <TransactionEditor
+        account={{ id: 'a1', name: 'Mastercard', type: 'credit_card' }}
+        transaction={props.transaction ?? null}
+        categories={catsWithSub}
+        onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()}
+      />
+    );
+    return { onSave };
+  }
+
+  it('shows the current sub on the trigger when editing', () => {
+    setupSub({ transaction: { id: 't1', accountId: 'a1', date: '2026-06-08', amount: -500, categoryId: 'tax', subId: 'fed', description: 'IRS', payee: null, checkNumber: null, transferId: null } });
+    expect(screen.getByRole('button', { name: /^category$/i }).textContent).toMatch(/Taxes › Federal Tax/);
+  });
+
+  it('saving with a sub selected includes subId', async () => {
+    const { onSave } = setupSub();
+    await userEvent.type(screen.getByLabelText(/^amount$/i), '500');
+    await userEvent.click(screen.getByRole('button', { name: /^category$/i }));
+    await userEvent.click(screen.getByText('Federal Tax'));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onSave.mock.calls[0][0]).toMatchObject({ categoryId: 'tax', subId: 'fed' });
+  });
+
+  it('selecting a plain category yields no subId', async () => {
+    const { onSave } = setupSub();
+    await userEvent.type(screen.getByLabelText(/^amount$/i), '20');
+    await userEvent.click(screen.getByRole('button', { name: /^category$/i }));
+    await userEvent.click(screen.getByText('Shopping'));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.categoryId).toBe('c_shop');
+    expect(saved.subId == null).toBe(true);
   });
 });
