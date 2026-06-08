@@ -123,17 +123,6 @@ export default function SettingsPanel({ settings, celebrationStyle = 'festive', 
             goal, best savings month, savings streak). Respects reduced-motion.
           </p>
 
-          <label className="settings-label" htmlFor="settings-seasonal">Seasonal effects</label>
-          <label className="settings-toggle">
-            <input
-              id="settings-seasonal"
-              type="checkbox"
-              checked={settings.seasonalEffects}
-              onChange={(e) => settings.save({ seasonalEffects: e.target.checked })}
-            />
-            <span>Gentle seasonal touches (snow, leaves, petals, summer drift) — off under reduced motion</span>
-          </label>
-
           <p className="settings-privacy">
             Key is stored only in this browser. Never sent to Tallio servers.
           </p>

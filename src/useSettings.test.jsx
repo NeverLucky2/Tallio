@@ -36,16 +36,3 @@ describe('useSettings uiScale', () => {
     expect(result.current.uiScale).toBe(UI_SCALE_MAX); // 1.5
   });
 });
-
-describe('useSettings seasonalEffects', () => {
-  it('defaults seasonalEffects to true', () => {
-    const { result } = renderHook(() => useSettings());
-    expect(result.current.seasonalEffects).toBe(true);
-  });
-  it('persists a seasonalEffects change', () => {
-    const h1 = renderHook(() => useSettings());
-    act(() => h1.result.current.save({ seasonalEffects: false }));
-    const h2 = renderHook(() => useSettings());
-    expect(h2.result.current.seasonalEffects).toBe(false);
-  });
-});

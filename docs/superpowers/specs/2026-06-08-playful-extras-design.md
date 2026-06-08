@@ -4,6 +4,8 @@
 **Sub-project:** #4 (final) of the Tallio "Make it Mine" initiative
 **Status:** Approved (brainstorming complete)
 
+> **Update 2026-06-08 (during implementation):** the **Seasonal touches** module (Module 2 below) was built, then **removed during manual verify** — drifting particles over a financial UI were too distracting, contradicting the "never in the way" goal. Final #4 ships **Micro-interactions + Easter eggs** only. The Module 2 section is retained below for the historical record.
+
 ## Intent
 
 The last and most "nice-to-have" slice of the initiative: small touches that make
