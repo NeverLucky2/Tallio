@@ -12,6 +12,8 @@ import useAppearance from './useAppearance.js';
 import useBackgroundPhotos from './useBackgroundPhotos.js';
 import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
+import CelebrationLayer from './CelebrationLayer.jsx';
+import useCelebrations from './useCelebrations.js';
 import Icon from './Icon.jsx';
 import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
@@ -139,6 +141,13 @@ function Tallio() {
 
   const appearance = useAppearance();
   const library = useIconLibrary();
+
+  const celebrations = useCelebrations({
+    accounts: ledger.accounts,
+    transactions: ledger.transactions,
+    typesById: accountTypes.typesById,
+    categoriesById,
+  });
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
@@ -439,6 +448,11 @@ function Tallio() {
         photos={bgPhotos.photos}
         activeIndex={bgPhotos.activeIndex}
       />
+      <CelebrationLayer
+        celebration={celebrations.current}
+        style={celebrations.style}
+        onDismiss={celebrations.dismiss}
+      />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
@@ -520,7 +534,15 @@ function Tallio() {
           onClose={() => setScreen('main')}
         />
       )}
-      {showSettings && <SettingsPanel settings={settings} onClose={closeSettings} banner={settingsBanner} />}
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          celebrationStyle={celebrations.style}
+          onSetCelebrationStyle={celebrations.setStyle}
+          onClose={closeSettings}
+          banner={settingsBanner}
+        />
+      )}
 
       {editingAccount && (
         <AccountEditor

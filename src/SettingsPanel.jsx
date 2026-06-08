@@ -14,7 +14,7 @@ function maskKey(key) {
   return `sk-ant-•••••…${tail}`;
 }
 
-export default function SettingsPanel({ settings, onClose, banner }) {
+export default function SettingsPanel({ settings, celebrationStyle = 'festive', onSetCelebrationStyle, onClose, banner }) {
   const { apiKey, model, uiScale, save } = settings;
   const pct = Math.round(uiScale * 100);
   const stepScale = (delta) => save({ uiScale: clampUiScale(uiScale + delta) });
@@ -106,6 +106,22 @@ export default function SettingsPanel({ settings, onClose, banner }) {
               disabled={uiScale >= UI_SCALE_MAX}
             ><span aria-hidden="true">+</span></button>
           </div>
+
+          <label className="settings-label" htmlFor="settings-celebrations">Celebrations</label>
+          <select
+            id="settings-celebrations"
+            value={celebrationStyle}
+            onChange={(e) => onSetCelebrationStyle && onSetCelebrationStyle(e.target.value)}
+            className="settings-select"
+          >
+            <option value="festive">Festive — confetti + toast</option>
+            <option value="quiet">Quiet — banner only</option>
+            <option value="off">Off</option>
+          </select>
+          <p className="settings-help">
+            A brief, dismissible note when you hit a milestone (debt paid off, net-worth
+            goal, best savings month, savings streak). Respects reduced-motion.
+          </p>
 
           <p className="settings-privacy">
             Key is stored only in this browser. Never sent to Tallio servers.
