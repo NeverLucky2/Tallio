@@ -1,0 +1,28 @@
+/* Subtle seasonal overlay: above content, never interactive, low opacity. */
+.seasonal-layer { position: fixed; inset: 0; z-index: 900; pointer-events: none; overflow: hidden; }
+.seasonal-particle {
+  position: absolute; top: -24px; font-size: 16px; opacity: .55;
+  animation-name: seasonal-fall; animation-timing-function: linear; animation-iteration-count: infinite;
+  will-change: transform;
+}
+@keyframes seasonal-fall {
+  0%   { transform: translateY(-24px) translateX(0) rotate(0deg); }
+  100% { transform: translateY(105vh) translateX(24px) rotate(120deg); }
+}
+
+/* Summer "sunny drift": warm glow + breezy sideways float instead of falling. */
+.seasonal-summer .seasonal-particle {
+  top: auto; animation-name: seasonal-drift;
+}
+@keyframes seasonal-drift {
+  0%   { transform: translateX(-6vw) translateY(0); }
+  100% { transform: translateX(106vw) translateY(-12px); }
+}
+.seasonal-summer .seasonal-particle:nth-child(odd) { top: 30%; }
+.seasonal-summer .seasonal-particle:nth-child(even) { top: 60%; }
+.seasonal-sunglow {
+  position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,201,107,.35), rgba(255,157,47,0) 70%); filter: blur(6px);
+}
+
+@media (prefers-reduced-motion: reduce) { .seasonal-layer { display: none; } }
