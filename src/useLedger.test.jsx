@@ -422,17 +422,45 @@ describe('addTransfer / updateTransfer with source-leg splits', () => {
     expect(from.splits).toHaveLength(2);
   });
 
-  it('addTransfer throws when splits sum mismatches -magnitude', () => {
+  it('addTransfer derives both leg amounts from the source-leg splits sum (ignores the typed amount)', () => {
     const { result } = renderHook(() => useLedger(tseed));
-    expect(() => act(() => {
-      result.current.addTransfer({
+    let tid;
+    act(() => {
+      tid = result.current.addTransfer({
         fromId: 'a_chase', toId: 'a_loan', amount: 325.40, date: '2026-06-28',
         splits: [
           { id: 's1', amount: -200.00, categoryId: 'c_principal', description: 'Principal' },
           { id: 's2', amount: -100.00, categoryId: 'c_interest',  description: 'Interest' },
         ],
       });
-    })).toThrow(/does not match/i);
+    });
+    const legs = result.current.transactions.filter(t => t.transferId === tid);
+    const from = legs.find(l => l.accountId === 'a_chase');
+    const to   = legs.find(l => l.accountId === 'a_loan');
+    expect(from.amount).toBeCloseTo(-300, 5);
+    expect(to.amount).toBeCloseTo(300, 5);
+  });
+
+  it('updateTransfer derives both leg amounts from the new splits sum', () => {
+    const { result } = renderHook(() => useLedger(tseed));
+    let tid;
+    act(() => {
+      tid = result.current.addTransfer({ fromId: 'a_chase', toId: 'a_loan', amount: 100, date: '2026-06-28' });
+    });
+    act(() => {
+      result.current.updateTransfer(tid, {
+        fromId: 'a_chase', toId: 'a_loan', amount: 100, date: '2026-06-28',
+        splits: [
+          { id: 's1', amount: -250.00, categoryId: 'c_principal', description: 'Principal' },
+          { id: 's2', amount:  -75.40, categoryId: 'c_interest',  description: 'Interest' },
+        ],
+      });
+    });
+    const legs = result.current.transactions.filter(t => t.transferId === tid);
+    const from = legs.find(l => l.accountId === 'a_chase');
+    const to   = legs.find(l => l.accountId === 'a_loan');
+    expect(from.amount).toBeCloseTo(-325.40, 5);
+    expect(to.amount).toBeCloseTo(325.40, 5);
   });
 });
 

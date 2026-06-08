@@ -217,8 +217,13 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           ...(s.transferId ? { transferId: s.transferId } : {}),
         }))
       : null;
-    const fromLeg = { id: nanoid(8), accountId: fromId, amount: -mag, ...base, ...(sourceSplits ? { splits: sourceSplits } : {}) };
-    const toLeg   = { id: nanoid(8), accountId: toId,   amount:  mag, ...base };
+    const sumCents = sourceSplits
+      ? sourceSplits.reduce((acc, l) => acc + Math.round((Number.isFinite(l.amount) ? l.amount : 0) * 100), 0)
+      : 0;
+    const fromAmount = sourceSplits ? sumCents / 100 : -mag;
+    const toAmount   = sourceSplits ? -sumCents / 100 : mag;
+    const fromLeg = { id: nanoid(8), accountId: fromId, amount: fromAmount, ...base, ...(sourceSplits ? { splits: sourceSplits } : {}) };
+    const toLeg   = { id: nanoid(8), accountId: toId,   amount: toAmount, ...base };
     validateSplits(fromLeg);
     setTransactions(prev => [...prev, fromLeg, toLeg]);
     return transferId;
@@ -238,7 +243,12 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           ...(s.transferId ? { transferId: s.transferId } : {}),
         }))
       : null;
-    validateSplits({ amount: -mag, splits: sourceSplits });
+    const sumCents = sourceSplits
+      ? sourceSplits.reduce((acc, l) => acc + Math.round((Number.isFinite(l.amount) ? l.amount : 0) * 100), 0)
+      : 0;
+    const fromAmount = sourceSplits ? sumCents / 100 : -mag;
+    const toAmount   = sourceSplits ? -sumCents / 100 : mag;
+    validateSplits({ amount: fromAmount, splits: sourceSplits });
 
     setTransactions(prev => {
       const legs = prev.filter(t => t.transferId === transferId);
@@ -247,13 +257,13 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       const toLegId = legs[1] ? legs[1].id : null;
       return prev.map(t => {
         if (t.id === fromLegId) {
-          const base = { ...t, accountId: fromId, amount: -mag, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
+          const base = { ...t, accountId: fromId, amount: fromAmount, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
           if (sourceSplits) base.splits = sourceSplits;
           else delete base.splits;
           return base;
         }
         if (toLegId && t.id === toLegId) {
-          return { ...t, accountId: toId, amount: mag, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
+          return { ...t, accountId: toId, amount: toAmount, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
         }
         return t;
       });
