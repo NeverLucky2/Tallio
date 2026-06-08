@@ -1,8 +1,7 @@
 // src/useReportAcks.js
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 const STORAGE_KEY = 'tallio-report-acks';
-const PERSIST_DEBOUNCE_MS = 250;
 
 const empty = () => ({ subscriptions: {}, dismissedDuplicates: [] });
 
@@ -26,20 +25,17 @@ function load() {
 export default function useReportAcks() {
   const [acks, setAcks] = useState(load);
   const [storageError, setStorageError] = useState(null);
-  const timer = useRef(null);
 
+  // Persist synchronously on change (no debounce) so an ack can't be lost to a
+  // reload/background within a debounce window.
   useEffect(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(acks));
-        if (storageError !== null) setStorageError(null);
-      } catch (e) {
-        console.error('Failed to save report acks:', e);
-        setStorageError({ message: "Couldn't save report settings — storage full." });
-      }
-    }, PERSIST_DEBOUNCE_MS);
-    return () => { if (timer.current) clearTimeout(timer.current); };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(acks));
+      if (storageError !== null) setStorageError(null);
+    } catch (e) {
+      console.error('Failed to save report acks:', e);
+      setStorageError({ message: "Couldn't save report settings — storage full." });
+    }
   }, [acks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setStatus = useCallback((key, status, cancelledAsOf) => {

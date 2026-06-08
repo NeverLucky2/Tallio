@@ -12,6 +12,12 @@ describe('useReportAcks', () => {
     expect(result.current.subscriptions).toEqual({});
     expect(result.current.dismissedDuplicates).toEqual([]);
   });
+  it('persists synchronously so a status survives an immediate reload', () => {
+    const h1 = renderHook(() => useReportAcks());
+    act(() => { h1.result.current.setStatus('NETFLIX', 'ongoing'); });
+    const h2 = renderHook(() => useReportAcks()); // simulated reload, no timer advance
+    expect(h2.result.current.subscriptions.NETFLIX).toEqual({ status: 'ongoing' });
+  });
   it('setStatus stores ongoing and cancelled (with month)', () => {
     const { result } = renderHook(() => useReportAcks());
     act(() => result.current.setStatus('NETFLIX', 'ongoing'));
