@@ -342,6 +342,7 @@ export function* flattenForReports(transactions) {
         payee: t.payee,
         description: s.description || t.description,
         categoryId: s.categoryId,
+        subId: s.subId ?? null,
         amount: s.amount,
         transferId: null,
         _parentId: t.id,

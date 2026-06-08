@@ -390,6 +390,21 @@ describe('flattenForReports', () => {
     const [r0] = [...flattenForReports(txns)];
     expect(r0.description).toBe('Parent desc');
   });
+
+  it('carries subId on split-derived rows (null when the line has none) and preserves it on non-split rows', () => {
+    const txns = [
+      { id: 'p1', amount: -30, accountId: 'a1', date: '2026-05-01',
+        splits: [
+          { id: 's1', amount: -20, categoryId: 'c_tax', subId: 'fed', description: 'Fed' },
+          { id: 's2', amount: -10, categoryId: 'c_tax', description: 'No sub' },
+        ] },
+      { id: 'n1', amount: -5, accountId: 'a1', date: '2026-05-02', categoryId: 'c_tax', subId: 'state' },
+    ];
+    const flat = [...flattenForReports(txns)];
+    expect(flat[0]).toMatchObject({ categoryId: 'c_tax', subId: 'fed', amount: -20 });
+    expect(flat[1]).toMatchObject({ categoryId: 'c_tax', subId: null, amount: -10 });
+    expect(flat[2]).toMatchObject({ id: 'n1', subId: 'state' }); // non-split row untouched
+  });
 });
 
 describe('reports with split transactions', () => {
