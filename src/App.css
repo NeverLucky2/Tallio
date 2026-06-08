@@ -2728,6 +2728,10 @@
   margin-top: 21px;
 }
 
+.sub-save-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.sub-saved-indicator { font-size: 0.85em; color: rgba(212, 212, 212, 0.6); }
+.sub-saved-indicator.unsaved { color: #f0c674; }
+
 .cat-editor-delete-hint {
   font-size: 10px;
   color: var(--text-muted);
