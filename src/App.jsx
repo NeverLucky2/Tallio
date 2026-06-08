@@ -36,6 +36,7 @@ import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
 import './App.css';
+import './microMotion.css';
 import pkg from '../package.json';
 
 
