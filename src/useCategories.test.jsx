@@ -172,6 +172,17 @@ describe('useCategories', () => {
     expect(stored.some(c => c.name === 'Z')).toBe(true);
   });
 
+  it('persists synchronously so two quickly-added subs both survive a reload', () => {
+    const h1 = renderHook(() => useCategories());
+    const catId = h1.result.current.categories[0].id;
+    act(() => { h1.result.current.addSub(catId, { name: 'Mike' }); });
+    act(() => { h1.result.current.addSub(catId, { name: 'John' }); });
+    // No timer advance: a fresh hook (simulated reload) must already see both.
+    const h2 = renderHook(() => useCategories());
+    const subs = h2.result.current.categories.find(c => c.id === catId).subcategories;
+    expect(subs.map(s => s.name)).toEqual(['Mike', 'John']);
+  });
+
   it('addKeyword returns added=false when category does not exist', () => {
     const { result } = renderHook(() => useCategories());
     let returned;

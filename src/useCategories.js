@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories, normalizeCategories } from './categoriesDefaults.js';
 
 const STORAGE_KEY = 'tallio-categories';
-const PERSIST_DEBOUNCE_MS = 250;
 
 function seed() {
   return normalizeCategories(withTransferSeeds(DEFAULT_CATEGORIES.map(c => ({ ...c, id: nanoid(8) }))));
@@ -25,24 +24,18 @@ function load() {
 export default function useCategories() {
   const [categories, setCategories] = useState(load);
   const [storageError, setStorageError] = useState(null);
-  const persistTimer = useRef(null);
 
-  // Debounced persistence.
+  // Persist synchronously on every change (like useLedger/useSettings) so a change
+  // can't be lost to a reload/background within a debounce window.
   useEffect(() => {
-    if (persistTimer.current) clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
-        if (storageError !== null) setStorageError(null);
-      } catch (e) {
-        console.error('Failed to save categories:', e);
-        setStorageError({ message: "Couldn't save categories — storage full." });
-      }
-    }, PERSIST_DEBOUNCE_MS);
-    return () => {
-      if (persistTimer.current) clearTimeout(persistTimer.current);
-    };
-  }, [categories]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+      if (storageError !== null) setStorageError(null);
+    } catch (e) {
+      console.error('Failed to save categories:', e);
+      setStorageError({ message: "Couldn't save categories — storage full." });
+    }
+  }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getById = useCallback(
     (id) => categories.find(c => c.id === id),
