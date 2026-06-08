@@ -190,11 +190,27 @@ describe('TransferEditor split source-leg wire-up', () => {
     expect(screen.getByRole('button', { name: /split source leg…?/i })).toBeTruthy();
   });
 
-  it('opening it mounts SplitsEditor balanced against the source leg amount', async () => {
+  it('opening it mounts SplitsEditor showing the source-leg Total', async () => {
     setupTransfer();
     await userEvent.type(screen.getByLabelText(/amount/i), '325.40');
     await userEvent.click(screen.getByRole('button', { name: /split source leg…?/i }));
-    expect(screen.getByText(/Balanced/)).toBeTruthy();
-    expect(screen.getByText(/Bank: -325\.40/)).toBeTruthy();
+    expect(screen.getByText(/Total: -325\.40/)).toBeTruthy();
+  });
+
+  it('a split transfer derives its amount from the splits sum; the Amount field is read-only', async () => {
+    const { onSave } = setupTransfer();
+    await userEvent.type(screen.getByLabelText(/amount/i), '300'); // seeds source line at -300
+    await userEvent.click(screen.getByRole('button', { name: /split source leg…?/i }));
+    const lineAmounts = screen.getAllByLabelText(/line amount/i);
+    await userEvent.clear(lineAmounts[0]);
+    await userEvent.type(lineAmounts[0], '250'); // line0 → -250; line1 is 0; sum -250
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    const amountField = screen.getByLabelText(/amount/i);
+    expect(amountField.value).toBe('250');
+    expect(amountField.disabled).toBe(true);
+    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    const payload = onSave.mock.calls[0][0];
+    expect(payload.amount).toBeCloseTo(250, 5);
+    expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-250, 5);
   });
 });

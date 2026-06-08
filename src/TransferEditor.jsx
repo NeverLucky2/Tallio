@@ -40,7 +40,8 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
   };
   const onTypeChange = (e) => { setTypeTouched(true); setCategoryId(e.target.value); };
 
-  const mag = Math.abs(parseFloat(magnitude) || 0);
+  const splitSum = hasSplits ? splits.reduce((s, l) => s + (Number.isFinite(l.amount) ? l.amount : 0), 0) : 0;
+  const mag = hasSplits ? Math.abs(splitSum) : Math.abs(parseFloat(magnitude) || 0);
   const sameAccount = !!fromId && !!toId && fromId === toId;
   const valid = !!fromId && !!toId && !sameAccount && mag > 0;
 
@@ -98,7 +99,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         </label>
 
         <label className="field"><span>Amount</span>
-          <input type="number" step="0.01" aria-label="Amount" value={magnitude} onChange={(e) => setMagnitude(e.target.value)} className="input" />
+          <input type="number" step="0.01" aria-label="Amount" value={hasSplits ? Math.abs(splitSum) : magnitude} onChange={(e) => setMagnitude(e.target.value)} disabled={hasSplits} className="input" />
         </label>
 
         <label className="field"><span>Notes</span>
