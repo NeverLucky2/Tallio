@@ -121,3 +121,26 @@ export function detectAchieved({
     ...detectStreak(transactions, categoriesById, now),
   ];
 }
+
+// Per-type baselining gives the guarantees:
+//  - A milestone type's keys that are already achieved the first time we ever
+//    run detection (or the first run after a NEW type ships) are absorbed into
+//    `seen` silently — never celebrated.
+//  - After a type is baselined, each of its keys fires exactly once, ever.
+//  - Keys stay in `seen` even when no longer achieved, so re-crossing never re-fires.
+export function diffCelebrations(achieved, state) {
+  const seen = { ...((state && state.seen) || {}) };
+  const baselined = new Set((state && state.baselinedTypes) || []);
+  const toCelebrate = [];
+  const stamp = Date.now();
+  for (const m of achieved || []) {
+    if (!baselined.has(m.type)) {
+      seen[m.key] = stamp; // type not yet baselined -> absorb silently
+    } else if (!(m.key in seen)) {
+      toCelebrate.push(m);
+      seen[m.key] = stamp;
+    }
+  }
+  const baselinedTypes = Array.from(new Set([...baselined, ...CELEBRATION_TYPES]));
+  return { toCelebrate, nextState: { seen, baselinedTypes } };
+}

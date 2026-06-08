@@ -9,6 +9,7 @@ import {
   detectStreak,
   detectAchieved,
   CELEBRATION_TYPES,
+  diffCelebrations,
 } from './celebrationMath.js';
 import { DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
@@ -166,5 +167,49 @@ describe('detectAchieved', () => {
   it('returns [] for an empty ledger and exposes the known type list', () => {
     expect(detectAchieved({ accounts: [], transactions: [], typesById, categoriesById: cats, now: NOW() })).toEqual([]);
     expect(CELEBRATION_TYPES).toEqual(['paidoff', 'networth', 'bestmonth', 'streak']);
+  });
+});
+
+const ach = (key, type) => ({ key, type, title: key, detail: '' });
+
+describe('diffCelebrations', () => {
+  it('first encounter of a type baselines silently (no celebration)', () => {
+    const { toCelebrate, nextState } = diffCelebrations(
+      [ach('paidoff:a', 'paidoff')],
+      { seen: {}, baselinedTypes: [] },
+    );
+    expect(toCelebrate).toEqual([]);
+    expect(nextState.seen['paidoff:a']).toBeTruthy();
+    expect(nextState.baselinedTypes).toEqual(expect.arrayContaining(['paidoff', 'networth', 'bestmonth', 'streak']));
+  });
+  it('fires once for a new key after the type is baselined', () => {
+    const baseline = diffCelebrations([], { seen: {}, baselinedTypes: [] }).nextState;
+    const { toCelebrate, nextState } = diffCelebrations([ach('paidoff:a', 'paidoff')], baseline);
+    expect(toCelebrate.map(m => m.key)).toEqual(['paidoff:a']);
+    // already seen -> never again
+    const again = diffCelebrations([ach('paidoff:a', 'paidoff')], nextState);
+    expect(again.toCelebrate).toEqual([]);
+  });
+  it('keeps a seen key even when no longer achieved (no re-fire on re-cross)', () => {
+    const baseline = diffCelebrations([], { seen: {}, baselinedTypes: [] }).nextState;
+    const fired = diffCelebrations([ach('networth:100000', 'networth')], baseline).nextState;
+    // dips below then crosses again — still seen, no celebration
+    const recross = diffCelebrations([ach('networth:100000', 'networth')], fired);
+    expect(recross.toCelebrate).toEqual([]);
+    expect(recross.nextState.seen['networth:100000']).toBeTruthy();
+  });
+  it('baselines a newly-introduced type silently while still firing known types', () => {
+    const state = { seen: {}, baselinedTypes: ['paidoff', 'networth', 'bestmonth', 'streak'] };
+    const { toCelebrate } = diffCelebrations(
+      [ach('paidoff:a', 'paidoff'), ach('newkind:x', 'newkind')],
+      state,
+    );
+    // paidoff:a is baselined+new -> fires; newkind:x first-seen type -> silent
+    expect(toCelebrate.map(m => m.key)).toEqual(['paidoff:a']);
+  });
+  it('tolerates null/empty inputs', () => {
+    const { toCelebrate, nextState } = diffCelebrations(null, undefined);
+    expect(toCelebrate).toEqual([]);
+    expect(nextState.seen).toEqual({});
   });
 });
