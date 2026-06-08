@@ -7,6 +7,8 @@ import {
   detectBestMonth,
   streakThresholdsReached,
   detectStreak,
+  detectAchieved,
+  CELEBRATION_TYPES,
 } from './celebrationMath.js';
 import { DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
@@ -147,5 +149,22 @@ describe('detectStreak', () => {
     ];
     // trailing run = Apr,May = 2 -> no threshold
     expect(detectStreak(txns, cats, NOW())).toEqual([]);
+  });
+});
+
+describe('detectAchieved', () => {
+  it('unions all detector outputs', () => {
+    const accounts = [
+      { id: 'b', name: 'Checking', type: 'bank', openingBalance: 60000 },
+      { id: 'cc', name: 'Visa', type: 'credit_card', openingBalance: -500 },
+    ];
+    const transactions = [{ id: 't1', accountId: 'cc', date: '2026-01-10', amount: 500 }];
+    const keys = detectAchieved({ accounts, transactions, typesById, categoriesById: cats, now: NOW() }).map(r => r.key);
+    expect(keys).toContain('paidoff:cc');
+    expect(keys).toContain('networth:25000'); // 60000 (bank) - 0 (cc now) = 60000 net worth
+  });
+  it('returns [] for an empty ledger and exposes the known type list', () => {
+    expect(detectAchieved({ accounts: [], transactions: [], typesById, categoriesById: cats, now: NOW() })).toEqual([]);
+    expect(CELEBRATION_TYPES).toEqual(['paidoff', 'networth', 'bestmonth', 'streak']);
   });
 });

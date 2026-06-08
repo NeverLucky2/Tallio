@@ -108,3 +108,16 @@ export function detectStreak(transactions, categoriesById, now = new Date()) {
     detail: 'Keep it going',
   }));
 }
+
+export const CELEBRATION_TYPES = ['paidoff', 'networth', 'bestmonth', 'streak'];
+
+export function detectAchieved({
+  accounts = [], transactions = [], typesById, categoriesById, now = new Date(),
+} = {}) {
+  return [
+    ...detectPaidOff(accounts, transactions, typesById),
+    ...detectNetWorth(accounts, transactions, typesById),
+    ...detectBestMonth(transactions, categoriesById, now),
+    ...detectStreak(transactions, categoriesById, now),
+  ];
+}
