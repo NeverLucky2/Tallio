@@ -1,9 +1,8 @@
 // src/SplitsEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
-import { iconGlyph } from './iconValue.js';
 import { validateSplits } from './accountsModel.js';
-import { groupCategoriesByFlow } from './categoriesView.js';
+import CategoryPicker from './CategoryPicker.jsx';
 
 export default function SplitsEditor({
   parentAccountId,
@@ -77,7 +76,7 @@ export default function SplitsEditor({
                 if (isTransfer) {
                   updateLine({ transferId: undefined, categoryId: categories[0]?.id || '' });
                 } else {
-                  updateLine({ categoryId: undefined, transferId: line.transferId || `tr_${line.id}` });
+                  updateLine({ categoryId: undefined, subId: undefined, transferId: line.transferId || `tr_${line.id}` });
                 }
               };
               const setLineMagnitude = (mag) => updateLine({ amount: (dirOf(line) === 'in' ? 1 : -1) * Math.abs(mag) });
@@ -98,13 +97,8 @@ export default function SplitsEditor({
                         {accounts.filter(a => a.id !== parentAccountId).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                       </select>
                     ) : (
-                      <select aria-label="Category" className="select" value={line.categoryId || ''} onChange={(e) => updateLine({ categoryId: e.target.value })}>
-                        {groupCategoriesByFlow(categories).map(group => (
-                          <optgroup key={group.flow} label={group.label}>
-                            {group.items.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
-                          </optgroup>
-                        ))}
-                      </select>
+                      <CategoryPicker categories={categories} value={{ categoryId: line.categoryId, subId: line.subId || null }}
+                        onChange={({ categoryId, subId }) => updateLine({ categoryId, subId })} ariaLabel="Category" />
                     )}
                   </td>
                   <td>

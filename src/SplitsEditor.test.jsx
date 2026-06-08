@@ -99,8 +99,9 @@ describe('SplitsEditor editing', () => {
         { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
       ],
     });
-    const selects = screen.getAllByLabelText(/^category$/i);
-    await userEvent.selectOptions(selects[0], 'c_household');
+    const triggers = screen.getAllByRole('button', { name: /^category$/i }).filter(b => b.getAttribute('aria-haspopup') === 'listbox');
+    await userEvent.click(triggers[0]);
+    await userEvent.click(screen.getByText('Household'));
     await userEvent.click(screen.getByRole('button', { name: /done/i }));
     expect(onDone.mock.calls[0][0].splits[0].categoryId).toBe('c_household');
   });
@@ -174,13 +175,39 @@ describe('SplitsEditor Done with a single line', () => {
   });
 });
 
-describe('SplitsEditor category grouping', () => {
+describe('SplitsEditor category control', () => {
   afterEach(() => cleanup());
 
-  it('renders category options grouped into flow optgroups', () => {
+  it('renders a CategoryPicker trigger per category line', () => {
     setup();
-    const labels = [...document.querySelectorAll('optgroup')].map(g => g.label);
-    expect(labels).toContain('Expense');
+    const triggers = screen.getAllByRole('button', { name: /^category$/i }).filter(b => b.getAttribute('aria-haspopup') === 'listbox');
+    expect(triggers).toHaveLength(2);
+  });
+});
+
+describe('SplitsEditor sub-categories', () => {
+  afterEach(() => cleanup());
+
+  it('selecting a sub on a line carries subId through onDone', async () => {
+    const cats = [
+      { id: 'c_grocery', name: 'Groceries', icon: '🛒', flow: 'expense', subcategories: [] },
+      { id: 'c_household', name: 'Household', icon: '🧴', flow: 'expense', subcategories: [{ id: 'sub_h', name: 'Soap Sub', keywords: [] }] },
+    ];
+    const { onDone } = setup({
+      categories: cats,
+      initialSplits: [
+        { id: 's1', amount: -100, categoryId: 'c_grocery', description: '' },
+        { id: 's2', amount: -80,  categoryId: 'c_household', description: '' },
+      ],
+    });
+    // Open the second line's picker and choose the sub.
+    const triggers = screen.getAllByRole('button', { name: /^category$/i }).filter(b => b.getAttribute('aria-haspopup') === 'listbox');
+    await userEvent.click(triggers[1]);
+    await userEvent.click(screen.getByText('Soap Sub'));
+    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    const line = onDone.mock.calls[0][0].splits.find(s => s.id === 's2');
+    expect(line.categoryId).toBe('c_household');
+    expect(line.subId).toBe('sub_h');
   });
 });
 
