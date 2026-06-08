@@ -14,6 +14,8 @@ import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
 import CelebrationLayer from './CelebrationLayer.jsx';
 import useCelebrations from './useCelebrations.js';
+import useEasterEggs from './useEasterEggs.js';
+import { printConsoleArt } from './consoleArt.js';
 import Icon from './Icon.jsx';
 import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
@@ -36,6 +38,7 @@ import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
 import './App.css';
+import './microMotion.css';
 import pkg from '../package.json';
 
 
@@ -148,6 +151,8 @@ function Tallio() {
     typesById: accountTypes.typesById,
     categoriesById,
   });
+  const eggs = useEasterEggs();
+  useEffect(() => { printConsoleArt(); }, []);
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
@@ -453,6 +458,11 @@ function Tallio() {
         style={celebrations.style}
         onDismiss={celebrations.dismiss}
       />
+      <CelebrationLayer
+        celebration={eggs.reveal}
+        style="festive"
+        onDismiss={eggs.dismiss}
+      />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
@@ -597,7 +607,9 @@ function Tallio() {
       <div className="container">
         <header className="header">
           <div className="brand">
-            <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" title="Your avatar" />
+            <span className="header-avatar-wrap" onClick={eggs.registerLogoClick} role="presentation">
+              <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" title="Your avatar" />
+            </span>
             <h1 className="brand-title">Tall<span className="brand-title-accent">io</span></h1>
             <p className="brand-sub">Accounts</p>
           </div>

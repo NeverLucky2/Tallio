@@ -123,6 +123,12 @@ export default function SettingsPanel({ settings, celebrationStyle = 'festive', 
             goal, best savings month, savings streak). Respects reduced-motion.
           </p>
 
+          <label className="settings-label">Hidden fun</label>
+          <p className="settings-help">
+            Tallio has a few secrets 🥚 — try an old-school cheat code (⬆⬆⬇⬇…),
+            give the avatar a few quick taps, or peek at the browser console.
+          </p>
+
           <p className="settings-privacy">
             Key is stored only in this browser. Never sent to Tallio servers.
           </p>
