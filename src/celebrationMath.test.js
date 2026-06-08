@@ -4,6 +4,7 @@ import {
   networthThresholdsReached,
   detectNetWorth,
   detectPaidOff,
+  detectBestMonth,
 } from './celebrationMath.js';
 import { DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
@@ -68,5 +69,47 @@ describe('detectPaidOff', () => {
     const accounts = [{ id: 'b', name: 'Checking', type: 'bank', openingBalance: -10 }];
     const transactions = [{ id: 't1', accountId: 'b', date: '2026-01-10', amount: 10 }];
     expect(detectPaidOff(accounts, transactions, typesById)).toEqual([]);
+  });
+});
+
+const cats = new Map([
+  ['inc', { id: 'inc', flow: 'income' }],
+  ['exp', { id: 'exp', flow: 'expense' }],
+]);
+// Helpers to build a month's worth of income/expense rows on a bank account.
+const income = (id, date, amt) => ({ id, accountId: 'b', date, amount: amt, categoryId: 'inc' });
+const expense = (id, date, amt) => ({ id, accountId: 'b', date, amount: -amt, categoryId: 'exp' });
+const NOW = () => new Date('2026-06-15T00:00:00');
+
+describe('detectBestMonth', () => {
+  it('returns nothing with fewer than 3 completed months', () => {
+    const txns = [income('i1', '2026-01-05', 1000), income('i2', '2026-02-05', 2000)];
+    expect(detectBestMonth(txns, cats, NOW())).toEqual([]);
+  });
+  it('flags the single completed month that beats all priors', () => {
+    const txns = [
+      income('i1', '2026-01-05', 1000), expense('e1', '2026-01-06', 200), // net 800
+      income('i2', '2026-02-05', 1000), expense('e2', '2026-02-06', 100), // net 900
+      income('i3', '2026-03-05', 3000), expense('e3', '2026-03-06', 100), // net 2900 (best)
+      income('i4', '2026-04-05', 1000),                                   // net 1000
+    ];
+    const res = detectBestMonth(txns, cats, NOW());
+    expect(res).toHaveLength(1);
+    expect(res[0].key).toBe('bestmonth:2026-03');
+    expect(res[0].detail).toContain('March 2026');
+  });
+  it('excludes the current (incomplete) month from records', () => {
+    const txns = [
+      income('i1', '2026-01-05', 1000), income('i2', '2026-02-05', 1000), income('i3', '2026-03-05', 1000),
+      income('i4', '2026-06-05', 9999), // current month — must not be the record
+    ];
+    const res = detectBestMonth(txns, cats, NOW());
+    expect(res[0].key).not.toBe('bestmonth:2026-06');
+  });
+  it('returns nothing when the best completed month is not positive', () => {
+    const txns = [
+      expense('e1', '2026-01-06', 200), expense('e2', '2026-02-06', 100), expense('e3', '2026-03-06', 100),
+    ];
+    expect(detectBestMonth(txns, cats, NOW())).toEqual([]);
   });
 });

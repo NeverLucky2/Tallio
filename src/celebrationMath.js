@@ -1,6 +1,7 @@
 // src/celebrationMath.js
 // Pure milestone detection over ledger/report state. No React, no storage.
 import { accountClass, computeRegister, householdTotals } from './accountsModel.js';
+import { cashFlowByMonth } from './reportsModel.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -65,4 +66,23 @@ export function detectPaidOff(accounts, transactions, typesById) {
     }
   }
   return out;
+}
+
+function completedMonths(transactions, categoriesById, now) {
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return cashFlowByMonth(transactions, categoriesById, {}).filter((m) => m.month < cur);
+}
+
+export function detectBestMonth(transactions, categoriesById, now = new Date()) {
+  const months = completedMonths(transactions, categoriesById, now);
+  if (months.length < 3) return [];
+  let best = null;
+  for (const m of months) if (best === null || m.net > best.net) best = m;
+  if (!best || best.net <= 0) return [];
+  return [{
+    key: `bestmonth:${best.month}`,
+    type: 'bestmonth',
+    title: 'Best savings month ever!',
+    detail: `You saved ${formatMoney(best.net)} in ${monthLabel(best.month)}`,
+  }];
 }
