@@ -102,21 +102,53 @@ export function incomeExpenseSummary(transactions, categoriesById, opts = {}) {
 }
 
 // Expense-flow totals per category, descending. total = magnitude (refunds reduce it).
+// Each entry also carries `subs`: real sub-categories (desc) plus a reconciling
+// "(no sub-category)" remainder, or [] when the category has no sub spending.
 export function spendingByCategory(transactions, categoriesById, opts = {}) {
-  const signed = new Map();
+  const signed = new Map();    // categoryId -> signed sum
+  const subBy = new Map();     // categoryId -> Map(subId -> signed sum) for VALID subs only
   for (const t of flattenForReports(filterRows(transactions, opts))) {
     if (flowOf(t, categoriesById) !== 'expense') continue;
     const amt = Number.isFinite(t.amount) ? t.amount : 0;
     signed.set(t.categoryId, (signed.get(t.categoryId) || 0) + amt);
+    const cat = categoriesById && categoriesById.get(t.categoryId);
+    const subDefs = (cat && cat.subcategories) || [];
+    // A subId only counts if it still names a real sub of this category;
+    // unsubbed rows and dangling/stale subIds are left out of subBy and so
+    // land in the reconciling remainder below.
+    if (t.subId && subDefs.some(s => s.id === t.subId)) {
+      let m = subBy.get(t.categoryId);
+      if (!m) { m = new Map(); subBy.set(t.categoryId, m); }
+      m.set(t.subId, (m.get(t.subId) || 0) + amt);
+    }
   }
   const entries = [...signed.entries()].map(([categoryId, sum]) => {
     const cat = (categoriesById && categoriesById.get(categoryId)) || {};
+    const total = -sum;
+    const subDefs = cat.subcategories || [];
+    const realSubs = [...(subBy.get(categoryId) || new Map())]
+      .map(([subId, ssum]) => {
+        const def = subDefs.find(s => s.id === subId);
+        return { subId, name: (def && def.name) || 'Sub-category', total: -ssum };
+      })
+      .filter(s => s.total > 0)
+      .sort((a, b) => b.total - a.total);
+    let subs = [];
+    if (realSubs.length > 0) {
+      const shown = realSubs.reduce((s, x) => s + x.total, 0);
+      const remainder = total - shown; // unsubbed + dangling + any dropped non-positive sub
+      subs = realSubs.map(s => ({ ...s, pct: total > 0 ? (s.total / total) * 100 : 0 }));
+      if (remainder > 0) {
+        subs.push({ subId: null, name: '(no sub-category)', total: remainder, pct: total > 0 ? (remainder / total) * 100 : 0 });
+      }
+    }
     return {
       categoryId,
       name: cat.name || 'Uncategorized',
       icon: cat.icon || '📋',
       color: cat.color || '#6B7280',
-      total: -sum,
+      total,
+      subs,
     };
   }).filter(e => e.total > 0);
   const sum = entries.reduce((s, e) => s + e.total, 0);
