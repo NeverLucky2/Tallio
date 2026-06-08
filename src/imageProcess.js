@@ -58,3 +58,38 @@ export async function recropThumb(blob, framing, { thumbSize = 160 } = {}) {
   if (bitmap.close) bitmap.close();
   return thumb;
 }
+
+// MANUAL-VERIFY (canvas): downscale a picked photo to a transfer-friendly JPEG
+// before it goes over the data channel. The desktop re-runs processImageFile on
+// arrival (thumb/palette/re-encode), so the phone need only cap the long edge.
+export async function downscaleImageFile(file, { maxEdge = 2560, quality = 0.85 } = {}) {
+  const bitmap = await createImageBitmap(file);
+  const { w, h } = fitWithin(bitmap.width, bitmap.height, maxEdge);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+  const blob = await toBlob(canvas, 'image/jpeg', quality);
+  if (bitmap.close) bitmap.close();
+  return blob;
+}
+
+// Apple HEIC/HEIF files can't be decoded by canvas/createImageBitmap in most
+// browsers. Detect by MIME type AND extension (iOS often reports an empty type
+// for files saved from Messages/Files). Pure + unit-tested.
+export function isHeic(file) {
+  if (!file) return false;
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/heic' || type === 'image/heif') return true;
+  return /\.(heic|heif)$/i.test(file.name || '');
+}
+
+// MANUAL-VERIFY (WASM): convert a HEIC/HEIF file to a JPEG Blob via heic2any,
+// dynamically imported so the ~1.4MB libheif bundle loads ONLY when a HEIC is
+// actually picked. Non-HEIC files pass straight through.
+export async function decodeHeicIfNeeded(file) {
+  if (!isHeic(file)) return file;
+  const mod = await import('heic2any');
+  const heic2any = mod.default || mod;
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+  return Array.isArray(out) ? out[0] : out;
+}

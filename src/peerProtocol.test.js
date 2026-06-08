@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHUNK_SIZE, makeImageChunks, createReassembler, ICE_SERVERS, peerIdFor } from './peerProtocol.js';
+import { CHUNK_SIZE, makeImageChunks, createReassembler, ICE_SERVERS, peerIdFor, randomId } from './peerProtocol.js';
 
 describe('CHUNK_SIZE', () => {
   it('is 16KB', () => {
@@ -10,6 +10,27 @@ describe('CHUNK_SIZE', () => {
 describe('peerIdFor', () => {
   it('prefixes session ID with bt-', () => {
     expect(peerIdFor('abc-123')).toBe('bt-abc-123');
+  });
+});
+
+describe('randomId', () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  it('returns a unique UUID-shaped string', () => {
+    const a = randomId();
+    const b = randomId();
+    expect(a).toMatch(UUID_RE);
+    expect(a).not.toBe(b);
+  });
+  it('falls back to a UUID-shaped string when crypto.randomUUID is unavailable (insecure context)', () => {
+    const orig = crypto.randomUUID;
+    try {
+      // Simulate a plain-HTTP LAN context where randomUUID is gated out.
+      Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+      const id = randomId();
+      expect(id).toMatch(UUID_RE);
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { value: orig, configurable: true });
+    }
   });
 });
 
@@ -62,6 +83,32 @@ describe('makeImageChunks', () => {
     const id = result.start.id;
     expect(result.chunks.every(c => c.id === id)).toBe(true);
     expect(result.end.id).toBe(id);
+  });
+
+  it('merges extra fields into the img-start frame', () => {
+    const bytes = new Uint8Array(10);
+    const result = makeImageChunks(bytes, 'image/png', { batchId: 'b1', index: 2, name: 'cat.png' });
+    expect(result.start.batchId).toBe('b1');
+    expect(result.start.index).toBe(2);
+    expect(result.start.name).toBe('cat.png');
+    expect(result.start.mime).toBe('image/png');
+    expect(result.start.t).toBe('img-start');
+  });
+
+  it('omits extra fields when none are given (OCR path unchanged)', () => {
+    const result = makeImageChunks(new Uint8Array(10), 'image/jpeg');
+    expect(result.start.batchId).toBeUndefined();
+    expect(result.start.index).toBeUndefined();
+    expect(Object.keys(result.start).sort()).toEqual(['chunks', 'id', 'mime', 'size', 't'].sort());
+  });
+
+  it('uses extra.id as the shared frame id when provided (no random mint)', () => {
+    const result = makeImageChunks(new Uint8Array(CHUNK_SIZE + 1), 'image/jpeg', { id: 'fixed-id', index: 1 });
+    expect(result.start.id).toBe('fixed-id');
+    expect(result.chunks.every(c => c.id === 'fixed-id')).toBe(true);
+    expect(result.end.id).toBe('fixed-id');
+    expect(result.start.index).toBe(1);
+    expect(result.start).not.toHaveProperty('id', undefined);
   });
 });
 

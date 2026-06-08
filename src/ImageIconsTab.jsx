@@ -20,7 +20,7 @@ import IconPicker from './IconPicker.jsx';
 const UNCATEGORIZED = 'Uncategorized';
 const groupOf = (im) => (im && im.group) || UNCATEGORIZED;
 
-export default function ImageIconsTab({ appearance, categories = [], accounts = [], accountTypes = [], onBatch }) {
+export default function ImageIconsTab({ appearance, categories = [], accounts = [], accountTypes = [], onBatch, onAddFromPhone }) {
   const lib = useIconLibrary();
   const runBatch = onBatch || (async (fn) => fn());
   const [query, setQuery] = useState('');
@@ -32,6 +32,7 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
   const [groupDraft, setGroupDraft] = useState('');
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
   // Inline crop editor state.
   const [editId, setEditId] = useState(null);
   const [editFraming, setEditFraming] = useState(null);
@@ -77,13 +78,19 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
   };
 
   // Select mode / batch move ----------------------------------------------
-  const toggleSelectMode = () => { setSelectMode(s => !s); setSelectedIds([]); cancelEdit(); };
+  const toggleSelectMode = () => { setSelectMode(s => !s); setSelectedIds([]); setConfirmBatchDelete(false); cancelEdit(); };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const batchMove = (target) => {
     if (!target || selectedIds.length === 0) return;
     const ids = [...selectedIds];
     runBatch(async () => { await Promise.all(ids.map(id => lib.updateMeta(id, { group: target }))); });
     setSelectedIds([]); setSelectMode(false);
+  };
+  const batchDelete = () => {
+    if (selectedIds.length === 0) return;
+    const ids = [...selectedIds];
+    runBatch(async () => { await Promise.all(ids.map(id => lib.remove(id))); });
+    setSelectedIds([]); setSelectMode(false); setConfirmBatchDelete(false);
   };
 
   return (
@@ -103,6 +110,7 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
           />
         </label>
         <button type="button" className="btn" onClick={() => setCreatingGroup(c => !c)}>＋ New group</button>
+        {onAddFromPhone && <button type="button" className="btn" onClick={onAddFromPhone}>📱 Add photos from phone</button>}
         <button type="button" className={`btn${selectMode ? ' btn-primary' : ''}`} onClick={toggleSelectMode}>{selectMode ? 'Done' : 'Select'}</button>
       </div>
 
@@ -127,7 +135,17 @@ export default function ImageIconsTab({ appearance, categories = [], accounts = 
               {moveTargetGroups(lib.images, customGroups, null).map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </label>
-          <button type="button" className="btn" onClick={() => setSelectedIds([])}>Clear</button>
+          <button type="button" className="btn" onClick={() => { setSelectedIds([]); setConfirmBatchDelete(false); }}>Clear</button>
+          {selectedIds.length > 0 && !confirmBatchDelete && (
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmBatchDelete(true)}>Delete</button>
+          )}
+          {confirmBatchDelete && selectedIds.length > 0 && (
+            <span className="image-icons-batchdelete-confirm">
+              Delete {selectedIds.length} image{selectedIds.length === 1 ? '' : 's'}?
+              <button type="button" className="btn btn-danger" onClick={batchDelete}>Delete</button>
+              <button type="button" className="btn" onClick={() => setConfirmBatchDelete(false)}>Cancel</button>
+            </span>
+          )}
         </div>
       )}
 

@@ -3734,6 +3734,7 @@
 .image-icons-newgroup .input { flex: 1; }
 .image-icons-selectbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 12px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: var(--r-md); font-size: 13px; }
 .image-icons-selectbar select { margin-left: 6px; }
+.image-icons-batchdelete-confirm { display: inline-flex; align-items: center; gap: 8px; }
 .image-icon-confirm { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .image-icon-usage { font-size: 10px; color: var(--text-muted); }
 
@@ -3749,3 +3750,24 @@
 .picker-image-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; background: none; border: none; cursor: pointer; padding: 2px; }
 .picker-image-cell .image-icon-thumb { width: 46px; height: 46px; border-radius: 10px; }
 .picker-image-name { font-size: 10px; color: var(--text-muted); word-break: break-word; }
+
+/* Phone batch-photo upload: review tray (phone library mode) */
+/* height:100dvh + grid min-height:0 keep the action bar pinned in view (the grid
+   scrolls internally instead of pushing the buttons below the fold). */
+.phone-tray { display: flex; flex-direction: column; height: 100vh; height: 100dvh; padding: 16px; gap: 12px; background: #0a0a0f; color: #f0e6d2; box-sizing: border-box; overflow: hidden; }
+.phone-tray-topbar { display: flex; justify-content: space-between; align-items: center; flex: none; }
+.phone-tray-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; overflow-y: auto; flex: 1; min-height: 0; align-content: start; }
+.phone-tray-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #1a1a22; }
+.phone-tray-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phone-tray-heic { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; text-align: center; color: #c9b896; }
+.phone-tray-heic-badge { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #d4a853; }
+.phone-tray-heic-note { font-size: 9px; line-height: 1.15; opacity: 0.85; }
+.phone-tray-cell.phone-tray-failed { outline: 2px solid #d9534f; }
+.phone-tray-cell.phone-tray-done { outline: 2px solid #5cb85c; }
+.phone-tray-mark { position: absolute; top: 4px; left: 6px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.phone-tray-remove { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 50%; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.phone-tray-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, 0.25); }
+.phone-tray-bar > span { display: block; height: 100%; background: #f0e6d2; }
+.phone-tray-name { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 2px 4px; background: rgba(0, 0, 0, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-tray-actions { display: flex; gap: 8px; flex-wrap: wrap; flex: none; position: sticky; bottom: 0; margin: 0 -16px -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(10, 10, 15, 0.88); backdrop-filter: blur(10px); border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.phone-tray-actions .phone-btn { flex: 1; min-width: 96px; display: flex; align-items: center; justify-content: center; text-align: center; margin-top: 0; }

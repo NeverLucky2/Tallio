@@ -1,0 +1,87 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import PhotoTray from './PhotoTray.jsx';
+
+afterEach(() => cleanup());
+
+const photos = (overrides = []) => ([
+  { id: 'a', name: 'a.jpg', previewUrl: 'blob:a', state: 'pending', progress: 0 },
+  { id: 'b', name: 'b.jpg', previewUrl: 'blob:b', state: 'pending', progress: 0 },
+  ...overrides,
+]);
+
+describe('PhotoTray', () => {
+  it('renders a thumbnail + name per photo', () => {
+    const { container } = render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} />);
+    expect(container.querySelectorAll('.phone-tray-thumb').length).toBe(2);
+    expect(screen.getByText('a.jpg')).toBeTruthy();
+  });
+
+  it('calls onPick with selected files', () => {
+    const onPick = vi.fn();
+    const { container } = render(<PhotoTray photos={[]} connected onPick={onPick} onSend={() => {}} onRetry={() => {}} onClear={() => {}} />);
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['x'], 'p.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0][0].name).toBe('p.jpg');
+  });
+
+  it('Send button shows the count and calls onSend', () => {
+    const onSend = vi.fn();
+    render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={onSend} onRetry={() => {}} onClear={() => {}} />);
+    const btn = screen.getByRole('button', { name: /send 2 photos/i });
+    fireEvent.click(btn);
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables Send when disconnected or already sending', () => {
+    const { rerender } = render(<PhotoTray photos={photos()} connected={false} onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} />);
+    expect(screen.getByRole('button', { name: /send 2 photos/i }).hasAttribute('disabled')).toBe(true);
+    rerender(<PhotoTray photos={photos()} connected sending onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} />);
+    expect(screen.getByRole('button', { name: /send/i }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shows a HEIC placeholder (no broken img) with a convert note instead of a thumbnail', () => {
+    const heicPhotos = [{ id: 'h', name: 'IMG.HEIC', previewUrl: 'blob:h', state: 'pending', progress: 0, heic: true }];
+    const { container } = render(<PhotoTray photos={heicPhotos} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(container.querySelectorAll('.phone-tray-thumb').length).toBe(0);
+    expect(container.querySelector('.phone-tray-heic')).toBeTruthy();
+    expect(screen.getByText(/will convert when uploading/i)).toBeTruthy();
+  });
+
+  it('drops the convert note once a HEIC photo is done', () => {
+    const heicDone = [{ id: 'h', name: 'IMG.HEIC', previewUrl: 'blob:h', state: 'done', progress: 1, heic: true }];
+    render(<PhotoTray photos={heicDone} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(screen.queryByText(/will convert when uploading/i)).toBeNull();
+  });
+
+  it('shows a remove (×) button per non-sending photo and calls onRemove with the id', () => {
+    const onRemove = vi.fn();
+    const { container } = render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={onRemove} />);
+    const removeBtns = container.querySelectorAll('.phone-tray-remove');
+    expect(removeBtns.length).toBe(2);
+    fireEvent.click(removeBtns[0]);
+    expect(onRemove).toHaveBeenCalledWith('a');
+  });
+
+  it('hides the remove button while a photo is sending', () => {
+    const sendingPhotos = [{ id: 'a', name: 'a', previewUrl: 'blob:a', state: 'sending', progress: 0.5 }];
+    const { container } = render(<PhotoTray photos={sendingPhotos} connected sending onPick={() => {}} onSend={() => {}} onRetry={() => {}} onClear={() => {}} onRemove={() => {}} />);
+    expect(container.querySelectorAll('.phone-tray-remove').length).toBe(0);
+  });
+
+  it('shows Retry failed (N) only when there are failures', () => {
+    const onRetry = vi.fn();
+    const withFail = [
+      { id: 'a', name: 'a', previewUrl: 'blob:a', state: 'done', progress: 1 },
+      { id: 'b', name: 'b', previewUrl: 'blob:b', state: 'failed', progress: 0 },
+    ];
+    const { queryByRole, rerender } = render(<PhotoTray photos={photos()} connected onPick={() => {}} onSend={() => {}} onRetry={onRetry} onClear={() => {}} />);
+    expect(queryByRole('button', { name: /retry failed/i })).toBeNull();
+    rerender(<PhotoTray photos={withFail} connected onPick={() => {}} onSend={() => {}} onRetry={onRetry} onClear={() => {}} />);
+    const retry = screen.getByRole('button', { name: /retry failed \(1\)/i });
+    fireEvent.click(retry);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
