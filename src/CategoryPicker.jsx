@@ -25,6 +25,7 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
     return () => document.removeEventListener('mousedown', onDocDown);
   }, [open]);
   useEffect(() => { if (open && inputRef.current) inputRef.current.focus(); }, [open]);
+  // Reset the highlighted option whenever the list changes or the popover opens.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHighlight(0); }, [query, open]);
 
@@ -42,7 +43,10 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
 
   const triggerLabel = selected ? `${iconGlyph(selected.icon)} ${selected.path}` : 'Select category…';
   const showGroups = query.trim() === '';
-  let lastFlow = null;
+  // Header shown before each option when not searching: the flow label at each
+  // flow boundary. Derived by index (no render-time mutation) to stay immutable.
+  const groupHeaders = options.map((o, i) =>
+    showGroups && (i === 0 || options[i - 1].flow !== o.flow) ? (FLOW_LABELS[o.flow] || o.flow) : null);
 
   return (
     <div className="cat-picker" ref={rootRef}>
@@ -58,7 +62,7 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
             value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
           <ul className="cat-picker-list" role="listbox">
             {options.map((o, i) => {
-              const header = showGroups && o.flow !== lastFlow ? (lastFlow = o.flow, FLOW_LABELS[o.flow] || o.flow) : null;
+              const header = groupHeaders[i];
               return (
                 <span key={o.subId ? `${o.categoryId}:${o.subId}` : o.categoryId}>
                   {header && <li className="cat-picker-group" aria-hidden="true">{header}</li>}
