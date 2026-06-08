@@ -497,3 +497,43 @@ describe('deleteAccount with split-line counterparts on other accounts', () => {
     expect(s3.description).toBe('Cash back');
   });
 });
+
+describe('subId persistence', () => {
+  const seed = { accounts: [{ id: 'a1', name: 'A', type: 'bank', openingBalance: 0 }], transactions: [] };
+
+  it('addTransaction persists subId on the parent and on split lines', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    let id;
+    act(() => {
+      id = result.current.addTransaction({
+        accountId: 'a1', date: '2026-06-08', amount: -30, categoryId: 'tax', subId: 'fed',
+        splits: [
+          { id: 's1', amount: -20, categoryId: 'tax', subId: 'fed', description: '' },
+          { id: 's2', amount: -10, categoryId: 'gro', description: '' },
+        ],
+      });
+    });
+    const t = result.current.transactions.find(x => x.id === id);
+    expect(t.subId).toBe('fed');
+    expect(t.splits.find(s => s.id === 's1').subId).toBe('fed');
+    expect(t.splits.find(s => s.id === 's2').subId).toBeUndefined();
+  });
+
+  it('clearSubcategory strips a subId from parents and split lines', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    act(() => {
+      result.current.addTransaction({ accountId: 'a1', date: '2026-06-08', amount: -5, categoryId: 'tax', subId: 'fed' });
+      result.current.addTransaction({ accountId: 'a1', date: '2026-06-08', amount: -9, categoryId: 'tax',
+        splits: [
+          { id: 's1', amount: -4, categoryId: 'tax', subId: 'fed', description: '' },
+          { id: 's2', amount: -5, categoryId: 'tax', subId: 'state', description: '' },
+        ] });
+    });
+    act(() => { result.current.clearSubcategory('fed'); });
+    const txns = result.current.transactions;
+    expect(txns.some(t => t.subId === 'fed')).toBe(false);
+    const split = txns.find(t => Array.isArray(t.splits));
+    expect(split.splits.find(s => s.id === 's1').subId).toBeUndefined();
+    expect(split.splits.find(s => s.id === 's2').subId).toBe('state'); // untouched
+  });
+});
