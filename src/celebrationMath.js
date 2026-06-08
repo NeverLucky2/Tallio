@@ -86,3 +86,25 @@ export function detectBestMonth(transactions, categoriesById, now = new Date()) 
     detail: `You saved ${formatMoney(best.net)} in ${monthLabel(best.month)}`,
   }];
 }
+
+export function streakThresholdsReached(streak) {
+  const out = [];
+  for (const t of [3, 6, 12]) if (streak >= t) out.push(t);
+  let t = 24;
+  while (streak >= t) { out.push(t); t += 12; }
+  return out;
+}
+
+export function detectStreak(transactions, categoriesById, now = new Date()) {
+  const months = completedMonths(transactions, categoriesById, now);
+  let streak = 0;
+  for (let i = months.length - 1; i >= 0; i -= 1) {
+    if (months[i].net > 0) streak += 1; else break;
+  }
+  return streakThresholdsReached(streak).map((n) => ({
+    key: `streak:${n}`,
+    type: 'streak',
+    title: `${n}-month savings streak!`,
+    detail: 'Keep it going',
+  }));
+}

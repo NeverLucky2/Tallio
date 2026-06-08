@@ -5,6 +5,8 @@ import {
   detectNetWorth,
   detectPaidOff,
   detectBestMonth,
+  streakThresholdsReached,
+  detectStreak,
 } from './celebrationMath.js';
 import { DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
@@ -111,5 +113,39 @@ describe('detectBestMonth', () => {
       expense('e1', '2026-01-06', 200), expense('e2', '2026-02-06', 100), expense('e3', '2026-03-06', 100),
     ];
     expect(detectBestMonth(txns, cats, NOW())).toEqual([]);
+  });
+});
+
+describe('streakThresholdsReached', () => {
+  it('returns crossed thresholds 3/6/12 then every 12', () => {
+    expect(streakThresholdsReached(2)).toEqual([]);
+    expect(streakThresholdsReached(6)).toEqual([3, 6]);
+    expect(streakThresholdsReached(13)).toEqual([3, 6, 12]);
+    expect(streakThresholdsReached(24)).toEqual([3, 6, 12, 24]);
+  });
+});
+
+describe('detectStreak', () => {
+  it('counts the trailing run of net-positive completed months', () => {
+    // Jan..May all net-positive; current month June excluded -> Jan..May = 5 -> [3]
+    const txns = [];
+    for (const mo of ['01', '02', '03', '04', '05']) {
+      txns.push(income(`i${mo}`, `2026-${mo}-05`, 1000));
+      txns.push(expense(`e${mo}`, `2026-${mo}-06`, 100));
+    }
+    const res = detectStreak(txns, cats, NOW());
+    expect(res.map(r => r.key)).toEqual(['streak:3']);
+    expect(res[0].title).toContain('3-month');
+  });
+  it('a non-positive month breaks the streak', () => {
+    const txns = [
+      income('i1', '2026-01-05', 1000),                              // +1000
+      income('i2', '2026-02-05', 1000),                              // +1000
+      expense('e3', '2026-03-06', 100),                              // -100 (breaks)
+      income('i4', '2026-04-05', 1000),                              // +1000
+      income('i5', '2026-05-05', 1000),                              // +1000
+    ];
+    // trailing run = Apr,May = 2 -> no threshold
+    expect(detectStreak(txns, cats, NOW())).toEqual([]);
   });
 });
