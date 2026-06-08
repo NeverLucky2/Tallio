@@ -118,6 +118,56 @@ describe('spendingByCategory', () => {
   });
 });
 
+describe('spendingByCategory subs', () => {
+  const catsWithSubs = new Map([
+    ['c_tax', { id: 'c_tax', name: 'Taxes', icon: '🏛️', color: '#a00', flow: 'expense', subcategories: [
+      { id: 'fed', name: 'Federal Tax' },
+      { id: 'st',  name: 'State Tax' },
+    ] }],
+    ['c_gro', { id: 'c_gro', name: 'Groceries', icon: '🛒', color: '#0a0', flow: 'expense', subcategories: [] }],
+  ]);
+
+  it('attaches subs (desc) plus a reconciling (no sub-category) remainder', () => {
+    const txns = [
+      { id: 't1', accountId: 'a1', date: '2026-05-01', amount: -3000, categoryId: 'c_tax', subId: 'fed' },
+      { id: 't2', accountId: 'a1', date: '2026-05-02', amount: -1000, categoryId: 'c_tax', subId: 'st' },
+      { id: 't3', accountId: 'a1', date: '2026-05-03', amount:  -200, categoryId: 'c_tax' }, // unsubbed
+    ];
+    const tax = spendingByCategory(txns, catsWithSubs, {}).find(e => e.categoryId === 'c_tax');
+    expect(tax.total).toBe(4200);
+    expect(tax.subs.map(s => [s.name, s.total])).toEqual([
+      ['Federal Tax', 3000], ['State Tax', 1000], ['(no sub-category)', 200],
+    ]);
+    expect(tax.subs[2].subId).toBe(null);
+    expect(tax.subs.reduce((s, x) => s + x.total, 0)).toBe(tax.total); // reconciles exactly
+    expect(Math.round(tax.subs.reduce((s, x) => s + x.pct, 0))).toBe(100); // within-parent pct
+  });
+
+  it('a category with no sub spending gets subs: [] (no chevron later)', () => {
+    const txns = [{ id: 'g1', accountId: 'a1', date: '2026-05-01', amount: -600, categoryId: 'c_gro' }];
+    const gro = spendingByCategory(txns, catsWithSubs, {}).find(e => e.categoryId === 'c_gro');
+    expect(gro.subs).toEqual([]);
+  });
+
+  it('a category whose spending is entirely unsubbed gets subs: [] (no lone no-sub bucket)', () => {
+    const txns = [{ id: 'x1', accountId: 'a1', date: '2026-05-01', amount: -500, categoryId: 'c_tax' }];
+    const tax = spendingByCategory(txns, catsWithSubs, {}).find(e => e.categoryId === 'c_tax');
+    expect(tax.subs).toEqual([]);
+  });
+
+  it('a dangling/stale subId folds into the (no sub-category) remainder', () => {
+    const txns = [
+      { id: 't1', accountId: 'a1', date: '2026-05-01', amount: -3000, categoryId: 'c_tax', subId: 'fed' },
+      { id: 't2', accountId: 'a1', date: '2026-05-02', amount:  -200, categoryId: 'c_tax', subId: 'gone' }, // not a real sub
+    ];
+    const tax = spendingByCategory(txns, catsWithSubs, {}).find(e => e.categoryId === 'c_tax');
+    expect(tax.subs.map(s => [s.name, s.total])).toEqual([
+      ['Federal Tax', 3000], ['(no sub-category)', 200],
+    ]);
+    expect(tax.subs.reduce((s, x) => s + x.total, 0)).toBe(tax.total);
+  });
+});
+
 import { cashFlowByMonth, netWorthByMonth } from './reportsModel.js';
 
 describe('cashFlowByMonth', () => {
@@ -389,6 +439,21 @@ describe('flattenForReports', () => {
     }];
     const [r0] = [...flattenForReports(txns)];
     expect(r0.description).toBe('Parent desc');
+  });
+
+  it('carries subId on split-derived rows (null when the line has none) and preserves it on non-split rows', () => {
+    const txns = [
+      { id: 'p1', amount: -30, accountId: 'a1', date: '2026-05-01',
+        splits: [
+          { id: 's1', amount: -20, categoryId: 'c_tax', subId: 'fed', description: 'Fed' },
+          { id: 's2', amount: -10, categoryId: 'c_tax', description: 'No sub' },
+        ] },
+      { id: 'n1', amount: -5, accountId: 'a1', date: '2026-05-02', categoryId: 'c_tax', subId: 'state' },
+    ];
+    const flat = [...flattenForReports(txns)];
+    expect(flat[0]).toMatchObject({ categoryId: 'c_tax', subId: 'fed', amount: -20 });
+    expect(flat[1]).toMatchObject({ categoryId: 'c_tax', subId: null, amount: -10 });
+    expect(flat[2]).toMatchObject({ id: 'n1', subId: 'state' }); // non-split row untouched
   });
 });
 

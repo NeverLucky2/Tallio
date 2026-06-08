@@ -1089,6 +1089,54 @@
   transition: width 0.55s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.cat-chevron {
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  padding: 0 4px 0 0;
+  transition: transform 0.15s ease;
+}
+.cat-chevron.open { transform: rotate(90deg); }
+
+.cat-sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 2px 18px;
+}
+.cat-sub-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.cat-sub-name {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.cat-sub-name::before { content: "└ "; opacity: 0.6; }
+.cat-sub-amount {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.cat-sub-track {
+  height: 2px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cat-sub-fill {
+  height: 100%;
+  border-radius: 2px;
+  opacity: 0.7;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cat-sub-row.is-nosub .cat-sub-fill { opacity: 0.35; }
+
 .cat-row-wrap { position: relative; }
 .cat-row {
   display: block;
