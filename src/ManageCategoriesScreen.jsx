@@ -40,6 +40,7 @@ export default function ManageCategoriesScreen({
   const [selectedId, setSelectedId] = useState(categories[0]?.id);
   const [query, setQuery] = useState('');
   const [editingSubId, setEditingSubId] = useState(null);
+  const [creatingSub, setCreatingSub] = useState(false);
 
   const itemCounts = useMemo(() => countItemsPerCategory(bills), [bills]);
 
@@ -73,13 +74,20 @@ export default function ManageCategoriesScreen({
   };
 
   const handleAddSub = () => {
-    const id = onAddSub(selected.id);
+    setEditingSubId(null);
+    setCreatingSub(true);
+  };
+
+  const handleCreateSub = (name) => {
+    const id = onAddSub(selected.id, { name });
+    setCreatingSub(false);
     setEditingSubId(id);
   };
 
   const selectCategory = (id) => {
     setSelectedId(id);
     setEditingSubId(null);
+    setCreatingSub(false);
   };
 
   return (
@@ -137,7 +145,14 @@ export default function ManageCategoriesScreen({
 
         <main className="manage-editor">
           {selected ? (
-            editingSub ? (
+            creatingSub ? (
+              <SubcategoryEditor
+                creating
+                category={selected}
+                onCreate={handleCreateSub}
+                onCancel={() => setCreatingSub(false)}
+              />
+            ) : editingSub ? (
               <SubcategoryEditor
                 key={editingSub.id}
                 category={selected}

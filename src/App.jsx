@@ -412,7 +412,7 @@ function Tallio() {
           onAddTemplate={(catId, t) => { pushHistory(); cats.addTemplate(catId, t); }}
           onRemoveTemplate={(catId, t) => { pushHistory(); cats.removeTemplate(catId, t); }}
           onMoveAll={() => {}}
-          onAddSub={(catId) => { pushHistory(); return cats.addSub(catId, {}); }}
+          onAddSub={(catId, opts) => { pushHistory(); return cats.addSub(catId, opts); }}
           onUpdateSub={(catId, subId, patch) => { pushHistory(); cats.updateSub(catId, subId, patch); }}
           onDeleteSub={(catId, subId) => { pushHistory(); cats.deleteSub(catId, subId); }}
           onAddSubKeyword={(catId, subId, kw) => { pushHistory(); cats.addSubKeyword(catId, subId, kw); }}

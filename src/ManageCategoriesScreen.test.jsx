@@ -118,3 +118,33 @@ describe('ManageCategoriesScreen', () => {
     expect(screen.getByText(/editing: taxes/i)).toBeTruthy();
   });
 });
+
+describe('ManageCategoriesScreen sub-category create flow', () => {
+  afterEach(() => cleanup());
+
+  it('"+ Add sub-category" enters create mode without adding a sub yet', async () => {
+    const onAddSub = vi.fn(() => 'sNEW');
+    render(<ManageCategoriesScreen categories={cats} {...noopProps} onAddSub={onAddSub} />);
+    await userEvent.click(screen.getByRole('button', { name: /\+ add sub-category/i }));
+    expect(screen.getByText(/\(new sub-category\)/i)).toBeTruthy();
+    expect(onAddSub).not.toHaveBeenCalled();
+  });
+
+  it('typing a name and Save creates the sub via onAddSub', async () => {
+    const onAddSub = vi.fn(() => 'sNEW');
+    render(<ManageCategoriesScreen categories={cats} {...noopProps} onAddSub={onAddSub} />);
+    await userEvent.click(screen.getByRole('button', { name: /\+ add sub-category/i }));
+    await userEvent.type(screen.getByLabelText(/^name$/i), 'Mike');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onAddSub).toHaveBeenCalledWith('c1', { name: 'Mike' });
+  });
+
+  it('Cancel in create mode adds nothing and returns to the category editor', async () => {
+    const onAddSub = vi.fn(() => 'sNEW');
+    render(<ManageCategoriesScreen categories={cats} {...noopProps} onAddSub={onAddSub} />);
+    await userEvent.click(screen.getByRole('button', { name: /\+ add sub-category/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(onAddSub).not.toHaveBeenCalled();
+    expect(screen.getByText(/editing: utilities/i)).toBeTruthy();
+  });
+});
