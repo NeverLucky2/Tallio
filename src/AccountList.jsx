@@ -2,6 +2,8 @@
 import React, { useMemo } from 'react';
 import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import Icon from './Icon.jsx';
+import useCountUp from './useCountUp.js';
+import useValueFlash from './useValueFlash.js';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -9,6 +11,8 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
   const typesById = useMemo(() => new Map(types.map(t => [t.id, t])), [types]);
   const order = useMemo(() => groupOrder(types), [types]);
   const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
+  const netWorthV = useCountUp(totals.netWorth);
+  const netWorthFlash = useValueFlash(totals.netWorth);
 
   const grouped = useMemo(() => {
     const map = new Map(order.map(g => [g, []]));
@@ -24,7 +28,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
       <div className="household-strip">
         <div className="household-stat">
           <span className="household-label">Net worth</span>
-          <strong className={totals.netWorth >= 0 ? 'pos' : 'neg'}>{fmt(totals.netWorth)}</strong>
+          <strong className={`${totals.netWorth >= 0 ? 'pos' : 'neg'}${netWorthFlash ? ' value-flash' : ''}`}>{fmt(netWorthV)}</strong>
         </div>
         <div className="household-stat">
           <span className="household-label">Cash + investments</span>
