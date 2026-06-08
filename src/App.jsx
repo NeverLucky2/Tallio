@@ -14,6 +14,7 @@ import AppearanceScreen from './AppearanceScreen.jsx';
 import BackgroundLayer from './BackgroundLayer.jsx';
 import CelebrationLayer from './CelebrationLayer.jsx';
 import useCelebrations from './useCelebrations.js';
+import SeasonalLayer from './SeasonalLayer.jsx';
 import Icon from './Icon.jsx';
 import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
@@ -454,6 +455,7 @@ function Tallio() {
         style={celebrations.style}
         onDismiss={celebrations.dismiss}
       />
+      <SeasonalLayer enabled={settings.seasonalEffects} />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
