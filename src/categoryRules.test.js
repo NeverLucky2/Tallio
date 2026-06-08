@@ -10,25 +10,25 @@ const cats = [
 
 describe('autoCategorize', () => {
   it('returns fallback id when description is empty', () => {
-    expect(autoCategorize('', cats, 'c_other')).toBe('c_other');
-    expect(autoCategorize(null, cats, 'c_other')).toBe('c_other');
+    expect(autoCategorize('', cats, 'c_other').categoryId).toBe('c_other');
+    expect(autoCategorize(null, cats, 'c_other').categoryId).toBe('c_other');
   });
 
   it('returns fallback id when no keyword matches', () => {
-    expect(autoCategorize('SOMETHING UNRELATED', cats, 'c_other')).toBe('c_other');
+    expect(autoCategorize('SOMETHING UNRELATED', cats, 'c_other').categoryId).toBe('c_other');
   });
 
   it('matches case-insensitively', () => {
-    expect(autoCategorize('mcdonald', cats, 'c_other')).toBe('c_dine');
+    expect(autoCategorize('mcdonald', cats, 'c_other').categoryId).toBe('c_dine');
   });
 
   it('returns the longest-matching keyword winner', () => {
     // "PEOPLES GAS" (11) beats "GAS" (3)
-    expect(autoCategorize('PEOPLES GAS BILL MAY', cats, 'c_other')).toBe('c_util');
+    expect(autoCategorize('PEOPLES GAS BILL MAY', cats, 'c_other').categoryId).toBe('c_util');
   });
 
   it('returns the shorter match when longer one is not present', () => {
-    expect(autoCategorize('SHELL STATION 123', cats, 'c_other')).toBe('c_trans');
+    expect(autoCategorize('SHELL STATION 123', cats, 'c_other').categoryId).toBe('c_trans');
   });
 
   it('breaks ties by category display order (first wins)', () => {
@@ -37,7 +37,7 @@ describe('autoCategorize', () => {
       { id: 'c_a', name: 'A', keywords: ['XYZ'] },
       { id: 'c_b', name: 'B', keywords: ['XYZ'] },
     ];
-    expect(autoCategorize('XYZ FOO', tieCats, 'c_other')).toBe('c_a');
+    expect(autoCategorize('XYZ FOO', tieCats, 'c_other').categoryId).toBe('c_a');
   });
 
   it('ignores empty keywords', () => {
@@ -45,11 +45,37 @@ describe('autoCategorize', () => {
       { id: 'c_other', name: 'Other', keywords: [] },
       { id: 'c_evil',  name: 'Evil', keywords: [''] },
     ];
-    expect(autoCategorize('LITERALLY ANYTHING', evilCats, 'c_other')).toBe('c_other');
+    expect(autoCategorize('LITERALLY ANYTHING', evilCats, 'c_other').categoryId).toBe('c_other');
   });
 
   it('returns fallback id when categories array is empty', () => {
-    expect(autoCategorize('ANYTHING', [], 'c_other')).toBe('c_other');
+    expect(autoCategorize('ANYTHING', [], 'c_other').categoryId).toBe('c_other');
+  });
+
+  it('returns the sub id when a sub keyword is the longest match', () => {
+    const cats = [
+      { id: 'taxes', name: 'Taxes', keywords: ['TAX'], subcategories: [
+        { id: 'fed', name: 'Federal Tax', keywords: ['FEDERAL TAX'] },
+      ] },
+      { id: 'other', name: 'Other', keywords: [] },
+    ];
+    expect(autoCategorize('IRS FEDERAL TAX PMT', cats, 'other')).toEqual({ categoryId: 'taxes', subId: 'fed' });
+  });
+
+  it('a shorter parent keyword loses to a longer sub keyword', () => {
+    const cats = [
+      { id: 'taxes', name: 'Taxes', keywords: ['TAX'], subcategories: [{ id: 'fed', name: 'Fed', keywords: ['FEDERAL TAX'] }] },
+    ];
+    expect(autoCategorize('FEDERAL TAX', cats, 'fb')).toEqual({ categoryId: 'taxes', subId: 'fed' });
+  });
+
+  it('falls back to {categoryId: fallback, subId: null} on no match', () => {
+    expect(autoCategorize('nothing', [{ id: 'a', name: 'A', keywords: ['ZZZ'] }], 'fb')).toEqual({ categoryId: 'fb', subId: null });
+  });
+
+  it('returns {categoryId, subId:null} when only a parent keyword matches', () => {
+    const cats = [{ id: 'g', name: 'Gas', keywords: ['SHELL'], subcategories: [] }];
+    expect(autoCategorize('SHELL OIL', cats, 'fb')).toEqual({ categoryId: 'g', subId: null });
   });
 });
 
