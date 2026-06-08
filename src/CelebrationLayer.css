@@ -1,0 +1,45 @@
+/* Celebration overlay — layered above all content, ignores clicks except the toast. */
+.celebration { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+
+.celebration-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.confetti-piece {
+  position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px;
+  opacity: 0.9; animation: confetti-fall 2.8s linear forwards;
+}
+.confetti-piece.p0 { background: var(--accent, #5b8def); }
+.confetti-piece.p1 { background: var(--green, #3ddc97); }
+.confetti-piece.p2 { background: var(--warning, #ffd23f); }
+.confetti-piece.p3 { background: var(--danger, #ee6c4d); }
+.confetti-piece.p4 { background: var(--accent-2, #a06bff); }
+.confetti-piece.p5 { background: var(--green, #3ddc97); }
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(540deg); opacity: 0.9; }
+}
+
+.celebration-toast {
+  position: absolute; right: 18px; bottom: 18px; pointer-events: auto;
+  display: flex; align-items: center; gap: 10px; max-width: 320px;
+  background: var(--bg-raised, #1a1f2b); color: var(--text, #e8edf5);
+  border: 1px solid var(--border-strong, #3a4456); border-radius: 12px;
+  padding: 12px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  animation: celebration-pop 0.25s ease-out;
+}
+.celebration-quiet .celebration-toast { animation: none; }
+.celebration-emoji { font-size: 22px; }
+.celebration-title { font-weight: 700; }
+.celebration-detail { font-size: 13px; opacity: 0.8; }
+.celebration-close {
+  margin-left: 4px; background: none; border: none; color: inherit;
+  font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.6;
+}
+.celebration-close:hover { opacity: 1; }
+@keyframes celebration-pop {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { animation: none; }
+  .celebration-toast { animation: none; }
+}
