@@ -4,7 +4,7 @@
 .celebration-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .confetti-piece {
   position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 2px;
-  opacity: 0.9; animation: confetti-fall 2.8s linear forwards;
+  opacity: 0.9; animation: confetti-fall 1.5s linear forwards;
 }
 .confetti-piece.p0 { background: var(--accent, #5b8def); }
 .confetti-piece.p1 { background: var(--green, #3ddc97); }

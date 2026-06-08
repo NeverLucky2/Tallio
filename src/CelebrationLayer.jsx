@@ -12,7 +12,7 @@ function prefersReducedMotion() {
 const CONFETTI_COUNT = 24;
 
 export default function CelebrationLayer({
-  celebration, style = 'festive', reducedMotion, onDismiss, autoDismissMs = 6000,
+  celebration, style = 'festive', reducedMotion, onDismiss, autoDismissMs = 4000,
 }) {
   const rm = reducedMotion ?? prefersReducedMotion();
   const effective = style === 'off'
