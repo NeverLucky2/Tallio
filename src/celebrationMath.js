@@ -1,6 +1,6 @@
 // src/celebrationMath.js
 // Pure milestone detection over ledger/report state. No React, no storage.
-import { householdTotals } from './accountsModel.js';
+import { accountClass, computeRegister, householdTotals } from './accountsModel.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -43,4 +43,26 @@ export function detectNetWorth(accounts, transactions, typesById) {
     title: `${formatThreshold(t)} net worth!`,
     detail: 'A new milestone reached',
   }));
+}
+
+export function detectPaidOff(accounts, transactions, typesById) {
+  const out = [];
+  for (const a of accounts || []) {
+    if (accountClass(a.type, typesById) !== 'liability') continue;
+    const reg = computeRegister(a, transactions);
+    if (reg.length === 0) continue;
+    const opening = Number.isFinite(a.openingBalance) ? a.openingBalance : 0;
+    let minBal = opening;
+    for (const r of reg) if (r.balance < minBal) minBal = r.balance;
+    const current = reg[reg.length - 1].balance;
+    if (minBal < 0 && current >= 0) {
+      out.push({
+        key: `paidoff:${a.id}`,
+        type: 'paidoff',
+        title: `${a.name || 'Account'} paid off!`,
+        detail: 'You cleared the balance 🎉',
+      });
+    }
+  }
+  return out;
 }

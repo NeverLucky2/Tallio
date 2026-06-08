@@ -3,6 +3,7 @@ import {
   formatThreshold,
   networthThresholdsReached,
   detectNetWorth,
+  detectPaidOff,
 } from './celebrationMath.js';
 import { DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 
@@ -42,5 +43,30 @@ describe('detectNetWorth', () => {
   it('returns nothing when net worth is below the first rung', () => {
     const accounts = [{ id: 'b', name: 'Checking', type: 'bank', openingBalance: 100 }];
     expect(detectNetWorth(accounts, [], typesById)).toEqual([]);
+  });
+});
+
+describe('detectPaidOff', () => {
+  it('fires when a liability that was ever negative is now >= 0', () => {
+    const accounts = [{ id: 'cc', name: 'Visa', type: 'credit_card', openingBalance: -500 }];
+    const transactions = [{ id: 't1', accountId: 'cc', date: '2026-01-10', amount: 500 }];
+    const res = detectPaidOff(accounts, transactions, typesById);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ key: 'paidoff:cc', type: 'paidoff' });
+    expect(res[0].title).toContain('Visa');
+  });
+  it('does not fire for a liability still in debt', () => {
+    const accounts = [{ id: 'cc', name: 'Visa', type: 'credit_card', openingBalance: -500 }];
+    const transactions = [{ id: 't1', accountId: 'cc', date: '2026-01-10', amount: 200 }];
+    expect(detectPaidOff(accounts, transactions, typesById)).toEqual([]);
+  });
+  it('does not fire for a liability that was never negative (no activity)', () => {
+    const accounts = [{ id: 'cc', name: 'New Card', type: 'credit_card', openingBalance: 0 }];
+    expect(detectPaidOff(accounts, [], typesById)).toEqual([]);
+  });
+  it('ignores asset accounts at zero', () => {
+    const accounts = [{ id: 'b', name: 'Checking', type: 'bank', openingBalance: -10 }];
+    const transactions = [{ id: 't1', accountId: 'b', date: '2026-01-10', amount: 10 }];
+    expect(detectPaidOff(accounts, transactions, typesById)).toEqual([]);
   });
 });
