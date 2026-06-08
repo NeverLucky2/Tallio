@@ -197,9 +197,11 @@ export default function useCategories() {
     const itemIds = new Set(itemRefs.map(r => r.item.id));
     return bills.map(b => ({
       ...b,
-      items: (b.items || []).map(i =>
-        itemIds.has(i.id) ? { ...i, categoryId } : i
-      ),
+      items: (b.items || []).map(i => {
+        if (!itemIds.has(i.id)) return i;
+        const { subId: _drop, ...rest } = i;
+        return { ...rest, categoryId };
+      }),
     }));
   }, []);
 
