@@ -30,6 +30,8 @@ export default function useCategories() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+      // Clear a prior quota error once a save succeeds. No-op when already null.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError !== null) setStorageError(null);
     } catch (e) {
       console.error('Failed to save categories:', e);
