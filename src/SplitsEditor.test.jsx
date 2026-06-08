@@ -61,18 +61,18 @@ describe('SplitsEditor', () => {
 describe('SplitsEditor editing', () => {
   afterEach(() => cleanup());
 
-  it('the status bar shows Balanced when lines sum to the parent amount', () => {
+  it('shows the running Total and no "updates amount" note when lines equal the parent amount', () => {
     setup({
       initialSplits: [
         { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
       ],
     });
-    expect(screen.getByText(/Balanced/)).toBeTruthy();
-    expect(screen.getByText(/Lines: -180\.00/)).toBeTruthy();
+    expect(screen.getByText(/Total: -180\.00/)).toBeTruthy();
+    expect(screen.queryByText(/updates amount/i)).toBeNull();
   });
 
-  it('editing an amount surfaces the signed remaining-to-allocate amount', async () => {
+  it('editing a line amount updates the Total and shows the "updates amount" note', async () => {
     setup({
       initialSplits: [
         { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
@@ -80,8 +80,9 @@ describe('SplitsEditor editing', () => {
       ],
     });
     const amount0 = screen.getAllByLabelText(/line amount/i)[0];
-    await userEvent.type(amount0, '0'); // -100 becomes -1000; sum -1080; remaining +900
-    expect(screen.getByText(/Remaining to allocate: \+900\.00/)).toBeTruthy();
+    await userEvent.type(amount0, '0'); // -100 becomes -1000; sum -1080
+    expect(screen.getByText(/Total: -1080\.00/)).toBeTruthy();
+    expect(screen.getByText(/updates amount from -180\.00/)).toBeTruthy();
   });
 
   it('flipping a row from Category to Transfer swaps picker controls', async () => {
@@ -199,19 +200,19 @@ describe('SplitsEditor per-line direction', () => {
     expect(Number(amounts[0].value)).toBe(100);
   });
 
-  it('flipping a line to In flips its committed sign (remaining reflects it)', async () => {
+  it('flipping a line to In flips its committed sign (Total reflects it)', async () => {
     setup({
       initialSplits: [
-        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' }, // balanced at -180
+        { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_household', description: '' },
       ],
     });
     const inBtns = screen.getAllByRole('button', { name: /line in/i });
-    await userEvent.click(inBtns[0]); // s1 becomes +100; sum = +20; remaining = -180 - 20 = -200
-    expect(screen.getByText(/Remaining to allocate: -200\.00/)).toBeTruthy();
+    await userEvent.click(inBtns[0]); // s1 becomes +100; sum = +20
+    expect(screen.getByText(/Total: 20\.00/)).toBeTruthy();
   });
 
-  it('a freshly added line defaults to Out, so a typed magnitude becomes negative', async () => {
+  it('a freshly added line defaults to Out, so a typed magnitude becomes negative (Total reflects it)', async () => {
     setup({
       initialSplits: [
         { id: 's1', amount: -100, categoryId: 'c_grocery',   description: '' },
@@ -220,51 +221,15 @@ describe('SplitsEditor per-line direction', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: /add line/i }));
     const amounts = screen.getAllByLabelText(/line amount/i);
-    await userEvent.type(amounts[2], '50'); // new line, Out default → -50; sum = -230; remaining = -180 - (-230) = +50
-    expect(screen.getByText(/Remaining to allocate: \+50\.00/)).toBeTruthy();
-  });
-});
-
-describe('SplitsEditor remainder allocation', () => {
-  afterEach(() => cleanup());
-
-  it('"+ Add remainder as line" appends a line equal to the remainder and balances', async () => {
-    setup({
-      initialSplits: [
-        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // sum -130, parent -180, remaining -50
-        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
-      ],
-    });
-    expect(screen.getByText(/Remaining to allocate: -50\.00/)).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: /add remainder as line/i }));
-    expect(screen.getAllByRole('row')).toHaveLength(4); // header + 3 lines
-    expect(screen.getByText(/Balanced/)).toBeTruthy();
+    await userEvent.type(amounts[2], '50'); // new line, Out default → -50; sum = -230
+    expect(screen.getByText(/Total: -230\.00/)).toBeTruthy();
   });
 });
 
 describe('SplitsEditor Done validation and Unsplit', () => {
   afterEach(() => cleanup());
 
-  it('Done with an unallocated remainder asks to confirm adding an Other line (no error, no onDone yet)', async () => {
-    const { onDone } = setup({
-      initialSplits: [
-        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // sum -130, parent -180
-        { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
-      ],
-    });
-    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
-    expect(onDone).not.toHaveBeenCalled();
-    expect(screen.getByText(/will be added as an/i)).toBeTruthy();
-  });
-
-  it('Done stays direct when already balanced (no confirm prompt)', async () => {
-    const { onDone } = setup(); // default -100 / -80 = -180, balanced
-    await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
-    expect(onDone).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/will be added as an/i)).toBeNull();
-  });
-
-  it('confirm "Go back to edit" dismisses the prompt without calling onDone', async () => {
+  it('Done with lines that do not sum to the parent amount calls onDone directly (no confirm)', async () => {
     const { onDone } = setup({
       initialSplits: [
         { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' },
@@ -272,29 +237,27 @@ describe('SplitsEditor Done validation and Unsplit', () => {
       ],
     });
     await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
-    await userEvent.click(screen.getByRole('button', { name: /go back to edit/i }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone.mock.calls[0][0].splits).toHaveLength(2);
+    expect(onDone.mock.calls[0][0].splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-130, 5);
     expect(screen.queryByText(/will be added as an/i)).toBeNull();
-    expect(onDone).not.toHaveBeenCalled();
   });
 
-  it('confirm "OK, add it" appends an Other line and calls onDone with balanced splits', async () => {
-    const cats = [...categories, { id: 'c_other', name: 'Other', icon: '📋', flow: 'expense' }];
-    const { onDone } = setup({
-      categories: cats,
+  it('does not render an "Add remainder as line" button', () => {
+    setup({
       initialSplits: [
-        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' }, // remaining -50
+        { id: 's1', amount: -50, categoryId: 'c_grocery',   description: '' },
         { id: 's2', amount: -80, categoryId: 'c_household', description: '' },
       ],
     });
+    expect(screen.queryByRole('button', { name: /add remainder/i })).toBeNull();
+  });
+
+  it('Done stays direct when already balanced (no confirm prompt)', async () => {
+    const { onDone } = setup(); // default -100 / -80 = -180, balanced
     await userEvent.click(screen.getByRole('button', { name: /^done$/i }));
-    await userEvent.click(screen.getByRole('button', { name: /ok, add it/i }));
     expect(onDone).toHaveBeenCalledTimes(1);
-    const payload = onDone.mock.calls[0][0];
-    expect(payload.splits).toHaveLength(3);
-    const added = payload.splits[2];
-    expect(added.categoryId).toBe('c_other');
-    expect(added.amount).toBeCloseTo(-50, 5);
-    expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-180, 5);
+    expect(screen.queryByText(/will be added as an/i)).toBeNull();
   });
 
   it('Done succeeds when the sum matches', async () => {

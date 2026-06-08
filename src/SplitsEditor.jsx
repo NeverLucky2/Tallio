@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import { iconGlyph } from './iconValue.js';
 import { validateSplits } from './accountsModel.js';
-import { OTHER_CATEGORY_NAME } from './categoriesDefaults.js';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
 export default function SplitsEditor({
@@ -21,19 +20,11 @@ export default function SplitsEditor({
   const [lines, setLines] = useState(initialSplits);
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
   const [error, setError] = useState(null);
-  const [pendingRemainder, setPendingRemainder] = useState(false);
   const [dirs, setDirs] = useState(new Map());
   const dirOf = (line) => dirs.get(line.id) ?? (line.amount < 0 ? 'out' : line.amount > 0 ? 'in' : 'out');
 
   const parentCents = Math.round(parentAmount * 100);
   const sumCents = lines.reduce((s, l) => s + (Number.isFinite(l.amount) ? Math.round(l.amount * 100) : 0), 0);
-  const remainingCents = parentCents - sumCents;
-  const balanced = remainingCents === 0;
-
-  const otherCategoryId = (categories.find(c => c.name === OTHER_CATEGORY_NAME) || categories[0] || {}).id;
-  const fmtSigned = (cents) => (cents > 0 ? '+' : '') + (cents / 100).toFixed(2);
-  const makeRemainderLine = () => ({ id: nanoid(8), amount: remainingCents / 100, categoryId: otherCategoryId, description: '' });
-  const addRemainderLine = () => setLines(prev => [...prev, makeRemainderLine()]);
 
   const tryDone = () => {
     setError(null);
@@ -42,19 +33,16 @@ export default function SplitsEditor({
       onDone({ splits: null, categoryId: lines[0]?.categoryId });
       return;
     }
-    if (!balanced) { setPendingRemainder(true); return; }
     try {
-      validateSplits({ amount: parentAmount, splits: lines });
+      // The sum IS the amount, so the equality check is trivially satisfied;
+      // this still enforces the structural invariants (≥2 lines, finite amounts,
+      // exactly one of categoryId/transferId, unique ids).
+      validateSplits({ amount: sumCents / 100, splits: lines });
     } catch (e) {
       setError(e.message);
       return;
     }
     onDone({ splits: lines, splitTargets: targets });
-  };
-
-  const confirmRemainder = () => {
-    setPendingRemainder(false);
-    onDone({ splits: [...lines, makeRemainderLine()], splitTargets: targets });
   };
 
   const categoryLines = lines.filter(l => l.categoryId);
@@ -148,17 +136,10 @@ export default function SplitsEditor({
             setLines(prev => [...prev, { id: nanoid(8), amount: 0, categoryId: categories[0]?.id || '', description: '' }]);
           }}>+ Add line</button>
         </div>
-        <div className={`split-remaining ${balanced ? 'ok' : 'mismatch'}`}>
-          {balanced ? (
-            <>
-              <span className="split-balanced">✓ Balanced</span>
-              <span className="split-remaining-detail">Lines: {(sumCents / 100).toFixed(2)} · Bank: {parentAmount.toFixed(2)}</span>
-            </>
-          ) : (
-            <>
-              <span className="split-remaining-label">Remaining to allocate: {fmtSigned(remainingCents)}</span>
-              <button type="button" className="btn btn-small" onClick={addRemainderLine}>+ Add remainder as line</button>
-            </>
+        <div className="split-total">
+          <span className="split-total-label">Total: {(sumCents / 100).toFixed(2)}</span>
+          {parentCents !== sumCents && (
+            <span className="split-total-note">updates amount from {(parentCents / 100).toFixed(2)}</span>
           )}
         </div>
         <div className="dialog-actions">
@@ -166,17 +147,6 @@ export default function SplitsEditor({
           <button type="button" className="btn" onClick={onCancel}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={tryDone}>Done</button>
         </div>
-        {pendingRemainder && (
-          <div className="split-confirm" role="alertdialog" aria-label="Unallocated remainder">
-            <p className="split-confirm-msg">
-              The remaining {fmtSigned(remainingCents)} will be added as an “Other” line so the split balances the bank deposit. Continue?
-            </p>
-            <div className="dialog-actions">
-              <button type="button" className="btn" onClick={() => setPendingRemainder(false)}>Go back to edit</button>
-              <button type="button" className="btn btn-primary" onClick={confirmRemainder}>OK, add it</button>
-            </div>
-          </div>
-        )}
         {error && <p className="field-error">{error}</p>}
       </div>
     </div>
