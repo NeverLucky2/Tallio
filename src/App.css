@@ -2820,6 +2820,18 @@
   min-width: 209px;
 }
 
+.cat-picker { position: relative; }
+.cat-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; cursor: pointer; text-align: left; }
+.cat-picker-caret { opacity: 0.6; }
+.cat-picker-popover { position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface, #1a1f2b); border: 1px solid var(--border, #3a4456); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); padding: 6px; }
+.cat-picker-input { width: 100%; margin-bottom: 6px; }
+.cat-picker-list { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.cat-picker-group { font: 600 10px system-ui; letter-spacing: .06em; text-transform: uppercase; opacity: 0.55; padding: 6px 8px 2px; }
+.cat-picker-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.cat-picker-option.is-sub { padding-left: 26px; }
+.cat-picker-option.active { background: rgba(124,138,160,0.18); }
+.cat-picker-empty { padding: 8px; opacity: 0.6; }
+
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

@@ -3,21 +3,27 @@
 
 export function autoCategorize(description, categories, fallbackCategoryId) {
   if (typeof description !== 'string' || description.length === 0) {
-    return fallbackCategoryId;
+    return { categoryId: fallbackCategoryId, subId: null };
   }
   const upper = description.toUpperCase();
-  let bestId = fallbackCategoryId;
+  let bestCategoryId = fallbackCategoryId;
+  let bestSubId = null;
   let bestLen = 0;
   for (const cat of categories || []) {
     for (const kw of cat.keywords || []) {
-      if (typeof kw !== 'string' || kw.length === 0) continue;
-      if (kw.length > bestLen && upper.includes(kw)) {
-        bestLen = kw.length;
-        bestId = cat.id;
+      if (typeof kw === 'string' && kw.length > bestLen && upper.includes(kw)) {
+        bestLen = kw.length; bestCategoryId = cat.id; bestSubId = null;
+      }
+    }
+    for (const sub of cat.subcategories || []) {
+      for (const kw of sub.keywords || []) {
+        if (typeof kw === 'string' && kw.length > bestLen && upper.includes(kw)) {
+          bestLen = kw.length; bestCategoryId = cat.id; bestSubId = sub.id;
+        }
       }
     }
   }
-  return bestId;
+  return { categoryId: bestCategoryId, subId: bestSubId };
 }
 
 // Returns the subset of items where adding `keyword` to category `targetCategoryId`
@@ -40,6 +46,12 @@ export function findItemsMatchingKeyword(keyword, targetCategoryId, bills, categ
         for (const k of cat.keywords || []) {
           if (typeof k !== 'string' || k.length === 0) continue;
           if (k.length > currentBest && upper.includes(k)) currentBest = k.length;
+        }
+        for (const sub of cat.subcategories || []) {
+          for (const k of sub.keywords || []) {
+            if (typeof k !== 'string' || k.length === 0) continue;
+            if (k.length > currentBest && upper.includes(k)) currentBest = k.length;
+          }
         }
       }
       if (kw.length > currentBest) {

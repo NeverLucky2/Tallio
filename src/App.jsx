@@ -345,13 +345,15 @@ function Tallio() {
       let targetId = selectedAccountId;
       if (!targetId) targetId = ledger.addAccount({ name: vendor || 'Scanned account', type: 'untyped', icon: '🏦' });
       for (const it of items) {
-        const flow = (categoriesById.get(cats.autoCategorize(it.description))?.flow) || 'expense';
+        const ac = cats.autoCategorize(it.description);
+        const flow = (categoriesById.get(ac.categoryId)?.flow) || 'expense';
         const sign = flow === 'income' ? 1 : -1;
         ledger.addTransaction({
           accountId: targetId,
           date: it.date || new Date().toISOString().slice(0, 10),
           amount: sign * (Number.isFinite(it.amount) ? it.amount : 0),
-          categoryId: cats.autoCategorize(it.description),
+          categoryId: ac.categoryId,
+          ...(ac.subId ? { subId: ac.subId } : {}),
           description: it.description,
         });
       }
@@ -414,7 +416,7 @@ function Tallio() {
           onMoveAll={() => {}}
           onAddSub={(catId, opts) => { pushHistory(); return cats.addSub(catId, opts); }}
           onUpdateSub={(catId, subId, patch) => { pushHistory(); cats.updateSub(catId, subId, patch); }}
-          onDeleteSub={(catId, subId) => { pushHistory(); cats.deleteSub(catId, subId); }}
+          onDeleteSub={(catId, subId) => { pushHistory(); ledger.clearSubcategory(subId); cats.deleteSub(catId, subId); }}
           onAddSubKeyword={(catId, subId, kw) => { pushHistory(); cats.addSubKeyword(catId, subId, kw); }}
           onRemoveSubKeyword={(catId, subId, kw) => { pushHistory(); cats.removeSubKeyword(catId, subId, kw); }}
           onPromoteKeyword={(catId, kw) => { pushHistory(); return cats.promoteKeywordToSub(catId, kw); }}

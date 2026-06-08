@@ -1,11 +1,10 @@
 // src/TransactionEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
-import { iconGlyph } from './iconValue.js';
 import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
-import { groupCategoriesByFlow } from './categoriesView.js';
+import CategoryPicker from './CategoryPicker.jsx';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -19,6 +18,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
   const [magnitude, setMagnitude] = useState(initialAmount);
   const [direction, setDirection] = useState(initialDir);
   const [categoryId, setCategoryId] = useState(transaction?.categoryId || (categories[0] && categories[0].id) || '');
+  const [subId, setSubId] = useState(transaction?.subId ?? null);
   const [payee, setPayee] = useState(transaction?.payee || '');
   const [checkNumber, setCheckNumber] = useState(transaction?.checkNumber || '');
   const [splits, setSplits] = useState(transaction?.splits ?? null);
@@ -63,6 +63,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
       date,
       amount,
       categoryId: categoryId || null,
+      subId: subId || null, // explicit null so editing away a sub clears it (ledger drops null subId)
       description: description.trim(),
       payee: isBank ? (payee.trim() || null) : null,
       checkNumber: isBank ? (checkNumber.trim() || null) : null,
@@ -97,13 +98,8 @@ export default function TransactionEditor({ account, transaction, categories, ac
 
         <div className="field">
           <span>Category</span>
-          <select aria-label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="select">
-            {groupCategoriesByFlow(categories).map(group => (
-              <optgroup key={group.flow} label={group.label}>
-                {group.items.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
-              </optgroup>
-            ))}
-          </select>
+          <CategoryPicker categories={categories} value={{ categoryId, subId }}
+            onChange={({ categoryId: c, subId: s }) => { setCategoryId(c); setSubId(s); }} ariaLabel="Category" />
           {hasSplits ? (
             <>
               <span className="split-summary">▼ {splits.length} split lines</span>

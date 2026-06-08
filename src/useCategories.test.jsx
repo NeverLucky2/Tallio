@@ -133,8 +133,8 @@ describe('useCategories', () => {
   it('autoCategorize uses categories state and falls back to Other', () => {
     const { result } = renderHook(() => useCategories());
     const otherId = result.current.categories.find(c => c.name === OTHER_CATEGORY_NAME).id;
-    expect(result.current.autoCategorize('totally unrelated text')).toBe(otherId);
-    expect(result.current.autoCategorize('I went to MCDONALD')).toBe(
+    expect(result.current.autoCategorize('totally unrelated text').categoryId).toBe(otherId);
+    expect(result.current.autoCategorize('I went to MCDONALD').categoryId).toBe(
       result.current.categories.find(c => c.name === 'Dining').id
     );
   });
@@ -372,5 +372,17 @@ describe('useCategories', () => {
     const sub = cat.subcategories.find(s => s.id === subId);
     expect(sub.name).toBe('Federal Tax');
     expect(sub.keywords).toEqual(['FEDERAL TAX']);
+  });
+});
+
+describe('applyCategoryToItems subId handling', () => {
+  it('applyCategoryToItems clears subId on moved items', () => {
+    const { result } = renderHook(() => useCategories());
+    const bills = [{ id: 'b1', items: [{ id: 'i1', categoryId: 'old', subId: 'oldsub', amount: -5 }] }];
+    let next;
+    act(() => { next = result.current.applyCategoryToItems(bills, [{ billId: 'b1', item: bills[0].items[0] }], 'newcat'); });
+    const it = next[0].items[0];
+    expect(it.categoryId).toBe('newcat');
+    expect(it.subId).toBeUndefined();
   });
 });

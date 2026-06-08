@@ -75,6 +75,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           amount: Number.isFinite(s.amount) ? s.amount : 0,
           description: s.description || '',
           ...(s.categoryId ? { categoryId: s.categoryId } : {}),
+          ...(s.categoryId && s.subId ? { subId: s.subId } : {}),
           ...(s.transferId ? { transferId: s.transferId } : {}),
         }))
       : null;
@@ -84,6 +85,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       date: txn.date,
       amount: Number.isFinite(txn.amount) ? txn.amount : 0,
       categoryId: txn.categoryId,
+      ...(txn.subId ? { subId: txn.subId } : {}),
       description: txn.description || '',
       payee: txn.payee ?? null,
       checkNumber: txn.checkNumber ?? null,
@@ -125,6 +127,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       const next = { ...before, ...patch, id: before.id };
       if (next.splits === undefined) next.splits = before.splits;
       if (next.splits === null) delete next.splits;
+      if (next.subId === null || next.subId === undefined) delete next.subId;
       validateSplits(next);
 
       const prevLines = Array.isArray(before.splits) ? before.splits : [];
@@ -214,6 +217,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           amount: Number.isFinite(s.amount) ? s.amount : 0,
           description: s.description || '',
           ...(s.categoryId ? { categoryId: s.categoryId } : {}),
+          ...(s.categoryId && s.subId ? { subId: s.subId } : {}),
           ...(s.transferId ? { transferId: s.transferId } : {}),
         }))
       : null;
@@ -240,6 +244,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           amount: Number.isFinite(s.amount) ? s.amount : 0,
           description: s.description || '',
           ...(s.categoryId ? { categoryId: s.categoryId } : {}),
+          ...(s.categoryId && s.subId ? { subId: s.subId } : {}),
           ...(s.transferId ? { transferId: s.transferId } : {}),
         }))
       : null;
@@ -275,6 +280,23 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     setTransactions(prev => prev.filter(t => t.transferId !== transferId));
   }, []);
 
+  const clearSubcategory = useCallback((subId) => {
+    if (!subId) return;
+    setTransactions(prev => prev.map(t => {
+      let changed = false;
+      const next = { ...t };
+      if (next.subId === subId) { delete next.subId; changed = true; }
+      if (Array.isArray(next.splits)) {
+        const lines = next.splits.map(s => {
+          if (s.subId === subId) { const { subId: _drop, ...rest } = s; return rest; }
+          return s;
+        });
+        if (lines.some((s, i) => s !== next.splits[i])) { next.splits = lines; changed = true; }
+      }
+      return changed ? next : t;
+    }));
+  }, []);
+
   const snapshot = useCallback(() => ({ accounts, transactions }), [accounts, transactions]);
   const restore = useCallback((snap) => {
     if (!snap) return;
@@ -289,6 +311,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     addAccount, updateAccount, deleteAccount,
     addTransaction, updateTransaction, deleteTransaction,
     addTransfer, updateTransfer, deleteTransfer,
+    clearSubcategory,
     snapshot, restore,
     storageError, clearStorageError,
   };
