@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { clampUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from './useSettings.js';
+import './SettingsPanel.css';
 
 const MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', cost: '~$0.005/receipt' },
@@ -40,7 +41,7 @@ export default function SettingsPanel({ settings, celebrationStyle = 'festive', 
   return (
     <div className="pair-overlay" onClick={onClose}>
       <div
-        className="pair-modal"
+        className="pair-modal settings-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"

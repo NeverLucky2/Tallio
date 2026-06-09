@@ -1,0 +1,14 @@
+/* Keep the Settings modal within the viewport: cap its height and let the body
+   scroll, so the header and footer (Save / Done) stay reachable at any zoom.
+   Two-class selector (.pair-modal.settings-modal) wins over the shared
+   .pair-modal rules regardless of stylesheet order. */
+.pair-modal.settings-modal {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.pair-modal.settings-modal .settings-body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0; /* allow the flex child to shrink below content height so it can scroll */
+}
