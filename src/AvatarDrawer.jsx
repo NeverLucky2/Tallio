@@ -9,7 +9,7 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export default function AvatarDrawer({ open, onClose, items = [], version = '', reducedMotion }) {
+export default function AvatarDrawer({ open, onClose, items = [], version = '', avatar = null, reducedMotion }) {
   const rm = reducedMotion ?? prefersReducedMotion();
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function AvatarDrawer({ open, onClose, items = [], version = '', 
       <div className="avatar-drawer-scrim" onClick={() => onClose && onClose()} role="presentation" />
       <div className={`avatar-drawer-panel${rm ? ' no-anim' : ''}`} role="dialog" aria-modal="true" aria-label="Account menu">
         <div className="avatar-drawer-head">
-          <span className="avatar-drawer-glyph" aria-hidden="true">✦</span>
+          {avatar || <span className="avatar-drawer-avatar" aria-hidden="true">✦</span>}
           <div className="avatar-drawer-id">
             <div className="avatar-drawer-title">Your Tallio</div>
             <div className="avatar-drawer-sub">Account</div>

@@ -52,6 +52,13 @@ describe('AvatarDrawer', () => {
     expect(closed).toBe(1);
   });
 
+  it('renders a provided avatar node in the head', () => {
+    const { getByTestId } = render(
+      <AvatarDrawer open={true} onClose={() => {}} items={mkItems([])} avatar={<span data-testid="av">A</span>} reducedMotion={false} />,
+    );
+    expect(getByTestId('av')).toBeTruthy();
+  });
+
   it('adds no-anim under reduced motion', () => {
     const { container } = render(<AvatarDrawer open={true} onClose={() => {}} items={mkItems([])} reducedMotion={true} />);
     expect(container.querySelector('.avatar-drawer-panel').className).toContain('no-anim');

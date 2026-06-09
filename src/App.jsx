@@ -16,6 +16,7 @@ import CelebrationLayer from './CelebrationLayer.jsx';
 import useCelebrations from './useCelebrations.js';
 import useEasterEggs from './useEasterEggs.js';
 import { printConsoleArt } from './consoleArt.js';
+import AvatarDrawer from './AvatarDrawer.jsx';
 import Icon from './Icon.jsx';
 import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
@@ -153,6 +154,7 @@ function Tallio() {
   });
   const eggs = useEasterEggs();
   useEffect(() => { printConsoleArt(); }, []);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
@@ -463,6 +465,17 @@ function Tallio() {
         style="festive"
         onDismiss={eggs.dismiss}
       />
+      <AvatarDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        version={pkg.version}
+        avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
+        items={[
+          { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
+          { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
+          { icon: '↗', label: 'Export', onSelect: () => exportData() },
+        ]}
+      />
 
       {screen === 'manage-categories' && (
         <ManageCategoriesScreen
@@ -607,15 +620,16 @@ function Tallio() {
       <div className="container">
         <header className="header">
           <div className="brand">
-            <span className="header-avatar-wrap" onClick={eggs.registerLogoClick} role="presentation">
-              <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" title="Your avatar" />
-            </span>
-            <h1 className="brand-title">Tall<span className="brand-title-accent">io</span></h1>
+            <button type="button" className="avatar-trigger" aria-label="Account menu" title="Open menu" onClick={() => setDrawerOpen(true)}>
+              <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" />
+              <span className="avatar-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <h1 className="brand-title">
+              <span role="presentation" onClick={eggs.registerLogoClick}>Tall<span className="brand-title-accent">io</span></span>
+            </h1>
             <p className="brand-sub">Accounts</p>
           </div>
           <div className="header-actions">
-            <button onClick={() => openSettings()} className="btn-icon" aria-label="Settings">⚙</button>
-            <button type="button" onClick={() => setScreen('appearance')} className="btn-icon" aria-label="Appearance">🎨</button>
             <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
             <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
             <button type="button" onClick={() => setScreen('reports')} className="btn">📊 Reports</button>
@@ -624,7 +638,6 @@ function Tallio() {
             <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
             <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}</button>
             <UndoButton count={history.length} onUndo={undo} />
-            <button onClick={exportData} className="btn">↗ Export</button>
           </div>
         </header>
 
