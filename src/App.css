@@ -983,9 +983,17 @@
 
 .select:focus { border-color: var(--border-focus); }
 
+/* Native dropdown menus follow the theme (OS defaults were grey-on-white in
+   light themes — the flow optgroup labels were illegible). */
 .select option {
-  background: #1a1d28;
+  background: var(--bg-card);
   color: var(--text);
+}
+.select optgroup {
+  background: var(--bg-card);
+  color: var(--text);
+  font-weight: 700;
+  font-style: normal;
 }
 
 /* ---- Sidebar ---- */
