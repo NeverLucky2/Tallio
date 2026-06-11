@@ -194,9 +194,16 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
       <input
         id="bg-intensity" type="range" min="0" max="100" className="bg-intensity"
         aria-label="Background intensity"
+        disabled={base === 'solid'}
         value={intensity}
         onChange={(e) => updateBackground({ intensity: Number(e.target.value) }, 'appearance:bg:intensity')}
       />
+      {base === 'solid' && (
+        <p className="bg-slider-hint">
+          Applies to photo and wallpaper backgrounds — pick one above to use it.
+          Effect brightness has its own slider.
+        </p>
+      )}
 
       {anyEffect && (
         <>

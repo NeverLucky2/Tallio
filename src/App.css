@@ -3777,6 +3777,10 @@
   .bg-photo { transition: none; }
 }
 
+/* Intensity slider has no target over a solid base — disabled with a hint. */
+.bg-intensity:disabled { opacity: 0.35; cursor: not-allowed; }
+.bg-slider-hint { font-size: 11px; color: var(--text-dim); margin: 4px 0 10px; }
+
 /* ---- Finish picker (Theme tab) ---- */
 .finish-cards { display: grid; grid-template-columns: repeat(2, minmax(180px, 260px)); gap: 12px; margin-bottom: 22px; }
 .finish-card {
