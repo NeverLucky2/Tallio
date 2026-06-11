@@ -120,6 +120,18 @@ export function monthToDateDelta(accounts, transactions, typesById, now = new Da
   return sum;
 }
 
+// Month-end net worth for the last `months` months (oldest → newest).
+// Reuses householdTotals by replaying transactions up to each month end.
+export function netWorthSeries(accounts, transactions, typesById, months = 6, now = new Date()) {
+  const out = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+    const upto = (transactions || []).filter(t => new Date(t.date) <= end);
+    out.push(householdTotals(accounts, upto, typesById).netWorth);
+  }
+  return out;
+}
+
 // Filter register rows by search term, month (YYYY-MM), and/or categoryId.
 // Search matches description, payee, category name, or (approx) amount.
 export function filterTransactions(rows, { search = '', month = null, categoryId = null } = {}, categoriesById = null) {

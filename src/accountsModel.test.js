@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ACCOUNT_TYPES, GROUP_ORDER, accountClass, layoutFor, groupFor,
   isOnBalanceSheet, flowSign, transferDraftForAccount, payFromUpdate,
-  monthToDateDelta, DEFAULT_ACCOUNT_TYPES_BY_ID,
+  monthToDateDelta, DEFAULT_ACCOUNT_TYPES_BY_ID, netWorthSeries,
 } from './accountsModel.js';
 
 describe('account types & classification', () => {
@@ -661,5 +661,27 @@ describe('monthToDateDelta', () => {
   it('returns 0 for empty inputs', () => {
     expect(monthToDateDelta([], [], types, now)).toBe(0);
     expect(monthToDateDelta(accounts, [], types, now)).toBe(0);
+  });
+});
+
+describe('netWorthSeries', () => {
+  const typesById = new Map([['checking', { id: 'checking', klass: 'asset', group: 'Cash' }]]);
+  const accounts = [{ id: 'a1', type: 'checking' }];
+
+  it('returns one point per month, ending at current net worth', () => {
+    const txns = [
+      { id: 't1', accountId: 'a1', date: '2026-04-10', amount: 1000 },
+      { id: 't2', accountId: 'a1', date: '2026-05-10', amount: 500 },
+      { id: 't3', accountId: 'a1', date: '2026-06-05', amount: 250 },
+    ];
+    const series = netWorthSeries(accounts, txns, typesById, 3, new Date('2026-06-15'));
+    expect(series).toHaveLength(3);
+    expect(series[2]).toBe(1750);      // through June
+    expect(series[1]).toBe(1500);      // through May
+    expect(series[0]).toBe(1000);      // through April
+  });
+
+  it('is safe with no transactions', () => {
+    expect(netWorthSeries(accounts, [], typesById, 4, new Date('2026-06-15'))).toEqual([0, 0, 0, 0]);
   });
 });
