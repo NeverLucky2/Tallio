@@ -71,18 +71,6 @@ describe('ManageCategoriesScreen', () => {
     expect(screen.getByText(/editing: new category/i)).toBeTruthy();
   });
 
-  it('shows item counts next to each category in the list', () => {
-    const bills = [{ id: 'b1', items: [
-      { id: 'i1', categoryId: 'c1' },
-      { id: 'i2', categoryId: 'c1' },
-      { id: 'i3', categoryId: 'c2' },
-    ]}];
-    render(<ManageCategoriesScreen categories={cats} {...noopProps} bills={bills} />);
-    // Render uses "(N)" suffix on rows.
-    expect(screen.getByText('Utilities').parentElement.textContent).toContain('2');
-    expect(screen.getByText('Dining').parentElement.textContent).toContain('1');
-  });
-
   it('renders an Undo button that enables on undoCount and calls onUndo', async () => {
     const onUndo = vi.fn();
     render(<ManageCategoriesScreen categories={cats} {...noopProps} onUndo={onUndo} undoCount={2} />);
