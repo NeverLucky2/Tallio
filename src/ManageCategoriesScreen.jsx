@@ -116,7 +116,6 @@ export default function ManageCategoriesScreen({
               <div key={group.flow} className="manage-list-flow-group">
                 <div className="manage-list-flow-label">{group.flow}</div>
                 {group.items.map(cat => {
-                  const count = itemCounts.get(cat.id) || 0;
                   const subCount = (cat.subcategories || []).length;
                   return (
                     <button
@@ -135,7 +134,6 @@ export default function ManageCategoriesScreen({
                       {subCount > 0 && (
                         <span className="manage-list-subcount" title={`${subCount} sub-categories`} style={{ opacity: 0.7, fontSize: '0.8em' }}>⊞{subCount}</span>
                       )}
-                      <span className="manage-list-count">{count}</span>
                     </button>
                   );
                 })}
