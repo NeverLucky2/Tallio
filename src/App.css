@@ -3774,6 +3774,39 @@
   .bg-photo { transition: none; }
 }
 
+/* ---- Finish picker (Theme tab) ---- */
+.finish-cards { display: grid; grid-template-columns: repeat(2, minmax(180px, 260px)); gap: 12px; margin-bottom: 22px; }
+.finish-card {
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; cursor: pointer; color: var(--text); font: inherit; text-align: left;
+  transition: border-color var(--transition);
+}
+.finish-card:hover { border-color: var(--border-strong); }
+.finish-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.finish-card-name { font-weight: 600; font-size: 13px; }
+.finish-card-desc { font-size: 11px; color: var(--text-muted); }
+.finish-thumb { width: 100%; height: 44px; border-radius: 6px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+/* mini wireframes: a serif sheet vs a flat rail */
+.finish-thumb-bullion::before {
+  content: ''; position: absolute; inset: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 5px;
+}
+.finish-thumb-bullion::after {
+  content: ''; position: absolute; left: 18px; right: 18px; top: 50%;
+  border-bottom: 3px double color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.finish-thumb-instrument::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 26%;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  border-right: 1px solid var(--border-strong);
+}
+.finish-thumb-instrument::after {
+  content: ''; position: absolute; left: 34%; right: 10px; top: 12px; height: 2px;
+  background: var(--accent);
+  box-shadow: 0 9px 0 0 var(--border-strong), 0 18px 0 0 var(--border-strong);
+}
+
 /* ---- Background tab controls ---- */
 .appearance-hint { color: var(--text-muted); font-size: 12px; margin: 0 0 18px; }
 .bg-effect-toggles { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
