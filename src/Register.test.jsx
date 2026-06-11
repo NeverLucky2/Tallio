@@ -85,6 +85,14 @@ describe('Register', () => {
     expect(screen.getByText(/Last entry May 5, 2026/)).toBeTruthy();
   });
 
+  it('month filter sits in a wrapper with an adjacent calendar icon', () => {
+    const { container } = render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const wrap = container.querySelector('.register-month');
+    expect(wrap).toBeTruthy();
+    expect(wrap.querySelector('svg')).toBeTruthy();
+    expect(wrap.querySelector('input[type="month"]')).toBeTruthy();
+  });
+
   it('footer reflects the month filter with a singular count', () => {
     render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
     fireEvent.change(screen.getByLabelText(/month filter/i), { target: { value: '2026-04' } });

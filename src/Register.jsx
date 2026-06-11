@@ -1,6 +1,7 @@
 // src/Register.jsx
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Icon from './Icon.jsx';
+import UiIcon from './ui/UiIcon.jsx';
 import { iconGlyph } from './iconValue.js';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
@@ -105,7 +106,10 @@ export default function Register({ account, transactions, accounts = [], categor
           <input type="text" ref={searchRef} className="input" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <span className="kbd-hint" aria-hidden="true">/</span>
         </span>
-        <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
+        <label className="register-month">
+          <UiIcon name="calendar" size={14} />
+          <input type="month" className="register-month-input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
+        </label>
         <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Category filter">
           <option value="">All categories</option>
           {groupCategoriesByFlow(categories).map(group => (

@@ -10,7 +10,7 @@
   --debit-color: var(--text);
   --well-radius: 50%;
   --well-border: color-mix(in srgb, var(--accent) 22%, transparent);
-  --topbar-h: 62px;
+  --topbar-h: 56px;
   --topbar-bg: transparent;
 }
 
@@ -36,14 +36,16 @@
   content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
 }
 .app-root[data-finish="instrument"] .top-nav-link {
-  font-family: var(--font-mono); font-size: 11.5px; text-transform: lowercase;
+  font-family: var(--font-mono); font-size: 11.5px;
 }
 .app-root[data-finish="instrument"] .top-nav-link.on {
   color: var(--text); border-bottom-color: var(--accent);
 }
 
 /* ---- Body / sidebar ---- */
-.app-root[data-finish="bullion"] .container { max-width: 1280px; padding: 26px 30px 36px; }
+/* Bullion borrows Instrument's space efficiency: near-full-bleed body with
+   modest gutters; the serif/coin/double-rule identity carries the difference. */
+.app-root[data-finish="bullion"] .container { max-width: none; padding: 18px 24px 30px; }
 .app-root[data-finish="instrument"] .container { max-width: none; padding: 0; }
 .app-root[data-finish="instrument"] .accounts-layout { grid-template-columns: 264px 1fr; gap: 0; }
 .app-root[data-finish="instrument"] .accounts-sidebar {
@@ -75,17 +77,15 @@
   background: color-mix(in srgb, var(--bg-raised) calc(var(--surface-alpha) * 100%), transparent);
   backdrop-filter: blur(var(--surface-blur));
   border: 1px solid var(--border); border-radius: 12px;
-  padding: 20px 24px 16px;
+  padding: 16px 18px 12px;
 }
 .app-root[data-finish="instrument"] .register { padding: 16px 20px; }
 .app-root[data-finish="instrument"] .register-title { font-size: 16px; font-weight: 600; }
 .app-root[data-finish="bullion"] .register-balance {
   border-bottom: 3px double color-mix(in srgb, var(--accent) 50%, transparent); padding-bottom: 3px;
 }
-.app-root[data-finish="bullion"] .register-filters .input,
-.app-root[data-finish="bullion"] .register-filters .select {
-  background: none; border: none; border-bottom: 1px solid var(--border-strong); border-radius: 0;
-}
+/* (Bullion's underline-only filter fields retired 2026-06-11 — too subtly
+   defined; both finishes now use boxed fields.) */
 .app-root[data-finish="instrument"] .kbd-hint { display: inline-block; }
 .app-root[data-finish="instrument"] .register-table th { font-family: var(--font-mono); letter-spacing: 0.14em; color: var(--text-dim); border-bottom-color: var(--border-strong); }
 .app-root[data-finish="instrument"] .txn-date { letter-spacing: 0; text-transform: none; font-size: 11px; }
