@@ -105,6 +105,16 @@ describe('Register', () => {
     expect(document.activeElement).toBe(month);
   });
 
+  it('"/" is ignored while an editor overlay (.dialog-overlay, no role) is open', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay';
+    document.body.appendChild(overlay);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText(/search/i));
+    overlay.remove();
+  });
+
   it('"/" is ignored while a dialog is open', async () => {
     render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
     const dialog = document.createElement('div');

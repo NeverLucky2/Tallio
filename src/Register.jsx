@@ -57,7 +57,8 @@ export default function Register({ account, transactions, accounts = [], categor
       const el = e.target;
       const tag = el && el.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (el && el.isContentEditable)) return;
-      if (document.querySelector('[role="dialog"], .camera-overlay, .processing-overlay')) return;
+      // Editors/screens render several overlay flavors, not all with role="dialog".
+      if (document.querySelector('[role="dialog"], .dialog-overlay, .modal-overlay, .pair-overlay, .screen-overlay, .camera-overlay, .processing-overlay')) return;
       e.preventDefault();
       if (searchRef.current) searchRef.current.focus();
     };
