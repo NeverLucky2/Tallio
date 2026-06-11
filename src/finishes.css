@@ -1,0 +1,35 @@
+/* ============================================================
+   FINISHES — the form axis. Theme = color, Finish = form.
+   One DOM; these tokens + [data-finish] scoped rules re-dress it.
+   Bullion: heirloom ledger (default). Instrument: precision terminal.
+   Every color here derives from theme tokens — never literals.
+   ============================================================ */
+
+.app-root[data-finish="bullion"] {
+  --font-mono: 'IBM Plex Mono', monospace;
+  --debit-color: var(--text);
+  --well-radius: 50%;
+  --well-border: color-mix(in srgb, var(--accent) 22%, transparent);
+  --topbar-h: 62px;
+  --topbar-bg: transparent;
+}
+
+.app-root[data-finish="instrument"] {
+  --font-mono: 'Geist Mono', monospace;
+  --debit-color: var(--red);
+  --well-radius: 6px;
+  --well-border: var(--border);
+  --topbar-h: 50px;
+  --topbar-bg: var(--bg-raised);
+}
+
+/* Finish flips cross-fade; disabled for reduced motion. */
+.app-root,
+.app-root .topbar,
+.app-root .icon-well,
+.app-root .register {
+  transition: background-color .25s ease, border-color .25s ease, border-radius .25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-root, .app-root .topbar, .app-root .icon-well, .app-root .register { transition: none; }
+}

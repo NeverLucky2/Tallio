@@ -39,6 +39,7 @@ import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
 import './App.css';
+import './finishes.css';
 import './microMotion.css';
 import pkg from '../package.json';
 
@@ -217,6 +218,7 @@ function Tallio() {
   const appearanceForUI = {
     ...appearance,
     setTheme: (id) => { pushHistory(); appearance.setTheme(id); },
+    setFinish: (id) => { pushHistory(); appearance.setFinish(id); },
     updateCustom: (partial, colorKey) => { pushHistory(colorKey ? `appearance:custom:${colorKey}` : null); appearance.updateCustom(partial); },
     resetCustomToPreset: (id) => { pushHistory(); appearance.resetCustomToPreset(id); },
     updateBackground: (partial, opKey) => { pushHistory(opKey || null); appearance.updateBackground(partial); },
@@ -448,7 +450,7 @@ function Tallio() {
   };
 
   return (
-    <div className="app-root">
+    <div className="app-root" data-finish={appearance.finish}>
       <div className="app-bg-gradient" />
       <BackgroundLayer
         background={appearance.background}
