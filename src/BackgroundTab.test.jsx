@@ -112,6 +112,17 @@ describe('BackgroundTab photo controls', () => {
     expect(onUpload.mock.calls[0][0]).toBe(file);
   });
 
+  it('renders each photo as a thumbnail with the name captioned beneath (image-icons format)', () => {
+    const { appearance } = makeAppearance({ base: 'photos', photoIds: ['a'] });
+    const { container } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    const cell = container.querySelector('.bg-photo-item');
+    expect(cell.querySelector('img.bg-photo-thumb')).toBeTruthy();
+    expect(cell.querySelector('.bg-photo-name').textContent).toBe('Beach');
+    // selected photo carries the selected state on the thumb button + a check badge
+    expect(cell.querySelector('.bg-photo-thumb-btn.selected')).toBeTruthy();
+    expect(cell.querySelector('.bg-photo-check')).toBeTruthy();
+  });
+
   it('single mode replaces the selection with the clicked image', () => {
     const { appearance, updateBackground } = makeAppearance({ base: 'photos', mode: 'single', photoIds: ['b'] });
     const { getByRole } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);

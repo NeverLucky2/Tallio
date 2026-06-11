@@ -3,6 +3,7 @@ import { WALLPAPERS } from './wallpapers.js';
 import { togglePhotoSelection, clampFraming, pruneDeletedPhoto } from './backgroundPhotos.js';
 import FramingEditor from './FramingEditor.jsx';
 import ActionMenu from './ActionMenu.jsx';
+import { useIconLibrary } from './iconLibraryContext.js';
 
 const BASES = [
   { id: 'solid', label: 'Solid' },
@@ -11,6 +12,7 @@ const BASES = [
 ];
 
 export default function BackgroundTab({ appearance, images = [], onUpload, onRename, onDelete }) {
+  const { urlForId } = useIconLibrary();
   const { background, updateBackground } = appearance;
   const { base, presetId, effects, intensity } = background;
 
@@ -92,6 +94,15 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
             <div className="bg-photo-gallery">
               {images.map(img => (
                 <div key={img.id} className="bg-photo-item">
+                  <button
+                    type="button"
+                    aria-label={`select ${img.name}`}
+                    className={`bg-photo-thumb-btn${photoIds.includes(img.id) ? ' selected' : ''}`}
+                    onClick={() => togglePhoto(img.id)}
+                  >
+                    <img className="bg-photo-thumb" src={urlForId(img.id)} alt="" />
+                    {photoIds.includes(img.id) && <span className="bg-photo-check" aria-hidden="true">✓</span>}
+                  </button>
                   <ActionMenu label={`Actions for ${img.name}`} items={[
                     ...(photoIds.includes(img.id) ? [{ label: 'Adjust framing', onSelect: () => setEditingId(editingId === img.id ? null : img.id) }] : []),
                     { label: 'Rename', onSelect: () => { setRenamingId(img.id); setRenameDraft(img.name); } },
@@ -106,14 +117,7 @@ export default function BackgroundTab({ appearance, images = [], onUpload, onRen
                       onKeyDown={(e) => { if (e.key === 'Enter') commitRename(img.id); }}
                     />
                   ) : (
-                    <button
-                      type="button"
-                      aria-label={`select ${img.name}`}
-                      className={`bg-photo-cell${photoIds.includes(img.id) ? ' selected' : ''}`}
-                      onClick={() => togglePhoto(img.id)}
-                    >
-                      {img.name}
-                    </button>
+                    <span className="bg-photo-name">{img.name}</span>
                   )}
                   {confirmDeleteId === img.id && (
                     <div className="bg-photo-confirm">
