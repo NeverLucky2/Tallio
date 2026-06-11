@@ -35,6 +35,7 @@ import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import UndoButton from './UndoButton.jsx';
 import TallyMark from './TallyMark.jsx';
+import UiIcon from './ui/UiIcon.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
@@ -641,9 +642,9 @@ function Tallio() {
           <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone linked' : '⌘ Pair phone'}</button>
           <UndoButton count={history.length} onUndo={undo} />
           <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan bill</button>
-          <button type="button" className="avatar-trigger" aria-label="Account menu" title="Open menu" onClick={() => setDrawerOpen(true)}>
+          <button type="button" className="avatar-trigger" aria-label="Account menu & settings" title="Account & settings" onClick={() => setDrawerOpen(true)}>
             <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" />
-            <span className="avatar-trigger-caret" aria-hidden="true">▾</span>
+            <span className="avatar-trigger-gear" aria-hidden="true"><UiIcon name="settings" size={12} /></span>
           </button>
         </div>
       </header>

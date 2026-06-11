@@ -33,19 +33,29 @@
 .avatar-drawer-version { margin-top: auto; color: var(--text-faint, #5a6478); font-size: 11px; padding-top: 12px; }
 
 /* Enlarged avatar trigger in the header (overrides App.css .header-avatar 1.4em).
-   Hover + caret signal that it opens the account menu. */
+   A small gear badge on the bottom-right corner signals that pressing the
+   avatar opens the account menu / settings (affordance, not a separate button). */
 .avatar-trigger {
-  background: none; border: none; padding: 2px 4px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 3px; border-radius: 999px;
-  transition: background-color .12s ease;
+  position: relative;
+  background: none; border: none; padding: 2px; cursor: pointer;
+  display: inline-flex; align-items: center; border-radius: 999px;
 }
-.avatar-trigger:hover { background: var(--bg-card-hover, #1b2433); }
-.avatar-trigger .header-avatar { width: 2.2em; height: 2.2em; transition: box-shadow .12s ease, filter .12s ease; }
-.avatar-trigger:hover .header-avatar { filter: brightness(1.08); box-shadow: 0 0 0 2px var(--accent, #5b8def); }
-.avatar-trigger-caret { color: var(--text-dim, #7a8699); font-size: .7em; transition: color .12s ease; }
-.avatar-trigger:hover .avatar-trigger-caret { color: var(--text, #e8edf5); }
+.avatar-trigger .header-avatar { width: 2.4em; height: 2.4em; transition: box-shadow .12s ease, filter .12s ease; }
+.avatar-trigger:hover .header-avatar { filter: brightness(1.08); box-shadow: 0 0 0 2px var(--accent, #d4a853); }
+.avatar-trigger-gear {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 17px; height: 17px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--bg, #09090f); color: var(--text-muted, #6a7896);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: color .12s ease, border-color .12s ease;
+}
+.avatar-trigger:hover .avatar-trigger-gear {
+  color: var(--accent, #d4a853);
+  border-color: color-mix(in srgb, var(--accent, #d4a853) 40%, transparent);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .avatar-drawer-panel { animation: none; }
-  .avatar-trigger, .avatar-trigger .header-avatar, .avatar-trigger-caret { transition: none; }
+  .avatar-trigger .header-avatar, .avatar-trigger-gear { transition: none; }
 }
