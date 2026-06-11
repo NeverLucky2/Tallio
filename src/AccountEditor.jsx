@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import UndoButton from './UndoButton.jsx';
+import IconPicker from './IconPicker.jsx';
 
 export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
   const isEdit = !!account;
@@ -25,9 +26,9 @@ export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, 
       <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
         <h2 className="dialog-title">{isEdit ? 'Edit account' : 'New account'}</h2>
 
-        <label className="field"><span>Icon</span>
-          <input type="text" aria-label="Icon" value={icon} onChange={(e) => setIcon(e.target.value)} className="input" maxLength={4} />
-        </label>
+        <div className="field"><span>Icon</span>
+          <IconPicker value={icon} onChange={setIcon} />
+        </div>
         <label className="field"><span>Name</span>
           <input type="text" aria-label="Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
         </label>

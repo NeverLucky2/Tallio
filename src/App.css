@@ -3836,7 +3836,8 @@
 .bg-photos { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .bg-upload-btn { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 7px 14px; border: 1px solid var(--accent-border); border-radius: var(--r-md); background: var(--accent-dim); color: var(--accent); font-size: 12px; cursor: pointer; }
 .bg-photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
-.bg-photo-cell { padding: 10px 8px; border: 2px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 11px; cursor: pointer; text-align: center; }
+/* Right padding reserves room for the kebab menu so it never overlaps the name. */
+.bg-photo-cell { padding: 10px 32px 10px 10px; width: 100%; border: 2px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 11px; cursor: pointer; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bg-photo-cell.selected { border-color: var(--accent); color: var(--text); }
 .bg-mode-toggles { display: flex; gap: 8px; }
 .bg-mode-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); color: var(--text-muted); font-size: 12px; cursor: pointer; }
@@ -3846,7 +3847,8 @@
 .bg-photo-item { position: relative; display: flex; flex-direction: column; gap: 4px; }
 .bg-photo-delete { position: absolute; top: 2px; right: 2px; z-index: 1; width: 18px; height: 18px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; border: 1px solid var(--border); border-radius: 50%; background: var(--bg-card); color: var(--text-muted); cursor: pointer; }
 .bg-photo-delete:hover { color: var(--red); border-color: var(--red-border); }
-.bg-photo-confirm { position: absolute; top: 2px; right: 2px; z-index: 1; display: flex; gap: 4px; }
+/* Confirm strip sits on its own row below the cell — never over the name. */
+.bg-photo-confirm { display: flex; gap: 4px; justify-content: flex-end; margin-top: 4px; }
 .bg-photo-action { padding: 3px 8px; font-size: 10px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-input); color: var(--text-muted); cursor: pointer; }
 .bg-framing-editor { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-input); }
 .bg-framing-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); overflow: hidden; background-color: var(--bg-card); cursor: grab; outline: none; touch-action: none; }
@@ -3857,7 +3859,7 @@
 .bg-photo-action.danger { color: var(--red); border-color: var(--red-border); }
 .bg-photo-item { position: relative; }
 .bg-photo-item .action-menu { position: absolute; top: 6px; right: 6px; z-index: 2; }
-.bg-photo-rename { width: 100%; padding: 9px 8px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-md); color: var(--text); }
+.bg-photo-rename { width: 100%; padding: 9px 32px 9px 10px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--accent-border); border-radius: var(--r-md); color: var(--text); }
 
 /* ── Phase 3: image-icons, library, ActionMenu ────────────────────────────── */
 

@@ -21,6 +21,17 @@ describe('AccountEditor', () => {
     expect(saved.openingBalance).toBe(42300);
   });
 
+  it('picks the icon via the IconPicker (emoji and custom images, like categories)', async () => {
+    const onSave = vi.fn();
+    const { container } = render(<AccountEditor account={{ id: 'a1', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 0 }} onSave={onSave} onDelete={() => {}} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /icon picker/i }));
+    const firstCell = container.querySelector('.picker-cell');
+    const picked = firstCell.textContent;
+    await userEvent.click(firstCell);
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onSave.mock.calls[0][0].icon).toBe(picked);
+  });
+
   it('editing an existing account shows the type selector pre-set and a delete button', async () => {
     const onDelete = vi.fn();
     render(<AccountEditor account={{ id: 'a1', name: 'Mastercard', type: 'untyped', icon: '💳', openingBalance: 0 }} onSave={() => {}} onDelete={onDelete} onClose={() => {}} />);
