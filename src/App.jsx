@@ -661,7 +661,7 @@ function Tallio() {
           <main className="accounts-main">
             {!selectedAccount ? (
               <div className="empty-state">
-                <div className="empty-glyph">◈</div>
+                <div className="empty-glyph"><TallyMark size={40} /></div>
                 <h3 className="empty-title">No accounts yet</h3>
                 <p className="empty-desc">Add an account, scan a statement, or import.</p>
                 <button onClick={() => setEditingAccount({ mode: 'new' })} className="btn btn-primary">+ Add your first account</button>

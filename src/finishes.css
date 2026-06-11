@@ -101,6 +101,14 @@
   border-radius: 4px;
 }
 
+/* ---- Primary button + glow ---- */
+.app-root[data-finish="bullion"] .btn-primary {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 86%, white) 0%, color-mix(in srgb, var(--accent) 86%, black) 100%);
+  box-shadow: 0 1px 8px color-mix(in srgb, var(--accent) 25%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.app-root[data-finish="instrument"] .btn-primary { border-radius: 6px; }
+.app-root[data-finish="instrument"] .app-bg-gradient { display: none; }
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,
