@@ -102,6 +102,24 @@ export function householdTotals(accounts, transactions, typesById) {
   return { netWorth, assets, owed };
 }
 
+// Net change to net worth from transactions dated in `now`'s calendar month,
+// across on-balance-sheet accounts only. Transfers between two on-sheet
+// accounts cancel; transfers to off-sheet accounts (e.g. paying a person)
+// correctly count as a net-worth change.
+export function monthToDateDelta(accounts, transactions, typesById, now = new Date()) {
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const onSheet = new Set(
+    (accounts || []).filter(a => a && isOnBalanceSheet(a.type, typesById)).map(a => a.id)
+  );
+  let sum = 0;
+  for (const t of transactions || []) {
+    if (t && onSheet.has(t.accountId) && typeof t.date === 'string' && t.date.startsWith(ym) && Number.isFinite(t.amount)) {
+      sum += t.amount;
+    }
+  }
+  return sum;
+}
+
 // Filter register rows by search term, month (YYYY-MM), and/or categoryId.
 // Search matches description, payee, category name, or (approx) amount.
 export function filterTransactions(rows, { search = '', month = null, categoryId = null } = {}, categoriesById = null) {
