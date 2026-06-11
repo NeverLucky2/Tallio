@@ -528,6 +528,8 @@ function Tallio() {
           onSetStatus={(key, status, month) => { pushHistory(); acks.setStatus(key, status, month); }}
           onClearStatus={(key) => { pushHistory(); acks.clearStatus(key); }}
           onDismissDuplicate={(sig) => { pushHistory(); acks.dismissDuplicate(sig); }}
+          onUndo={undo}
+          undoCount={history.length}
           onClose={() => setScreen('main')}
         />
       )}

@@ -12,11 +12,13 @@ import CategoryBarList from './CategoryBarList.jsx';
 import CashFlowChart from './CashFlowChart.jsx';
 import NetWorthChart from './NetWorthChart.jsx';
 import RecurringList from './RecurringList.jsx';
+import UndoButton from './UndoButton.jsx';
 
 export default function ReportsScreen({
   accounts, transactions, categories, types, typesById, onClose, now,
   subscriptions = {}, dismissedDuplicates = [],
   onSetStatus = () => {}, onClearStatus = () => {}, onDismissDuplicate = () => {},
+  onUndo = () => {}, undoCount = 0,
 }) {
   const [period, setPeriod] = useState({ preset: 'last-12-months', customStart: '', customEnd: '' });
   const [scope, setScope] = useState({ kind: 'all' });
@@ -45,6 +47,7 @@ export default function ReportsScreen({
       <div className="screen reports-screen">
         <div className="screen-header">
           <h2 className="screen-title">Reports</h2>
+          <UndoButton count={undoCount} onUndo={onUndo} />
           <button type="button" className="btn" onClick={onClose}>Done</button>
         </div>
 
