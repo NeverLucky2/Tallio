@@ -634,7 +634,7 @@ function Tallio() {
           <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
-          <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account types</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account-types</button>
         </nav>
         <div className="header-actions">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
