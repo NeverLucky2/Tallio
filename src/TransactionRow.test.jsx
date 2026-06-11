@@ -20,6 +20,13 @@ describe('TransactionRow', () => {
     expect(screen.getByText('$903.70')).toBeTruthy();
   });
 
+  it('wraps the category icon in an icon well', () => {
+    const { container } = render(
+      <table><tbody><TransactionRow layout="compact" row={baseRow} categoriesById={catsById} onEdit={() => {}} /></tbody></table>
+    );
+    expect(container.querySelector('.txn-cat .icon-well')).toBeTruthy();
+  });
+
   it('bank layout splits into payment/deposit and shows payee + check #', () => {
     render(<table><tbody><TransactionRow layout="bank" row={baseRow} categoriesById={catsById} onEdit={() => {}} /></tbody></table>);
     expect(screen.getByText('ComEd')).toBeTruthy();

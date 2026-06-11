@@ -8,7 +8,11 @@ const plain = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, 
 function CategoryCell({ categoriesById, categoryId }) {
   const cat = categoriesById && categoriesById.get(categoryId);
   if (!cat) return <span className="txn-cat txn-cat-none">—</span>;
-  return <span className="txn-cat"><Icon value={cat.icon} className="txn-cat-icon" /> {cat.name}</span>;
+  return (
+    <span className="txn-cat">
+      <span className="icon-well icon-well-sm"><Icon value={cat.icon} className="txn-cat-icon" /></span> {cat.name}
+    </span>
+  );
 }
 
 function TransferChip({ info, category, onNavigate }) {

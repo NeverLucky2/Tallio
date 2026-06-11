@@ -3507,6 +3507,12 @@
 .txn-bal { color: var(--text-muted); }
 .txn-bal.neg { color: var(--red); }
 .txn-cat-none { color: var(--text-dim); }
+.txn-cat { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-muted); }
+.split-chevron {
+  border: 1px solid var(--blue-border); border-radius: 4px;
+  color: var(--blue); background: var(--blue-dim);
+  font-family: var(--font-mono); font-size: 9.5px; padding: 1.5px 6px; cursor: pointer; margin-left: 7px;
+}
 
 /* Transfer chip — tinted by the counterpart account's money-class */
 .txn-transfer { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--border-strong); }

@@ -91,6 +91,16 @@
 .app-root[data-finish="instrument"] .txn-date { letter-spacing: 0; text-transform: none; font-size: 11px; }
 .app-root[data-finish="instrument"] .register-foot { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: none; }
 
+/* ---- Category / transfer chips ---- */
+.app-root[data-finish="instrument"] .txn-cat {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2.5px 8px; font-size: 11px;
+}
+.app-root[data-finish="instrument"] .txn-cat .icon-well { width: auto; height: auto; border: none; background: none; border-radius: 0; font-size: 11px; }
+.app-root[data-finish="instrument"] .txn-transfer {
+  border-radius: 4px;
+}
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,
