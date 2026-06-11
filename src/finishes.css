@@ -109,6 +109,10 @@
 .app-root[data-finish="instrument"] .btn-primary { border-radius: 6px; }
 .app-root[data-finish="instrument"] .app-bg-gradient { display: none; }
 
+/* ---- Net-worth sparkline: engraved line (Bullion) vs bars (Instrument) ---- */
+.app-root[data-finish="bullion"] .nws-bars { display: none; }
+.app-root[data-finish="instrument"] .nws-line { display: none; }
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,

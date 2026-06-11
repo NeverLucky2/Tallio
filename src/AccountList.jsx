@@ -1,7 +1,8 @@
 // src/AccountList.jsx
 import React, { useMemo } from 'react';
-import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, monthToDateDelta, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
+import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, monthToDateDelta, netWorthSeries, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import Icon from './Icon.jsx';
+import NetWorthSpark from './NetWorthSpark.jsx';
 import useCountUp from './useCountUp.js';
 import useValueFlash from './useValueFlash.js';
 
@@ -12,6 +13,8 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
   const order = useMemo(() => groupOrder(types), [types]);
   const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
   const delta = useMemo(() => monthToDateDelta(accounts, transactions, typesById, now), [accounts, transactions, typesById, now]);
+  const series = useMemo(() => netWorthSeries(accounts, transactions, typesById, 6, now), [accounts, transactions, typesById, now]);
+  const hasHistory = useMemo(() => series.some(v => v !== 0), [series]);
   const netWorthV = useCountUp(totals.netWorth);
   const netWorthFlash = useValueFlash(totals.netWorth);
 
@@ -44,6 +47,9 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
         <div className="networth-pair">
           <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className="neg">{fmt(totals.owed)}</b>
         </div>
+        {hasHistory && (
+          <div className="networth-spark"><NetWorthSpark series={series} /></div>
+        )}
       </div>
 
       {order.map(group => {

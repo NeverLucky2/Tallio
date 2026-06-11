@@ -44,6 +44,16 @@ describe('AccountList', () => {
     expect(container.querySelector('.networth-cents')).toBeTruthy();
   });
 
+  it('shows a net-worth sparkline when there is account history', () => {
+    const { container } = render(<AccountList accounts={accounts} transactions={transactions} now={new Date('2026-05-15T12:00:00')} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(container.querySelector('.networth-spark svg')).toBeTruthy();
+  });
+
+  it('hides the sparkline when the series is all zero', () => {
+    const { container } = render(<AccountList accounts={[]} transactions={[]} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(container.querySelector('.networth-spark svg')).toBeNull();
+  });
+
   it('shows a per-group account count', () => {
     const { container } = render(<AccountList accounts={accounts} transactions={transactions} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
     const label = container.querySelector('.account-group-label');
