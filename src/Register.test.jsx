@@ -1,6 +1,6 @@
 // src/Register.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Register from './Register.jsx';
 
@@ -65,6 +65,30 @@ describe('Register', () => {
     render(<Register account={account} transactions={transactions} accounts={[account]} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={onTransfer} />);
     await userEvent.click(screen.getByRole('button', { name: /^transfer$/i }));
     expect(onTransfer).toHaveBeenCalledWith('a_cc');
+  });
+
+  it('shows an edit-account button that fires onEditAccount', async () => {
+    const onEditAccount = vi.fn();
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} onEditAccount={onEditAccount} />);
+    await userEvent.click(screen.getByRole('button', { name: /edit account/i }));
+    expect(onEditAccount).toHaveBeenCalled();
+  });
+
+  it('shows the account type label in the header', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    expect(screen.getByText('Credit card')).toBeTruthy();
+  });
+
+  it('footer reports entry count, period, and last entry date', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    expect(screen.getByText(/2 entries · All activity/)).toBeTruthy();
+    expect(screen.getByText(/Last entry May 5, 2026/)).toBeTruthy();
+  });
+
+  it('footer reflects the month filter with a singular count', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/month filter/i), { target: { value: '2026-04' } });
+    expect(screen.getByText(/1 entry · April 2026/)).toBeTruthy();
   });
 
   it('renders a transfer leg with a counterpart chip', () => {

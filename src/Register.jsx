@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import Icon from './Icon.jsx';
 import { iconGlyph } from './iconValue.js';
-import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo } from './accountsModel.js';
+import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
@@ -30,7 +30,7 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {} }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -55,19 +55,39 @@ export default function Register({ account, transactions, accounts = [], categor
       : { key: col.key, dir: col.defaultDir });
   };
 
-  const balanceLabel = klass === 'liability' ? `Owed: ${money(Math.abs(Math.min(0, balance)))}` : `Balance: ${money(balance)}`;
+  const typeLabel = ((typesById || DEFAULT_ACCOUNT_TYPES_BY_ID).get(account.type) || { label: 'Unassigned' }).label;
+  const lastEntryDate = rows.reduce((max, r) => (r.date && r.date > max ? r.date : max), '');
+  const monthLabel = month
+    ? new Date(`${month}-01T00:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'All activity';
+  const lastEntryLabel = lastEntryDate
+    ? `Last entry ${new Date(`${lastEntryDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : '';
 
   return (
     <div className="register">
       <div className="register-header">
-        <h2 className="register-title"><Icon value={account.icon} className="register-icon" /> {account.name}</h2>
-        <span className="register-balance">{balanceLabel}</span>
-        <button type="button" className="btn" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ Add transaction</button>
-        <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
+        <span className="icon-well icon-well-lg"><Icon value={account.icon} className="register-icon" /></span>
+        <h2 className="register-title">{account.name}</h2>
+        <span className="register-kind">{typeLabel}</span>
+        <div className="register-balance-block">
+          <span className="register-balance-label">{klass === 'liability' ? 'Owed' : 'Balance'}</span>
+          <span className="register-balance">{klass === 'liability' ? money(Math.abs(Math.min(0, balance))) : money(balance)}</span>
+        </div>
+        <div className="register-actions">
+          <button type="button" className="btn btn-primary" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ New entry</button>
+          <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
+          {onEditAccount && (
+            <button type="button" className="btn btn-icon" onClick={onEditAccount} aria-label="Edit account" title="Edit account">✎</button>
+          )}
+        </div>
       </div>
 
       <div className="register-filters">
-        <input type="text" className="input" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <span className="register-search">
+          <input type="text" className="input" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <span className="kbd-hint" aria-hidden="true">/</span>
+        </span>
         <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
         <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Category filter">
           <option value="">All categories</option>
@@ -114,6 +134,11 @@ export default function Register({ account, transactions, accounts = [], categor
           )}
         </tbody>
       </table>
+
+      <div className="register-foot">
+        <span>{rows.length} {rows.length === 1 ? 'entry' : 'entries'} · {monthLabel}</span>
+        <span>{lastEntryLabel}</span>
+      </div>
     </div>
   );
 }

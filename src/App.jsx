@@ -668,9 +668,6 @@ function Tallio() {
               </div>
             ) : (
               <>
-                <div className="account-toolbar">
-                  <button type="button" className="btn" onClick={() => setEditingAccount({ mode: 'edit', account: selectedAccount })}>✎ Edit account</button>
-                </div>
                 <Register
                   account={selectedAccount}
                   transactions={ledger.transactions}
@@ -686,6 +683,7 @@ function Tallio() {
                   onAddTransaction={(accountId) => setEditingTxn({ mode: 'new', accountId })}
                   onTransfer={openTransfer}
                   onSelectAccount={setSelectedAccountId}
+                  onEditAccount={() => setEditingAccount({ mode: 'edit', account: selectedAccount })}
                 />
               </>
             )}

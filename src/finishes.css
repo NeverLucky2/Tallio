@@ -70,6 +70,27 @@
 .app-root[data-finish="instrument"] .account-row-selected::before { display: none; }
 .app-root[data-finish="instrument"] .icon-well { background: color-mix(in srgb, var(--text) 4.5%, transparent); }
 
+/* ---- Register ---- */
+.app-root[data-finish="bullion"] .register {
+  background: color-mix(in srgb, var(--bg-raised) calc(var(--surface-alpha) * 100%), transparent);
+  backdrop-filter: blur(var(--surface-blur));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px 24px 16px;
+}
+.app-root[data-finish="instrument"] .register { padding: 16px 20px; }
+.app-root[data-finish="instrument"] .register-title { font-size: 16px; font-weight: 600; }
+.app-root[data-finish="bullion"] .register-balance {
+  border-bottom: 3px double color-mix(in srgb, var(--accent) 50%, transparent); padding-bottom: 3px;
+}
+.app-root[data-finish="bullion"] .register-filters .input,
+.app-root[data-finish="bullion"] .register-filters .select {
+  background: none; border: none; border-bottom: 1px solid var(--border-strong); border-radius: 0;
+}
+.app-root[data-finish="instrument"] .kbd-hint { display: inline-block; }
+.app-root[data-finish="instrument"] .register-table th { font-family: var(--font-mono); letter-spacing: 0.14em; color: var(--text-dim); border-bottom-color: var(--border-strong); }
+.app-root[data-finish="instrument"] .txn-date { letter-spacing: 0; text-transform: none; font-size: 11px; }
+.app-root[data-finish="instrument"] .register-foot { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: none; }
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,
