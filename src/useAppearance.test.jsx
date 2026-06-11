@@ -84,38 +84,38 @@ describe('useAppearance — finish', () => {
     document.documentElement.removeAttribute('style');
   });
 
-  it('defaults finish to bullion', () => {
+  it('defaults finish to instrument', () => {
     const { result } = renderHook(() => useAppearance());
-    expect(result.current.finish).toBe('bullion');
+    expect(result.current.finish).toBe('instrument');
   });
 
   it('setFinish switches and persists', () => {
     const { result } = renderHook(() => useAppearance());
-    act(() => result.current.setFinish('instrument'));
-    expect(result.current.finish).toBe('instrument');
-    expect(JSON.parse(window.localStorage.getItem('tallio-appearance')).finish).toBe('instrument');
+    act(() => result.current.setFinish('bullion'));
+    expect(result.current.finish).toBe('bullion');
+    expect(JSON.parse(window.localStorage.getItem('tallio-appearance')).finish).toBe('bullion');
   });
 
   it('setFinish ignores unknown ids', () => {
     const { result } = renderHook(() => useAppearance());
     act(() => result.current.setFinish('neon'));
-    expect(result.current.finish).toBe('bullion');
+    expect(result.current.finish).toBe('instrument');
   });
 
   it('back-fills finish for a saved config that predates it', () => {
     window.localStorage.setItem('tallio-appearance', JSON.stringify({ themeId: 'forest' }));
     const { result } = renderHook(() => useAppearance());
-    expect(result.current.finish).toBe('bullion');
+    expect(result.current.finish).toBe('instrument');
     expect(result.current.themeId).toBe('forest');
   });
 
   it('snapshot/restore round-trips finish', () => {
     const { result } = renderHook(() => useAppearance());
-    act(() => result.current.setFinish('instrument'));
-    const snap = result.current.snapshot();
     act(() => result.current.setFinish('bullion'));
+    const snap = result.current.snapshot();
+    act(() => result.current.setFinish('instrument'));
     act(() => result.current.restore(snap));
-    expect(result.current.finish).toBe('instrument');
+    expect(result.current.finish).toBe('bullion');
   });
 });
 

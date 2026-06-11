@@ -13,13 +13,14 @@ const CHANNELS = [
 const MIN_CONTRAST = 4.5;
 
 // The form axis. Theme = color, Finish = form; both live on this tab.
+// Default (Instrument) listed first.
 const FINISH_OPTIONS = [
-  { id: 'bullion', name: 'Bullion', desc: 'Heirloom ledger — serif, coins, double rules' },
   { id: 'instrument', name: 'Instrument', desc: 'Precision terminal — mono, flat, dense' },
+  { id: 'bullion', name: 'Bullion', desc: 'Heirloom ledger — serif, coins, double rules' },
 ];
 
 export default function ThemeTab({ appearance }) {
-  const { themeId, customTheme, setTheme, updateCustom, resetCustomToPreset, finish = 'bullion', setFinish = () => {} } = appearance;
+  const { themeId, customTheme, setTheme, updateCustom, resetCustomToPreset, finish = 'instrument', setFinish = () => {} } = appearance;
   const essentials = essentialsForTheme(themeId, customTheme);
   const isCustom = themeId === 'custom';
   const sourcePreset = isCustom ? PRESETS[0].id : themeId;

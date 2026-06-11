@@ -3,8 +3,9 @@ import { PRESETS, deriveTheme, essentialsForTheme } from './themes.js';
 
 const STORAGE = 'tallio-appearance';
 
-// The form axis: Bullion (heirloom ledger, default) / Instrument (precision terminal).
+// The form axis: Instrument (precision terminal, default) / Bullion (heirloom ledger).
 export const FINISHES = ['bullion', 'instrument'];
+const DEFAULT_FINISH = 'instrument';
 
 const DEFAULT_BACKGROUND = {
   base: 'solid', presetId: null, photoIds: [], photoGroup: null,
@@ -13,7 +14,7 @@ const DEFAULT_BACKGROUND = {
 };
 
 function defaults() {
-  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [], finish: 'bullion' };
+  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [], finish: DEFAULT_FINISH };
 }
 
 function loadInitial() {
@@ -27,7 +28,7 @@ function loadInitial() {
       ...parsed,
       background: { ...DEFAULT_BACKGROUND, ...(parsed.background || {}) },
     };
-    if (!FINISHES.includes(merged.finish)) merged.finish = 'bullion';
+    if (!FINISHES.includes(merged.finish)) merged.finish = DEFAULT_FINISH;
     return merged;
   } catch {
     return defaults();
@@ -100,7 +101,7 @@ export default function useAppearance() {
       background: { ...DEFAULT_BACKGROUND, ...(snap.background || {}) },
       appIcons: snap.appIcons || {},
       imageGroups: snap.imageGroups || [],
-      finish: FINISHES.includes(snap.finish) ? snap.finish : 'bullion',
+      finish: FINISHES.includes(snap.finish) ? snap.finish : DEFAULT_FINISH,
     }));
   }, [persist]);
 

@@ -4,7 +4,7 @@ import ThemeTab from './ThemeTab.jsx';
 
 function stub(overrides = {}) {
   return {
-    themeId: 'nocturne', customTheme: null, finish: 'bullion',
+    themeId: 'nocturne', customTheme: null, finish: 'instrument',
     setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(), setFinish: vi.fn(),
     ...overrides,
   };
@@ -19,24 +19,25 @@ describe('ThemeTab', () => {
     expect(within(group).getAllByRole('radio')).toHaveLength(6);
   });
 
-  it('renders a finish picker with bullion selected by default', () => {
+  it('renders a finish picker with instrument selected by default', () => {
     render(<ThemeTab appearance={stub()} />);
     const group = screen.getByRole('radiogroup', { name: /finish/i });
     const radios = within(group).getAllByRole('radio');
     expect(radios).toHaveLength(2);
-    expect(within(group).getByRole('radio', { name: /bullion/i }).getAttribute('aria-checked')).toBe('true');
+    expect(radios[0].getAttribute('aria-label')).toMatch(/instrument/i); // default listed first
+    expect(within(group).getByRole('radio', { name: /instrument/i }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('selecting a finish calls setFinish', () => {
     const a = stub();
     render(<ThemeTab appearance={a} />);
-    fireEvent.click(screen.getByRole('radio', { name: /instrument/i }));
-    expect(a.setFinish).toHaveBeenCalledWith('instrument');
+    fireEvent.click(screen.getByRole('radio', { name: /bullion/i }));
+    expect(a.setFinish).toHaveBeenCalledWith('bullion');
   });
 
   it('reflects the active finish', () => {
-    render(<ThemeTab appearance={stub({ finish: 'instrument' })} />);
-    expect(screen.getByRole('radio', { name: /instrument/i }).getAttribute('aria-checked')).toBe('true');
+    render(<ThemeTab appearance={stub({ finish: 'bullion' })} />);
+    expect(screen.getByRole('radio', { name: /bullion/i }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('selecting a preset calls setTheme', () => {

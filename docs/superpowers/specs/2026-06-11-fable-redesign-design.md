@@ -17,10 +17,10 @@ dashboard — while serving two users with different tastes:
 
 The resolution is **one design skeleton with two selectable "finishes"**:
 
-- **Bullion** *(default)* — an heirloom ledger: serif identity layer, minted-coin icon wells,
+- **Bullion** — an heirloom ledger: serif identity layer, minted-coin icon wells,
   double-rule totals, dotted leaders, hairline rules, ink debits.
-- **Instrument** — a precision terminal: full-bleed app frame, flat stepped planes, mono labels,
-  boxed chips, keyboard hints, red debits.
+- **Instrument** *(default — amended per user 2026-06-11, was Bullion)* — a precision terminal:
+  full-bleed app frame, flat stepped planes, mono labels, boxed chips, keyboard hints, red debits.
 
 Same DOM, same components, same information, same tests — the difference is design tokens plus a
 scoped stylesheet. The brand (tally-mark + Fraunces "Tallio" wordmark) is **shared across both
@@ -120,7 +120,7 @@ inherit the new faces immediately via the existing token indirection.
 
 ## 5. Finish system plumbing
 
-- `useAppearance`: `finish` field (default `'bullion'`), `setFinish(id)` setter, included in
+- `useAppearance`: `finish` field (default `'instrument'`; amended 2026-06-11), `setFinish(id)` setter, included in
   `snapshot()`/`restore()` and persisted in the existing `tallio-appearance` localStorage key.
   Existing stored data lacking `finish` merges to the default — no migration needed.
 - `App.jsx`: `appearanceForUI.setFinish` wraps with `pushHistory()` → **finish flips are undoable**
