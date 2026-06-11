@@ -1800,12 +1800,19 @@
 
 .pair-overlay {
   position: fixed;
-  inset: 0;
+  /* Under #root { zoom: var(--ui-scale) } an inset:0 overlay renders at
+     viewport × zoom and hangs past the screen, pushing centered modals below
+     the fold. Size it to the *visual* viewport instead. */
+  top: 0;
+  left: 0;
+  width: calc(100vw / var(--ui-scale, 1));
+  height: calc(100vh / var(--ui-scale, 1));
   background: rgba(8, 8, 14, 0.78);
   backdrop-filter: blur(8px);
   z-index: 50;
+  overflow-y: auto; /* if a modal ever exceeds the viewport, scroll instead of clipping */
   display: flex;
-  align-items: center;
+  align-items: safe center; /* never clip the top edge when the modal is taller than the view */
   justify-content: center;
   padding: 21px;
 }
