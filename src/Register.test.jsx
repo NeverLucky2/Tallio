@@ -91,6 +91,30 @@ describe('Register', () => {
     expect(screen.getByText(/1 entry · April 2026/)).toBeTruthy();
   });
 
+  it('"/" focuses the search box', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).toBe(screen.getByPlaceholderText(/search/i));
+  });
+
+  it('"/" is ignored while typing in another field', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const month = screen.getByLabelText(/month filter/i);
+    month.focus();
+    await userEvent.keyboard('/');
+    expect(document.activeElement).toBe(month);
+  });
+
+  it('"/" is ignored while a dialog is open', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText(/search/i));
+    dialog.remove();
+  });
+
   it('renders a transfer leg with a counterpart chip', () => {
     const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
     const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };

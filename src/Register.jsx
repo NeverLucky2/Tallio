@@ -1,5 +1,5 @@
 // src/Register.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Icon from './Icon.jsx';
 import { iconGlyph } from './iconValue.js';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
@@ -49,6 +49,22 @@ export default function Register({ account, transactions, accounts = [], categor
 
   const accountsById = useMemo(() => new Map((accounts || []).map(a => [a.id, a])), [accounts]);
 
+  // "/" jumps to search — unless the user is typing or an overlay is open.
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target;
+      const tag = el && el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (el && el.isContentEditable)) return;
+      if (document.querySelector('[role="dialog"], .camera-overlay, .processing-overlay')) return;
+      e.preventDefault();
+      if (searchRef.current) searchRef.current.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const onHeaderClick = (col) => {
     setSort(prev => prev.key === col.key
       ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
@@ -85,7 +101,7 @@ export default function Register({ account, transactions, accounts = [], categor
 
       <div className="register-filters">
         <span className="register-search">
-          <input type="text" className="input" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" ref={searchRef} className="input" placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <span className="kbd-hint" aria-hidden="true">/</span>
         </span>
         <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
