@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import Icon from './Icon.jsx';
+import UiIcon from './ui/UiIcon.jsx';
 import CategoryEditor from './CategoryEditor.jsx';
 import SubcategoryEditor from './SubcategoryEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -41,6 +42,19 @@ export default function ManageCategoriesScreen({
   const [query, setQuery] = useState('');
   const [editingSubId, setEditingSubId] = useState(null);
   const [creatingSub, setCreatingSub] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => new Set());
+
+  const toggleExpand = (id) => setCollapsed(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const selectSub = (parentId, subId) => {
+    setSelectedId(parentId);
+    setCreatingSub(false);
+    setEditingSubId(subId);
+  };
 
   const itemCounts = useMemo(() => countItemsPerCategory(bills), [bills]);
 
@@ -116,25 +130,58 @@ export default function ManageCategoriesScreen({
               <div key={group.flow} className="manage-list-flow-group">
                 <div className="manage-list-flow-label">{group.flow}</div>
                 {group.items.map(cat => {
-                  const subCount = (cat.subcategories || []).length;
+                  const subs = cat.subcategories || [];
+                  const hasSubs = subs.length > 0;
+                  const expanded = hasSubs && !collapsed.has(cat.id);
+                  const parentActive = cat.id === selectedId && !editingSubId && !creatingSub;
                   return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      className={`manage-list-row${cat.id === selectedId ? ' active' : ''}`}
-                      onClick={() => selectCategory(cat.id)}
-                    >
-                      <span
-                        className="manage-list-icon"
-                        style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}
-                      >
-                        <Icon value={cat.icon} />
-                      </span>
-                      <span className="manage-list-name">{cat.name}</span>
-                      {subCount > 0 && (
-                        <span className="manage-list-subcount" title={`${subCount} sub-categories`} style={{ opacity: 0.7, fontSize: '0.8em' }}>⊞{subCount}</span>
+                    <div key={cat.id} className="manage-list-item">
+                      <div className="manage-list-rowwrap">
+                        {hasSubs ? (
+                          <button
+                            type="button"
+                            className={`manage-list-expand${expanded ? ' open' : ''}`}
+                            aria-label={expanded ? `Collapse ${cat.name}` : `Expand ${cat.name}`}
+                            aria-expanded={expanded}
+                            onClick={() => toggleExpand(cat.id)}
+                          >
+                            <UiIcon name="chevron" />
+                          </button>
+                        ) : (
+                          <span className="manage-list-expand-spacer" aria-hidden="true" />
+                        )}
+                        <button
+                          type="button"
+                          className={`manage-list-row${parentActive ? ' active' : ''}`}
+                          onClick={() => selectCategory(cat.id)}
+                        >
+                          <span
+                            className="manage-list-icon"
+                            style={{ background: `${cat.color}22`, border: `1px solid ${cat.color}44` }}
+                          >
+                            <Icon value={cat.icon} />
+                          </span>
+                          <span className="manage-list-name">{cat.name}</span>
+                          {hasSubs && (
+                            <span className="manage-list-count" title={`${subs.length} sub-categories`}>{subs.length}</span>
+                          )}
+                        </button>
+                      </div>
+                      {expanded && (
+                        <div className="manage-list-subtree">
+                          {subs.map(sub => (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              className={`manage-list-subrow${(selectedId === cat.id && editingSubId === sub.id) ? ' active' : ''}`}
+                              onClick={() => selectSub(cat.id, sub.id)}
+                            >
+                              <span className="manage-list-subname">{sub.name}</span>
+                            </button>
+                          ))}
+                        </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
