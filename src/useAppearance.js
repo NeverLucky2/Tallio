@@ -3,6 +3,9 @@ import { PRESETS, deriveTheme, essentialsForTheme } from './themes.js';
 
 const STORAGE = 'tallio-appearance';
 
+// The form axis: Bullion (heirloom ledger, default) / Instrument (precision terminal).
+export const FINISHES = ['bullion', 'instrument'];
+
 const DEFAULT_BACKGROUND = {
   base: 'solid', presetId: null, photoIds: [], photoGroup: null,
   mode: 'single', intervalSec: 30, intensity: 25, effects: { aurora: false, pulse: false },
@@ -10,7 +13,7 @@ const DEFAULT_BACKGROUND = {
 };
 
 function defaults() {
-  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [] };
+  return { themeId: 'nocturne', customTheme: null, background: { ...DEFAULT_BACKGROUND }, appIcons: {}, imageGroups: [], finish: 'bullion' };
 }
 
 function loadInitial() {
@@ -19,11 +22,13 @@ function loadInitial() {
     const raw = window.localStorage.getItem(STORAGE);
     if (!raw) return defaults();
     const parsed = JSON.parse(raw);
-    return {
+    const merged = {
       ...defaults(),
       ...parsed,
       background: { ...DEFAULT_BACKGROUND, ...(parsed.background || {}) },
     };
+    if (!FINISHES.includes(merged.finish)) merged.finish = 'bullion';
+    return merged;
   } catch {
     return defaults();
   }
@@ -57,6 +62,11 @@ export default function useAppearance() {
     setState(prev => persist({ ...prev, themeId: id }));
   }, [persist]);
 
+  const setFinish = useCallback((id) => {
+    if (!FINISHES.includes(id)) return;
+    setState(prev => persist({ ...prev, finish: id }));
+  }, [persist]);
+
   const updateCustom = useCallback((partial) => {
     setState(prev => {
       const base = prev.customTheme || essentialsForTheme(prev.themeId, null);
@@ -78,6 +88,7 @@ export default function useAppearance() {
     background: state.background,
     appIcons: state.appIcons,
     imageGroups: state.imageGroups,
+    finish: state.finish,
   })), [state]);
 
   const restore = useCallback((snap) => {
@@ -89,6 +100,7 @@ export default function useAppearance() {
       background: { ...DEFAULT_BACKGROUND, ...(snap.background || {}) },
       appIcons: snap.appIcons || {},
       imageGroups: snap.imageGroups || [],
+      finish: FINISHES.includes(snap.finish) ? snap.finish : 'bullion',
     }));
   }, [persist]);
 
@@ -117,7 +129,9 @@ export default function useAppearance() {
     customTheme: state.customTheme,
     background: state.background,
     appIcons: state.appIcons,
+    finish: state.finish,
     setTheme,
+    setFinish,
     updateCustom,
     resetCustomToPreset,
     updateBackground,

@@ -78,6 +78,47 @@ describe('useAppearance', () => {
   });
 });
 
+describe('useAppearance — finish', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    document.documentElement.removeAttribute('style');
+  });
+
+  it('defaults finish to bullion', () => {
+    const { result } = renderHook(() => useAppearance());
+    expect(result.current.finish).toBe('bullion');
+  });
+
+  it('setFinish switches and persists', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.setFinish('instrument'));
+    expect(result.current.finish).toBe('instrument');
+    expect(JSON.parse(window.localStorage.getItem('tallio-appearance')).finish).toBe('instrument');
+  });
+
+  it('setFinish ignores unknown ids', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.setFinish('neon'));
+    expect(result.current.finish).toBe('bullion');
+  });
+
+  it('back-fills finish for a saved config that predates it', () => {
+    window.localStorage.setItem('tallio-appearance', JSON.stringify({ themeId: 'forest' }));
+    const { result } = renderHook(() => useAppearance());
+    expect(result.current.finish).toBe('bullion');
+    expect(result.current.themeId).toBe('forest');
+  });
+
+  it('snapshot/restore round-trips finish', () => {
+    const { result } = renderHook(() => useAppearance());
+    act(() => result.current.setFinish('instrument'));
+    const snap = result.current.snapshot();
+    act(() => result.current.setFinish('bullion'));
+    act(() => result.current.restore(snap));
+    expect(result.current.finish).toBe('instrument');
+  });
+});
+
 describe('useAppearance — undo support', () => {
   beforeEach(() => {
     window.localStorage.clear();
