@@ -2578,6 +2578,9 @@
   justify-content: flex-end;
   gap: 9px;
 }
+/* Undo is a utility, not a form action — park it on the left so the
+   Delete/Cancel/Save cluster always fits on the right. */
+.dialog-actions .btn-undo { margin-right: auto; }
 
 .dialog-btn-cancel,
 .dialog-btn-confirm {
