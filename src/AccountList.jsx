@@ -1,16 +1,17 @@
 // src/AccountList.jsx
 import React, { useMemo } from 'react';
-import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
+import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, monthToDateDelta, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import Icon from './Icon.jsx';
 import useCountUp from './useCountUp.js';
 import useValueFlash from './useValueFlash.js';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onAddAccount }) {
+export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onAddAccount, now = new Date() }) {
   const typesById = useMemo(() => new Map(types.map(t => [t.id, t])), [types]);
   const order = useMemo(() => groupOrder(types), [types]);
   const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
+  const delta = useMemo(() => monthToDateDelta(accounts, transactions, typesById, now), [accounts, transactions, typesById, now]);
   const netWorthV = useCountUp(totals.netWorth);
   const netWorthFlash = useValueFlash(totals.netWorth);
 
@@ -23,20 +24,25 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
     return map;
   }, [accounts, order, typesById]);
 
+  // "$487,312.44" → ["$487,312", "44"] so Bullion can shrink the cents.
+  const [nwDollars, nwCents] = fmt(netWorthV).split('.');
+  const deltaClass = delta > 0 ? ' pos' : delta < 0 ? ' neg' : ' zero';
+  const deltaText = `${delta > 0 ? '▲ +' : delta < 0 ? '▼ −' : ''}${fmt(Math.abs(delta))} this month`;
+
   return (
     <div className="account-list">
-      <div className="household-strip">
-        <div className="household-stat">
-          <span className="household-label">Net worth</span>
-          <strong className={`${totals.netWorth >= 0 ? 'pos' : 'neg'}${netWorthFlash ? ' value-flash' : ''}`}>{fmt(netWorthV)}</strong>
+      <div className="networth">
+        <div className="networth-label">Net worth</div>
+        <div className={`networth-figure${totals.netWorth >= 0 ? '' : ' neg'}${netWorthFlash ? ' value-flash' : ''}`}>
+          {nwDollars}<span className="networth-cents">.{nwCents}</span>
         </div>
-        <div className="household-stat">
-          <span className="household-label">Cash + investments</span>
-          <strong>{fmt(totals.assets)}</strong>
+        <div className="networth-rule" aria-hidden="true" />
+        <div className={`networth-delta${deltaClass}`}>{deltaText}</div>
+        <div className="networth-pair">
+          <span>Cash &amp; investments</span><span className="networth-lead" aria-hidden="true" /><b>{fmt(totals.assets)}</b>
         </div>
-        <div className="household-stat">
-          <span className="household-label">You owe</span>
-          <strong className="neg">{fmt(totals.owed)}</strong>
+        <div className="networth-pair">
+          <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className="neg">{fmt(totals.owed)}</b>
         </div>
       </div>
 
@@ -45,7 +51,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
         if (list.length === 0) return null;
         return (
           <div key={group} className="account-group">
-            <div className="account-group-label">{group}</div>
+            <div className="account-group-label"><span>{group}</span><b>{list.length}</b></div>
             {list.map(a => {
               const bal = accountBalance(a, transactions);
               const klass = accountClass(a.type, typesById);
@@ -57,7 +63,8 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
                   className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
                   onClick={() => onSelect(a.id)}
                 >
-                  <span className="account-row-name"><Icon value={a.icon} className="account-row-icon" /> {a.name}</span>
+                  <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
+                  <span className="account-row-name">{a.name}</span>
                   <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
                 </button>
               );

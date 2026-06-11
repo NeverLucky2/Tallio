@@ -42,6 +42,34 @@
   color: var(--text); border-bottom-color: var(--accent);
 }
 
+/* ---- Body / sidebar ---- */
+.app-root[data-finish="bullion"] .container { max-width: 1280px; padding: 26px 30px 36px; }
+.app-root[data-finish="instrument"] .container { max-width: none; padding: 0; }
+.app-root[data-finish="instrument"] .accounts-layout { grid-template-columns: 264px 1fr; gap: 0; }
+.app-root[data-finish="instrument"] .accounts-sidebar {
+  background: color-mix(in srgb, var(--bg-raised) calc(var(--surface-alpha) * 55%), transparent);
+  backdrop-filter: blur(var(--surface-blur));
+  border-right: 1px solid var(--border);
+  padding: 16px 14px;
+  min-height: calc(100vh - var(--topbar-h));
+}
+.app-root[data-finish="instrument"] .networth-figure { font-family: var(--font-ui); font-size: 24px; font-weight: 600; }
+.app-root[data-finish="instrument"] .networth-cents { font-size: 24px; color: inherit; }
+.app-root[data-finish="instrument"] .networth-rule { border-bottom: 1px solid var(--border); width: 100%; }
+.app-root[data-finish="instrument"] .networth-delta.pos {
+  background: var(--green-dim); border: 1px solid var(--green-border); padding: 2px 7px; border-radius: 4px;
+}
+.app-root[data-finish="instrument"] .networth-delta.neg {
+  background: var(--red-dim); border: 1px solid var(--red-border); padding: 2px 7px; border-radius: 4px;
+}
+.app-root[data-finish="instrument"] .networth-lead { border-bottom: none; }
+.app-root[data-finish="instrument"] .account-group-label { font-family: var(--font-mono); letter-spacing: 0.16em; border-bottom: none; }
+.app-root[data-finish="instrument"] .account-row { margin: 1px 0; border-left: 2px solid transparent; border-radius: 6px; }
+.app-root[data-finish="instrument"] .account-row:hover { background: var(--bg-card-hover); }
+.app-root[data-finish="instrument"] .account-row-selected { box-shadow: none; border-left-color: var(--accent); }
+.app-root[data-finish="instrument"] .account-row-selected::before { display: none; }
+.app-root[data-finish="instrument"] .icon-well { background: color-mix(in srgb, var(--text) 4.5%, transparent); }
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,

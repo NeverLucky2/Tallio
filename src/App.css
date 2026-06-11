@@ -3437,17 +3437,65 @@
 }
 
 /* Accounts sidebar */
-.account-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.household-strip { display: flex; gap: 1.25rem; flex-wrap: wrap; padding: 0.75rem 1rem; border: 1px solid var(--border, #2a2a3a); border-radius: 12px; margin-bottom: 0.5rem; }
-.household-stat { display: flex; flex-direction: column; }
-.household-label { font-size: 0.7rem; color: var(--muted, #8a8a9a); }
-.account-group-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted, #8a8a9a); margin: 0.6rem 0 0.25rem; }
-.account-row { display: flex; justify-content: space-between; width: 100%; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 0.45rem 0.6rem; cursor: pointer; color: inherit; text-align: left; }
-.account-row:hover { border-color: var(--border, #2a2a3a); }
-.account-row-selected { background: rgba(91,141,255,0.12); border-color: rgba(91,141,255,0.4); }
-.account-row-balance.neg, .household-stat .neg { color: #e06c6c; }
-.household-stat .pos { color: #3ddba0; }
-.account-add { margin-top: 0.5rem; background: transparent; border: 1px dashed var(--border, #2a2a3a); border-radius: 8px; padding: 0.5rem; color: #5b8dff; cursor: pointer; }
+.account-list { display: flex; flex-direction: column; }
+
+.networth-label {
+  font-size: 9.5px; letter-spacing: 0.26em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.networth-figure {
+  font-family: var(--font-display);
+  font-size: 34px; font-weight: 500; letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+  margin-top: 6px; border-radius: 6px;
+}
+.networth-figure.neg { color: var(--red); }
+.networth-cents { font-size: 19px; color: var(--text-muted); }
+.networth-rule {
+  border-bottom: 3px double color-mix(in srgb, var(--accent) 50%, transparent);
+  margin: 10px 0; width: 200px;
+}
+.networth-delta { font-family: var(--font-mono); font-size: 10.5px; margin-bottom: 8px; display: inline-flex; align-items: center; gap: 5px; }
+.networth-delta.pos { color: var(--green); }
+.networth-delta.neg { color: var(--red); }
+.networth-delta.zero { color: var(--text-dim); }
+.networth-pair { display: flex; align-items: baseline; font-size: 11.5px; color: var(--text-muted); padding: 3px 0; }
+.networth-lead { flex: 1; border-bottom: 1px dotted color-mix(in srgb, var(--text-muted) 45%, transparent); margin: 0 8px 3px; }
+.networth-pair b { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--text); }
+.networth-pair b.neg { color: var(--red); }
+
+.account-group { margin-top: 22px; }
+.account-group-label {
+  display: flex; justify-content: space-between;
+  font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase;
+  color: var(--text-dim);
+  padding-bottom: 7px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+.account-group-label b { font-family: var(--font-mono); font-weight: 400; color: var(--text-muted); letter-spacing: 0; }
+
+.account-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: transparent; border: none; border-radius: 8px;
+  padding: 7px 9px; margin: 1px -9px; cursor: pointer;
+  color: inherit; text-align: left; position: relative;
+  font: inherit;
+}
+.account-row:hover { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+.account-row-selected { background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border); }
+.account-row-selected::before {
+  content: ''; position: absolute; left: 0; top: 7px; bottom: 7px;
+  width: 2px; border-radius: 2px; background: var(--accent);
+}
+.account-row-name { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-row-balance { font-family: var(--font-mono); font-size: 11.5px; }
+.account-row-balance.neg { color: var(--red); }
+
+.account-add {
+  margin-top: 18px;
+  background: none; border: 1px dashed var(--border-strong); border-radius: 8px;
+  color: var(--text-muted); font: inherit; font-size: 12px; padding: 9px; cursor: pointer;
+}
+.account-add:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 
 /* Register rows */
 .txn-row { cursor: pointer; }
@@ -3493,9 +3541,8 @@
 .dialog-hint { font-size: 0.72rem; color: var(--muted, #8a8a9a); margin: 0.25rem 0 0.5rem; }
 
 /* Accounts layout */
-.accounts-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.25rem; align-items: start; }
-@media (max-width: 860px) { .accounts-layout { grid-template-columns: 1fr; } }
-.account-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.accounts-layout { display: grid; grid-template-columns: 280px 1fr; gap: 30px; align-items: start; }
+@media (max-width: 900px) { .accounts-layout { grid-template-columns: 1fr; } }
 
 /* Sortable register headers */
 .th-sort { background: transparent; border: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; padding: 0; }
@@ -3738,8 +3785,8 @@
 /* Image-icon thumb rendered in place of an emoji glyph. Sized to the line so it
    matches emoji icons in lists/rows; circular by default. */
 .icon-img { display: inline-block; width: 1.15em; height: 1.15em; border-radius: 50%; object-fit: cover; vertical-align: -0.2em; }
-/* Account/type/manage tiles read better with a soft square. */
-.account-row-icon.icon-img,
+/* Type/manage tiles read better with a soft square. (Account rows now sit in
+   .icon-well, which owns the shape per finish.) */
 .type-row-icon.icon-img,
 .manage-list-icon.icon-img,
 .cat-editor-icon .icon-img { border-radius: 22%; }
