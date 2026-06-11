@@ -1,5 +1,5 @@
 // src/AvatarDrawer.jsx
-// Left slide-in account drawer: scrim + panel, opened over the avatar. Closes on
+// Right slide-in account drawer, anchored to the header avatar. Closes on
 // scrim click, ×, Escape, or item select. Reduced motion skips the slide.
 import React, { useEffect } from 'react';
 import './AvatarDrawer.css';

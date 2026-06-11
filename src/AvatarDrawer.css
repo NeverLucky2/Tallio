@@ -1,14 +1,14 @@
-/* Left account drawer + enlarged avatar trigger. */
+/* Right account drawer + enlarged avatar trigger (anchored to the header avatar). */
 .avatar-drawer-root { position: fixed; inset: 0; z-index: 1100; }
 .avatar-drawer-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); }
 .avatar-drawer-panel {
-  position: absolute; top: 0; left: 0; height: 100%; width: 280px; max-width: 86vw;
-  background: var(--bg-card, #161d2a); border-right: 1px solid var(--border, #2a3550);
-  box-shadow: 12px 0 34px rgba(0, 0, 0, .5); padding: 16px;
+  position: absolute; top: 0; right: 0; height: 100%; width: 280px; max-width: 86vw;
+  background: var(--bg-card, #161d2a); border-left: 1px solid var(--border, #2a3550);
+  box-shadow: -12px 0 34px rgba(0, 0, 0, .5); padding: 16px;
   display: flex; flex-direction: column;
   animation: avatar-drawer-in .28s cubic-bezier(.2, .8, .2, 1);
 }
-@keyframes avatar-drawer-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes avatar-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .avatar-drawer-panel.no-anim { animation: none; }
 
 .avatar-drawer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }

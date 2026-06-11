@@ -23,6 +23,25 @@
   --topbar-bg: var(--bg-raised);
 }
 
+/* ---- Top bar ---- */
+.app-root[data-finish="instrument"] .topbar { padding: 0 18px; gap: 22px; }
+.app-root[data-finish="instrument"] .topbar .brand-title { font-size: 20px; }
+.app-root[data-finish="instrument"] .brand-mark { width: 21px; height: 18px; }
+
+.app-root[data-finish="bullion"] .top-nav-link {
+  font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase;
+}
+.app-root[data-finish="bullion"] .top-nav-link.on { color: var(--text); }
+.app-root[data-finish="bullion"] .top-nav-link.on::before {
+  content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+.app-root[data-finish="instrument"] .top-nav-link {
+  font-family: var(--font-mono); font-size: 11.5px; text-transform: lowercase;
+}
+.app-root[data-finish="instrument"] .top-nav-link.on {
+  color: var(--text); border-bottom-color: var(--accent);
+}
+
 /* Finish flips cross-fade; disabled for reduced motion. */
 .app-root,
 .app-root .topbar,

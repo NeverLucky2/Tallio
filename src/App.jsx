@@ -34,6 +34,7 @@ import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accou
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 import UndoButton from './UndoButton.jsx';
+import TallyMark from './TallyMark.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive } from './exportArchive.js';
@@ -619,30 +620,33 @@ function Tallio() {
         </div>
       )}
 
-      <div className="container">
-        <header className="header">
-          <div className="brand">
-            <button type="button" className="avatar-trigger" aria-label="Account menu" title="Open menu" onClick={() => setDrawerOpen(true)}>
-              <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" />
-              <span className="avatar-trigger-caret" aria-hidden="true">▾</span>
-            </button>
-            <h1 className="brand-title">
-              <span role="presentation" onClick={eggs.registerLogoClick}>Tall<span className="brand-title-accent">io</span></span>
-            </h1>
-            <p className="brand-sub">Accounts</p>
-          </div>
-          <div className="header-actions">
-            <button type="button" onClick={() => setScreen('manage-categories')} className="btn">☰ Categories</button>
-            <button type="button" onClick={() => setScreen('account-types')} className="btn">▤ Account Types</button>
-            <button type="button" onClick={() => setScreen('reports')} className="btn">📊 Reports</button>
-            <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan</button>
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
-            <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
-            <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone Linked' : '⌘ Pair Phone'}</button>
-            <UndoButton count={history.length} onUndo={undo} />
-          </div>
-        </header>
+      <header className="topbar">
+        <div className="brand">
+          <TallyMark size={24} className="brand-mark" />
+          <h1 className="brand-title">
+            <span role="presentation" onClick={eggs.registerLogoClick}>Tallio</span>
+          </h1>
+        </div>
+        <nav className="top-nav" aria-label="Primary">
+          <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account types</button>
+        </nav>
+        <div className="header-actions">
+          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
+          <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
+          <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone linked' : '⌘ Pair phone'}</button>
+          <UndoButton count={history.length} onUndo={undo} />
+          <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan bill</button>
+          <button type="button" className="avatar-trigger" aria-label="Account menu" title="Open menu" onClick={() => setDrawerOpen(true)}>
+            <Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="header-avatar" />
+            <span className="avatar-trigger-caret" aria-hidden="true">▾</span>
+          </button>
+        </div>
+      </header>
 
+      <div className="container">
         <div className="accounts-layout">
           <aside className="accounts-sidebar">
             <AccountList
