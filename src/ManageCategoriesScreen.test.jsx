@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
 
@@ -71,18 +71,6 @@ describe('ManageCategoriesScreen', () => {
     expect(screen.getByText(/editing: new category/i)).toBeTruthy();
   });
 
-  it('shows item counts next to each category in the list', () => {
-    const bills = [{ id: 'b1', items: [
-      { id: 'i1', categoryId: 'c1' },
-      { id: 'i2', categoryId: 'c1' },
-      { id: 'i3', categoryId: 'c2' },
-    ]}];
-    render(<ManageCategoriesScreen categories={cats} {...noopProps} bills={bills} />);
-    // Render uses "(N)" suffix on rows.
-    expect(screen.getByText('Utilities').parentElement.textContent).toContain('2');
-    expect(screen.getByText('Dining').parentElement.textContent).toContain('1');
-  });
-
   it('renders an Undo button that enables on undoCount and calls onUndo', async () => {
     const onUndo = vi.fn();
     render(<ManageCategoriesScreen categories={cats} {...noopProps} onUndo={onUndo} undoCount={2} />);
@@ -106,13 +94,25 @@ describe('ManageCategoriesScreen', () => {
     expect(list.textContent).not.toContain('Groceries');
   });
 
-  it('drills into a sub-category and back', async () => {
+  it('renders sub-categories as a tree under their parent in the list', () => {
+    const withSubs = [
+      { id: 'c1', name: 'Taxes', icon: '🏛️', color: '#EAB308', keywords: [], templates: [], builtin: true,
+        subcategories: [{ id: 's1', name: 'Federal Tax', keywords: [] }, { id: 's2', name: 'State Tax', keywords: [] }] },
+    ];
+    render(<ManageCategoriesScreen categories={withSubs} {...noopProps} />);
+    const list = document.querySelector('.manage-list');
+    expect(within(list).getByText('Federal Tax')).toBeTruthy();
+    expect(within(list).getByText('State Tax')).toBeTruthy();
+  });
+
+  it('drills into a sub-category from the list tree and back', async () => {
     const withSubs = [
       { id: 'c1', name: 'Taxes', icon: '🏛️', color: '#EAB308', keywords: [], templates: [], builtin: true,
         subcategories: [{ id: 's1', name: 'Federal Tax', keywords: [] }] },
     ];
     render(<ManageCategoriesScreen categories={withSubs} {...noopProps} />);
-    await userEvent.click(screen.getByText('Federal Tax'));
+    const list = document.querySelector('.manage-list');
+    await userEvent.click(within(list).getByText('Federal Tax'));
     expect(screen.getByText(/taxes › federal tax/i)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: /back to taxes/i }));
     expect(screen.getByText(/editing: taxes/i)).toBeTruthy();

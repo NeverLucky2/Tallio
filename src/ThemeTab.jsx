@@ -12,8 +12,15 @@ const CHANNELS = [
 
 const MIN_CONTRAST = 4.5;
 
+// The form axis. Theme = color, Finish = form; both live on this tab.
+// Default (Instrument) listed first.
+const FINISH_OPTIONS = [
+  { id: 'instrument', name: 'Instrument', desc: 'Precision terminal — mono, flat, dense' },
+  { id: 'bullion', name: 'Bullion', desc: 'Heirloom ledger — serif, coins, double rules' },
+];
+
 export default function ThemeTab({ appearance }) {
-  const { themeId, customTheme, setTheme, updateCustom, resetCustomToPreset } = appearance;
+  const { themeId, customTheme, setTheme, updateCustom, resetCustomToPreset, finish = 'instrument', setFinish = () => {} } = appearance;
   const essentials = essentialsForTheme(themeId, customTheme);
   const isCustom = themeId === 'custom';
   const sourcePreset = isCustom ? PRESETS[0].id : themeId;
@@ -23,6 +30,25 @@ export default function ThemeTab({ appearance }) {
 
   return (
     <div className="theme-tab">
+      <div className="appearance-label">Finish — the form of the interface</div>
+      <div className="finish-cards" role="radiogroup" aria-label="Finish">
+        {FINISH_OPTIONS.map(f => (
+          <button
+            key={f.id}
+            type="button"
+            role="radio"
+            aria-checked={finish === f.id}
+            aria-label={f.name}
+            className={`finish-card${finish === f.id ? ' selected' : ''}`}
+            onClick={() => setFinish(f.id)}
+          >
+            <span className={`finish-thumb finish-thumb-${f.id}`} aria-hidden="true" />
+            <span className="finish-card-name">{f.name}</span>
+            <span className="finish-card-desc">{f.desc}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="appearance-label">Preset themes</div>
       <div className="theme-swatches" role="radiogroup" aria-label="Preset themes">
         {PRESETS.map(p => (

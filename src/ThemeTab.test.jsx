@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import ThemeTab from './ThemeTab.jsx';
 
 function stub(overrides = {}) {
   return {
-    themeId: 'nocturne', customTheme: null,
-    setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(),
+    themeId: 'nocturne', customTheme: null, finish: 'instrument',
+    setTheme: vi.fn(), updateCustom: vi.fn(), resetCustomToPreset: vi.fn(), setFinish: vi.fn(),
     ...overrides,
   };
 }
@@ -15,7 +15,29 @@ describe('ThemeTab', () => {
 
   it('renders a swatch for each of the six presets', () => {
     render(<ThemeTab appearance={stub()} />);
-    expect(screen.getAllByRole('radio')).toHaveLength(6);
+    const group = screen.getByRole('radiogroup', { name: /preset themes/i });
+    expect(within(group).getAllByRole('radio')).toHaveLength(6);
+  });
+
+  it('renders a finish picker with instrument selected by default', () => {
+    render(<ThemeTab appearance={stub()} />);
+    const group = screen.getByRole('radiogroup', { name: /finish/i });
+    const radios = within(group).getAllByRole('radio');
+    expect(radios).toHaveLength(2);
+    expect(radios[0].getAttribute('aria-label')).toMatch(/instrument/i); // default listed first
+    expect(within(group).getByRole('radio', { name: /instrument/i }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('selecting a finish calls setFinish', () => {
+    const a = stub();
+    render(<ThemeTab appearance={a} />);
+    fireEvent.click(screen.getByRole('radio', { name: /bullion/i }));
+    expect(a.setFinish).toHaveBeenCalledWith('bullion');
+  });
+
+  it('reflects the active finish', () => {
+    render(<ThemeTab appearance={stub({ finish: 'bullion' })} />);
+    expect(screen.getByRole('radio', { name: /bullion/i }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('selecting a preset calls setTheme', () => {

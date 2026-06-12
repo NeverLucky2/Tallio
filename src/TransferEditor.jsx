@@ -131,7 +131,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
           <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save transfer</button>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
         </div>
 
         {splitsOpen && (

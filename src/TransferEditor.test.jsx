@@ -28,7 +28,7 @@ describe('TransferEditor', () => {
 
   it('new transfer: Save is disabled until From/To/amount are valid', async () => {
     setup();
-    const saveBtn = screen.getByRole('button', { name: /save transfer/i });
+    const saveBtn = screen.getByRole('button', { name: /^save$/i });
     expect(saveBtn.disabled).toBe(true); // no To selected yet
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_sav');
     await userEvent.type(screen.getByLabelText(/amount/i), '500');
@@ -39,7 +39,7 @@ describe('TransferEditor', () => {
     setup();
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_chk'); // same as From
     await userEvent.type(screen.getByLabelText(/amount/i), '500');
-    expect(screen.getByRole('button', { name: /save transfer/i }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: /^save$/i }).disabled).toBe(true);
   });
 
   it('new transfer: saving emits fromId/toId/amount/date/description (no transferId)', async () => {
@@ -47,7 +47,7 @@ describe('TransferEditor', () => {
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_sav');
     await userEvent.type(screen.getByLabelText(/amount/i), '500');
     await userEvent.type(screen.getByLabelText(/notes/i), 'Rent buffer');
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave).toHaveBeenCalledTimes(1);
     const payload = onSave.mock.calls[0][0];
     expect(payload).toMatchObject({ fromId: 'a_chk', toId: 'a_sav', amount: 500, description: 'Rent buffer' });
@@ -64,7 +64,7 @@ describe('TransferEditor', () => {
     expect(screen.getByLabelText(/from account/i).value).toBe('a_chk');
     expect(screen.getByLabelText(/to account/i).value).toBe('a_sav');
     expect(screen.getByLabelText(/amount/i).value).toBe('500');
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0]).toMatchObject({ transferId: 'x', fromId: 'a_chk', toId: 'a_sav', amount: 500 });
     await userEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('x');
@@ -131,7 +131,7 @@ describe('TransferEditor', () => {
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // credit_card → Credit Card Payment
     await userEvent.type(screen.getByLabelText(/amount/i), '200');
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('cc');
   });
 
@@ -142,7 +142,7 @@ describe('TransferEditor', () => {
     await userEvent.selectOptions(screen.getByLabelText(/^type$/i), 'iv'); // user picks Investment Transfer
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // would suggest 'cc'
     await userEvent.type(screen.getByLabelText(/amount/i), '200');
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('iv'); // not overridden
   });
 
@@ -156,7 +156,7 @@ describe('TransferEditor', () => {
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} transfer={transfer}
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByLabelText(/^type$/i).value).toBe('iv');
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('iv');
   });
 });
@@ -208,7 +208,7 @@ describe('TransferEditor split source-leg wire-up', () => {
     const amountField = screen.getByLabelText(/amount/i);
     expect(amountField.value).toBe('250');
     expect(amountField.disabled).toBe(true);
-    await userEvent.click(screen.getByRole('button', { name: /save transfer/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     const payload = onSave.mock.calls[0][0];
     expect(payload.amount).toBeCloseTo(250, 5);
     expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-250, 5);

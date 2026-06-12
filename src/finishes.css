@@ -1,0 +1,125 @@
+/* ============================================================
+   FINISHES — the form axis. Theme = color, Finish = form.
+   One DOM; these tokens + [data-finish] scoped rules re-dress it.
+   Bullion: heirloom ledger (default). Instrument: precision terminal.
+   Every color here derives from theme tokens — never literals.
+   ============================================================ */
+
+.app-root[data-finish="bullion"] {
+  --font-mono: 'IBM Plex Mono', monospace;
+  --debit-color: var(--text);
+  --well-radius: 50%;
+  --well-border: color-mix(in srgb, var(--accent) 22%, transparent);
+  --topbar-h: 56px;
+  --topbar-bg: transparent;
+}
+
+.app-root[data-finish="instrument"] {
+  --font-mono: 'Geist Mono', monospace;
+  --debit-color: var(--red);
+  --well-radius: 6px;
+  --well-border: var(--border);
+  --topbar-h: 50px;
+  --topbar-bg: var(--bg-raised);
+}
+
+/* ---- Top bar ---- */
+.app-root[data-finish="instrument"] .topbar { padding: 0 18px; gap: 22px; }
+.app-root[data-finish="instrument"] .topbar .brand-title { font-size: 20px; }
+.app-root[data-finish="instrument"] .brand-mark { width: 21px; height: 18px; }
+
+.app-root[data-finish="bullion"] .top-nav-link {
+  font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase;
+}
+.app-root[data-finish="bullion"] .top-nav-link.on { color: var(--text); }
+.app-root[data-finish="bullion"] .top-nav-link.on::before {
+  content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
+}
+.app-root[data-finish="instrument"] .top-nav-link {
+  font-family: var(--font-mono); font-size: 11.5px;
+}
+.app-root[data-finish="instrument"] .top-nav-link.on {
+  color: var(--text); border-bottom-color: var(--accent);
+}
+
+/* ---- Body / sidebar ---- */
+/* Bullion borrows Instrument's space efficiency: near-full-bleed body with
+   modest gutters; the serif/coin/double-rule identity carries the difference. */
+.app-root[data-finish="bullion"] .container { max-width: none; padding: 18px 24px 30px; }
+.app-root[data-finish="instrument"] .container { max-width: none; padding: 0; }
+.app-root[data-finish="instrument"] .accounts-layout { grid-template-columns: 264px 1fr; gap: 0; }
+.app-root[data-finish="instrument"] .accounts-sidebar {
+  background: color-mix(in srgb, var(--bg-raised) calc(var(--surface-alpha) * 55%), transparent);
+  backdrop-filter: blur(var(--surface-blur));
+  border-right: 1px solid var(--border);
+  padding: 16px 14px;
+  min-height: calc(100vh - var(--topbar-h));
+}
+.app-root[data-finish="instrument"] .networth-figure { font-family: var(--font-ui); font-size: 24px; font-weight: 600; }
+.app-root[data-finish="instrument"] .networth-cents { font-size: 24px; color: inherit; }
+.app-root[data-finish="instrument"] .networth-rule { border-bottom: 1px solid var(--border); width: 100%; }
+.app-root[data-finish="instrument"] .networth-delta.pos {
+  background: var(--green-dim); border: 1px solid var(--green-border); padding: 2px 7px; border-radius: 4px;
+}
+.app-root[data-finish="instrument"] .networth-delta.neg {
+  background: var(--red-dim); border: 1px solid var(--red-border); padding: 2px 7px; border-radius: 4px;
+}
+.app-root[data-finish="instrument"] .networth-lead { border-bottom: none; }
+.app-root[data-finish="instrument"] .account-group-label { font-family: var(--font-mono); letter-spacing: 0.16em; border-bottom: none; }
+.app-root[data-finish="instrument"] .account-row { margin: 1px 0; border-left: 2px solid transparent; border-radius: 6px; }
+.app-root[data-finish="instrument"] .account-row:hover { background: var(--bg-card-hover); }
+.app-root[data-finish="instrument"] .account-row-selected { box-shadow: none; border-left-color: var(--accent); }
+.app-root[data-finish="instrument"] .account-row-selected::before { display: none; }
+.app-root[data-finish="instrument"] .icon-well { background: color-mix(in srgb, var(--text) 4.5%, transparent); }
+
+/* ---- Register ---- */
+.app-root[data-finish="bullion"] .register {
+  background: color-mix(in srgb, var(--bg-raised) calc(var(--surface-alpha) * 100%), transparent);
+  backdrop-filter: blur(var(--surface-blur));
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px 12px;
+}
+.app-root[data-finish="instrument"] .register { padding: 16px 20px; }
+.app-root[data-finish="instrument"] .register-title { font-size: 16px; font-weight: 600; }
+.app-root[data-finish="bullion"] .register-balance {
+  border-bottom: 3px double color-mix(in srgb, var(--accent) 50%, transparent); padding-bottom: 3px;
+}
+/* (Bullion's underline-only filter fields retired 2026-06-11 — too subtly
+   defined; both finishes now use boxed fields.) */
+.app-root[data-finish="instrument"] .kbd-hint { display: inline-block; }
+.app-root[data-finish="instrument"] .register-table th { font-family: var(--font-mono); letter-spacing: 0.14em; color: var(--text-dim); border-bottom-color: var(--border-strong); }
+.app-root[data-finish="instrument"] .txn-date { letter-spacing: 0; text-transform: none; font-size: 11px; }
+.app-root[data-finish="instrument"] .register-foot { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: none; }
+
+/* ---- Category / transfer chips ---- */
+.app-root[data-finish="instrument"] .txn-cat {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2.5px 8px; font-size: 11px;
+}
+.app-root[data-finish="instrument"] .txn-cat .icon-well { width: auto; height: auto; border: none; background: none; border-radius: 0; font-size: 11px; }
+.app-root[data-finish="instrument"] .txn-transfer {
+  border-radius: 4px;
+}
+
+/* ---- Primary button + glow ---- */
+.app-root[data-finish="bullion"] .btn-primary {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 86%, white) 0%, color-mix(in srgb, var(--accent) 86%, black) 100%);
+  box-shadow: 0 1px 8px color-mix(in srgb, var(--accent) 25%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.app-root[data-finish="instrument"] .btn-primary { border-radius: 6px; }
+.app-root[data-finish="instrument"] .app-bg-gradient { display: none; }
+
+/* ---- Net-worth sparkline: engraved line (Bullion) vs bars (Instrument) ---- */
+.app-root[data-finish="bullion"] .nws-bars { display: none; }
+.app-root[data-finish="instrument"] .nws-line { display: none; }
+
+/* Finish flips cross-fade; disabled for reduced motion. */
+.app-root,
+.app-root .topbar,
+.app-root .icon-well,
+.app-root .register {
+  transition: background-color .25s ease, border-color .25s ease, border-radius .25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-root, .app-root .topbar, .app-root .icon-well, .app-root .register { transition: none; }
+}

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ACCOUNT_TYPES, GROUP_ORDER, accountClass, layoutFor, groupFor,
   isOnBalanceSheet, flowSign, transferDraftForAccount, payFromUpdate,
+  monthToDateDelta, DEFAULT_ACCOUNT_TYPES_BY_ID, netWorthSeries,
 } from './accountsModel.js';
 
 describe('account types & classification', () => {
@@ -613,5 +614,74 @@ describe('sortRows handles split parents predictably', () => {
     const rowsWithLeftover = rows.map(r => r.id === 't_split' ? { ...r, categoryId: 'c_grocery' } : r);
     const sorted = sortRows(rowsWithLeftover, { key: 'category', dir: 'asc' }, categoriesById);
     expect(sorted.map(r => r.id)).toEqual(['t_g', 't_z', 't_split']);
+  });
+});
+
+describe('monthToDateDelta', () => {
+  const types = DEFAULT_ACCOUNT_TYPES_BY_ID;
+  const accounts = [
+    { id: 'a_chk', name: 'Checking', type: 'bank', openingBalance: 1000 },
+    { id: 'a_sav', name: 'Savings',  type: 'bank', openingBalance: 0 },
+    { id: 'a_cc',  name: 'Card',     type: 'credit_card', openingBalance: 0 },
+    { id: 'a_mom', name: 'Mom',      type: 'person', openingBalance: 0 },
+  ];
+  const now = new Date('2026-06-15T12:00:00');
+
+  it('sums current-month transactions across asset and liability accounts', () => {
+    const txns = [
+      { id: 't1', accountId: 'a_chk', date: '2026-06-06', amount: 3184.52 },
+      { id: 't2', accountId: 'a_chk', date: '2026-06-10', amount: -142.87 },
+      { id: 't3', accountId: 'a_cc',  date: '2026-06-09', amount: -89.40 },
+    ];
+    expect(monthToDateDelta(accounts, txns, types, now)).toBeCloseTo(2952.25, 2);
+  });
+
+  it('excludes transactions from other months and years', () => {
+    const txns = [
+      { id: 't1', accountId: 'a_chk', date: '2026-05-31', amount: 500 },
+      { id: 't2', accountId: 'a_chk', date: '2025-06-15', amount: 500 },
+      { id: 't3', accountId: 'a_chk', date: '2026-06-01', amount: 25 },
+    ];
+    expect(monthToDateDelta(accounts, txns, types, now)).toBeCloseTo(25, 2);
+  });
+
+  it('transfers between on-sheet accounts net to zero', () => {
+    const txns = [
+      { id: 'tf', accountId: 'a_chk', date: '2026-06-09', amount: -1500, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-06-09', amount:  1500, transferId: 'x' },
+    ];
+    expect(monthToDateDelta(accounts, txns, types, now)).toBe(0);
+  });
+
+  it('ignores off-balance-sheet accounts', () => {
+    const txns = [{ id: 't1', accountId: 'a_mom', date: '2026-06-05', amount: 800 }];
+    expect(monthToDateDelta(accounts, txns, types, now)).toBe(0);
+  });
+
+  it('returns 0 for empty inputs', () => {
+    expect(monthToDateDelta([], [], types, now)).toBe(0);
+    expect(monthToDateDelta(accounts, [], types, now)).toBe(0);
+  });
+});
+
+describe('netWorthSeries', () => {
+  const typesById = new Map([['checking', { id: 'checking', klass: 'asset', group: 'Cash' }]]);
+  const accounts = [{ id: 'a1', type: 'checking' }];
+
+  it('returns one point per month, ending at current net worth', () => {
+    const txns = [
+      { id: 't1', accountId: 'a1', date: '2026-04-10', amount: 1000 },
+      { id: 't2', accountId: 'a1', date: '2026-05-10', amount: 500 },
+      { id: 't3', accountId: 'a1', date: '2026-06-05', amount: 250 },
+    ];
+    const series = netWorthSeries(accounts, txns, typesById, 3, new Date('2026-06-15'));
+    expect(series).toHaveLength(3);
+    expect(series[2]).toBe(1750);      // through June
+    expect(series[1]).toBe(1500);      // through May
+    expect(series[0]).toBe(1000);      // through April
+  });
+
+  it('is safe with no transactions', () => {
+    expect(netWorthSeries(accounts, [], typesById, 4, new Date('2026-06-15'))).toEqual([0, 0, 0, 0]);
   });
 });

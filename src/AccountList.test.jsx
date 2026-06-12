@@ -17,13 +17,48 @@ const transactions = [
 describe('AccountList', () => {
   afterEach(() => cleanup());
 
-  it('renders group headers, account names, and the household strip', () => {
+  it('renders group headers, account names, and the net-worth block', () => {
     render(<AccountList accounts={accounts} transactions={transactions} selectedId="a_chk" onSelect={() => {}} onAddAccount={() => {}} />);
     expect(screen.getByText('Cash & Bank')).toBeTruthy();
     expect(screen.getByText('Credit cards & loans')).toBeTruthy();
     expect(screen.getByText('People & external')).toBeTruthy();
     expect(screen.getByText('Chase Checking')).toBeTruthy();
     expect(screen.getByText(/Net worth/i)).toBeTruthy();
+    expect(screen.getByText(/Cash & investments/i)).toBeTruthy();
+    expect(screen.getByText(/You owe/i)).toBeTruthy();
+  });
+
+  it('shows the month delta for current-month activity', () => {
+    render(<AccountList accounts={accounts} transactions={transactions} now={new Date('2026-05-15T12:00:00')} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    // May activity: +200 (checking) − 150 (card) = +50
+    expect(screen.getByText(/\+\$50\.00 this month/)).toBeTruthy();
+  });
+
+  it('shows a muted zero delta when the current month has no activity', () => {
+    render(<AccountList accounts={accounts} transactions={transactions} now={new Date('2026-07-01T12:00:00')} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(screen.getByText(/\$0\.00 this month/)).toBeTruthy();
+  });
+
+  it('splits the net-worth figure into dollars and cents spans', () => {
+    const { container } = render(<AccountList accounts={accounts} transactions={transactions} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(container.querySelector('.networth-cents')).toBeTruthy();
+  });
+
+  it('shows a net-worth sparkline when there is account history', () => {
+    const { container } = render(<AccountList accounts={accounts} transactions={transactions} now={new Date('2026-05-15T12:00:00')} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(container.querySelector('.networth-spark svg')).toBeTruthy();
+  });
+
+  it('hides the sparkline when the series is all zero', () => {
+    const { container } = render(<AccountList accounts={[]} transactions={[]} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    expect(container.querySelector('.networth-spark svg')).toBeNull();
+  });
+
+  it('shows a per-group account count', () => {
+    const { container } = render(<AccountList accounts={accounts} transactions={transactions} selectedId={null} onSelect={() => {}} onAddAccount={() => {}} />);
+    const label = container.querySelector('.account-group-label');
+    expect(label.textContent).toContain('Cash & Bank');
+    expect(label.textContent).toContain('1');
   });
 
   it('fires onSelect when an account is clicked', async () => {

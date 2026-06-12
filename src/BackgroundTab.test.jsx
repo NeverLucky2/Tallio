@@ -56,11 +56,27 @@ describe('BackgroundTab effects + intensity', () => {
     expect(updateBackground).toHaveBeenCalledWith({ effects: { aurora: true, pulse: true } });
   });
 
-  it('moving the slider updates intensity as a number', () => {
-    const { appearance, updateBackground } = makeAppearance();
+  it('moving the slider updates intensity as a number (image base)', () => {
+    const { appearance, updateBackground } = makeAppearance({ base: 'preset', presetId: 'ember' });
     render(<BackgroundTab appearance={appearance} />);
     fireEvent.change(screen.getByLabelText('Background intensity'), { target: { value: '80' } });
     expect(updateBackground).toHaveBeenCalledWith({ intensity: 80 }, 'appearance:bg:intensity');
+  });
+
+  it('disables the intensity slider with a hint over a solid background', () => {
+    // Over a solid base the readability veil is --bg over --bg (invisible) and
+    // the frost knobs are bypassed — the slider has nothing to act on.
+    const { appearance } = makeAppearance({ base: 'solid', effects: { aurora: true, pulse: false } });
+    render(<BackgroundTab appearance={appearance} />);
+    expect(screen.getByLabelText('Background intensity').disabled).toBe(true);
+    expect(screen.getByText(/applies to photo and wallpaper backgrounds/i)).toBeTruthy();
+  });
+
+  it('enables the intensity slider for photo and wallpaper bases', () => {
+    const { appearance } = makeAppearance({ base: 'preset', presetId: 'ember' });
+    render(<BackgroundTab appearance={appearance} />);
+    expect(screen.getByLabelText('Background intensity').disabled).toBe(false);
+    expect(screen.queryByText(/applies to photo and wallpaper backgrounds/i)).toBeNull();
   });
 
   it('hides the effect-strength slider when no effect is on', () => {
@@ -94,6 +110,17 @@ describe('BackgroundTab photo controls', () => {
     fireEvent.change(input, { target: { files: [file] } });
     expect(onUpload).toHaveBeenCalledTimes(1);
     expect(onUpload.mock.calls[0][0]).toBe(file);
+  });
+
+  it('renders each photo as a thumbnail with the name captioned beneath (image-icons format)', () => {
+    const { appearance } = makeAppearance({ base: 'photos', photoIds: ['a'] });
+    const { container } = render(<BackgroundTab appearance={appearance} images={images} onUpload={vi.fn()} />);
+    const cell = container.querySelector('.bg-photo-item');
+    expect(cell.querySelector('img.bg-photo-thumb')).toBeTruthy();
+    expect(cell.querySelector('.bg-photo-name').textContent).toBe('Beach');
+    // selected photo carries the selected state on the thumb button + a check badge
+    expect(cell.querySelector('.bg-photo-thumb-btn.selected')).toBeTruthy();
+    expect(cell.querySelector('.bg-photo-check')).toBeTruthy();
   });
 
   it('single mode replaces the selection with the clicked image', () => {

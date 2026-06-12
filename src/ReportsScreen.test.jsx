@@ -39,6 +39,19 @@ describe('ReportsScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: /done/i }));
     expect(onClose).toHaveBeenCalled();
   });
+  it('renders an Undo button in the header that calls onUndo', async () => {
+    const onUndo = vi.fn();
+    renderScreen({ onUndo, undoCount: 3 });
+    const btn = screen.getByRole('button', { name: /undo/i });
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe('↩ Undo (3)');
+    await userEvent.click(btn);
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+  it('Undo button is disabled when there is no history', () => {
+    renderScreen({ undoCount: 0 });
+    expect(screen.getByRole('button', { name: /undo/i }).disabled).toBe(true);
+  });
   it('switching to This month re-scopes the summary (savings reflects May only)', async () => {
     renderScreen();
     await userEvent.click(screen.getByRole('button', { name: /this month/i }));

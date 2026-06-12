@@ -1,6 +1,6 @@
 // src/Register.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Register from './Register.jsx';
 
@@ -65,6 +65,72 @@ describe('Register', () => {
     render(<Register account={account} transactions={transactions} accounts={[account]} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={onTransfer} />);
     await userEvent.click(screen.getByRole('button', { name: /^transfer$/i }));
     expect(onTransfer).toHaveBeenCalledWith('a_cc');
+  });
+
+  it('shows an edit-account button that fires onEditAccount', async () => {
+    const onEditAccount = vi.fn();
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} onEditAccount={onEditAccount} />);
+    await userEvent.click(screen.getByRole('button', { name: /edit account/i }));
+    expect(onEditAccount).toHaveBeenCalled();
+  });
+
+  it('shows the account type label in the header', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    expect(screen.getByText('Credit card')).toBeTruthy();
+  });
+
+  it('footer reports entry count, period, and last entry date', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    expect(screen.getByText(/2 entries · All activity/)).toBeTruthy();
+    expect(screen.getByText(/Last entry May 5, 2026/)).toBeTruthy();
+  });
+
+  it('month filter sits in a wrapper with an adjacent calendar icon', () => {
+    const { container } = render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const wrap = container.querySelector('.register-month');
+    expect(wrap).toBeTruthy();
+    expect(wrap.querySelector('svg')).toBeTruthy();
+    expect(wrap.querySelector('input[type="month"]')).toBeTruthy();
+  });
+
+  it('footer reflects the month filter with a singular count', () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    fireEvent.change(screen.getByLabelText(/month filter/i), { target: { value: '2026-04' } });
+    expect(screen.getByText(/1 entry · April 2026/)).toBeTruthy();
+  });
+
+  it('"/" focuses the search box', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).toBe(screen.getByPlaceholderText(/search/i));
+  });
+
+  it('"/" is ignored while typing in another field', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const month = screen.getByLabelText(/month filter/i);
+    month.focus();
+    await userEvent.keyboard('/');
+    expect(document.activeElement).toBe(month);
+  });
+
+  it('"/" is ignored while an editor overlay (.dialog-overlay, no role) is open', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay';
+    document.body.appendChild(overlay);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText(/search/i));
+    overlay.remove();
+  });
+
+  it('"/" is ignored while a dialog is open', async () => {
+    render(<Register account={account} transactions={transactions} categories={[cat]} categoriesById={categoriesById} onEditTransaction={() => {}} onAddTransaction={() => {}} />);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    await userEvent.keyboard('/');
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText(/search/i));
+    dialog.remove();
   });
 
   it('renders a transfer leg with a counterpart chip', () => {

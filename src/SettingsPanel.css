@@ -1,9 +1,12 @@
 /* Keep the Settings modal within the viewport: cap its height and let the body
    scroll, so the header and footer (Save / Done) stay reachable at any zoom.
+   The app renders under #root { zoom: var(--ui-scale) }, which MAGNIFIES
+   vh-based sizes (90vh × 1.1 ≈ 99vh visual) — divide the cap by the zoom so
+   the rendered height is a true 90% of the viewport.
    Two-class selector (.pair-modal.settings-modal) wins over the shared
    .pair-modal rules regardless of stylesheet order. */
 .pair-modal.settings-modal {
-  max-height: 90vh;
+  max-height: calc(90vh / var(--ui-scale, 1));
   display: flex;
   flex-direction: column;
 }
