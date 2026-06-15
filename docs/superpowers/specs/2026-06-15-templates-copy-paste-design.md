@@ -204,17 +204,21 @@ lands on an invisible clipboard. Add a minimal flash-toast mechanism in `App.jsx
 - Duplicate adds one entry in the same account immediately.
 - Save as template opens the name dialog.
 
-## Component 6 — Export / Import of templates
+## Component 6 — Export templates in the backup archive
 
 - `buildDataJson` / `buildArchive` (`exportArchive.js`) gain an optional `templates`
-  field; `App.exportData` passes `templates.exportSnapshot()`. Bump `schemaVersion`
-  4 → 5.
-- Import tolerates archives without `templates` (default `[]`) and restores via
-  `templates.restore(list)`. Older archives (v4) load unchanged.
+  field (defaults to `[]`); `App.exportData` passes `templates.exportSnapshot()`. Bump
+  `schemaVersion` 4 → 5.
+- **No in-app archive import exists today** — `App` only builds the export zip;
+  `parseArchive` is the inverse helper but is unwired. So this component covers export
+  only. `useTemplates.restore()` is provided for parity with the other hooks (undo +
+  any future import), and `parseArchive(bytes).data.templates` surfaces them once a
+  caller exists. `buildDataJson` defaults `templates` to `[]`, so older archives load
+  unchanged.
 - This is the last task and is independently cuttable.
 
 ### Tests
-- Archive round-trip preserves templates.
+- Archive round-trip preserves templates (`buildArchive` → `parseArchive`).
 - v4 archive (no templates field) imports without error, templates default to empty.
 
 ## Data / storage summary
