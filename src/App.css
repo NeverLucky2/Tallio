@@ -1728,6 +1728,9 @@
   margin: 0;
 }
 
+/* ---- Save-as-template dialog ---- */
+.dialog-card-sm { max-width: 380px; }
+
 /* ---- Toast ---- */
 
 .toast {
