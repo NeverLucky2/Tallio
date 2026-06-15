@@ -1735,6 +1735,14 @@
 .txn-actions { width: 34px; text-align: center; }
 .th-actions { width: 34px; }
 
+/* ---- Paste chip + Templates menu ---- */
+.paste-chip { display: inline-flex; align-items: center; gap: 2px; }
+.template-menu { min-width: 200px; }
+.template-menu-row { display: flex; align-items: center; }
+.template-menu-apply { flex: 1; text-align: left; }
+.template-menu-del { border: none; background: none; color: var(--muted, #999); cursor: pointer; padding: 6px 10px; font-size: 15px; }
+.template-menu-del:hover { color: var(--danger, #e0564f); }
+
 /* ---- Toast ---- */
 
 .toast {

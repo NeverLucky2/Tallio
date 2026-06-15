@@ -5,6 +5,7 @@ import UiIcon from './ui/UiIcon.jsx';
 import { iconGlyph } from './iconValue.js';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
+import TemplatesMenu from './TemplatesMenu.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -95,6 +96,15 @@ export default function Register({ account, transactions, accounts = [], categor
         <div className="register-actions">
           <button type="button" className="btn btn-primary" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ New entry</button>
           <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
+          {clipboard && (
+            <span className="paste-chip">
+              <button type="button" className="btn" onClick={onPaste} aria-label={`Paste "${clipboard.label}"`}>
+                ⎘ Paste “{clipboard.label}”
+              </button>
+              <button type="button" className="btn-icon paste-clear" onClick={onClearClipboard} aria-label="Clear clipboard">×</button>
+            </span>
+          )}
+          <TemplatesMenu templates={templates} onApply={onApplyTemplate} onDelete={onDeleteTemplate} />
           {onEditAccount && (
             <button type="button" className="btn btn-icon" onClick={onEditAccount} aria-label="Edit account" title="Edit account">✎</button>
           )}
