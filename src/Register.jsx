@@ -31,7 +31,7 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null, onCopyEntry = null, onDuplicateEntry = null, onSaveTemplateEntry = null, clipboard = null, onPaste = () => {}, onClearClipboard = () => {}, templates = [], onApplyTemplate = () => {}, onDeleteTemplate = () => {} }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -134,11 +134,12 @@ export default function Register({ account, transactions, accounts = [], categor
                 </th>
               );
             })}
+            <th className="th-actions" aria-hidden="true"></th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
+            <tr><td colSpan={columns.length + 1} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
               <TransactionRow
@@ -150,6 +151,9 @@ export default function Register({ account, transactions, accounts = [], categor
                 onNavigate={onSelectAccount}
                 onEdit={onEditTransaction}
                 expandSplitHint={r._matchedSplitId || null}
+                onCopy={onCopyEntry}
+                onDuplicate={onDuplicateEntry}
+                onSaveTemplate={onSaveTemplateEntry}
               />
             ))
           )}

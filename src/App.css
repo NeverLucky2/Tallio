@@ -1731,6 +1731,10 @@
 /* ---- Save-as-template dialog ---- */
 .dialog-card-sm { max-width: 380px; }
 
+/* ---- Row actions column ---- */
+.txn-actions { width: 34px; text-align: center; }
+.th-actions { width: 34px; }
+
 /* ---- Toast ---- */
 
 .toast {

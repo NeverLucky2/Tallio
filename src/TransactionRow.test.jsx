@@ -147,3 +147,20 @@ describe('TransactionRow split parent', () => {
     expect(screen.getByText('Soap')).toBeTruthy();
   });
 });
+
+describe('TransactionRow kebab menu', () => {
+  afterEach(() => cleanup());
+
+  it('kebab menu fires copy / duplicate / save-template and does not open the editor', async () => {
+    const onEdit = vi.fn(), onCopy = vi.fn(), onDuplicate = vi.fn(), onSaveTemplate = vi.fn();
+    const row = { id: 't1', date: '2026-06-15', description: 'Zelle', amount: 50, categoryId: 'c_util' };
+    render(<table><tbody>
+      <TransactionRow layout="compact" row={row} categoriesById={catsById}
+        onEdit={onEdit} onCopy={onCopy} onDuplicate={onDuplicate} onSaveTemplate={onSaveTemplate} />
+    </tbody></table>);
+    await userEvent.click(screen.getByRole('button', { name: /row actions/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /^copy$/i }));
+    expect(onCopy).toHaveBeenCalledWith(row);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+});
