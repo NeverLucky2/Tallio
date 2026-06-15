@@ -1,7 +1,7 @@
 // src/exportArchive.test.js
 import { describe, it, expect } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
-import { buildArchive, buildTransactionsCsv, parseArchive } from './exportArchive.js';
+import { buildArchive, buildDataJson, buildTransactionsCsv, parseArchive } from './exportArchive.js';
 
 const categories = [
   { id: 'c_shop', name: 'Shopping', flow: 'expense' },
@@ -136,5 +136,25 @@ describe('export with split transactions', () => {
     const files = unzipSync(bytes);
     const data = JSON.parse(strFromU8(files['data.json']));
     expect(data.transactions[0].splits).toEqual(txns[0].splits);
+  });
+});
+
+describe('templates in the archive', () => {
+  it('round-trips templates through the archive and tolerates their absence', () => {
+    const templates = [{ id: 'tpl1', name: 'Paycheck', kind: 'transaction', payload: { description: 'Pay', amount: 2500 }, createdAt: '2026-06-15T00:00:00.000Z' }];
+
+    // data.json carries templates and the bumped schema version.
+    const json = buildDataJson([], [], [], [], 5, '0.0.0', new Date('2026-06-15'), null, templates);
+    const parsed = JSON.parse(json);
+    expect(parsed.schemaVersion).toBe(5);
+    expect(parsed.templates).toEqual(templates);
+
+    // Full zip round-trip: buildArchive → parseArchive surfaces templates on .data.
+    const bytes = buildArchive({ accounts: [], transactions: [], categories: [], accountTypes: [], schemaVersion: 5, appVersion: '0.0.0', now: new Date('2026-06-15'), templates });
+    expect(parseArchive(bytes).data.templates).toEqual(templates);
+
+    // Legacy archive without templates → field defaults to [].
+    const legacy = JSON.parse(buildDataJson([], [], [], [], 4, '0.0.0', new Date('2026-06-15')));
+    expect(legacy.templates ?? []).toEqual([]);
   });
 });

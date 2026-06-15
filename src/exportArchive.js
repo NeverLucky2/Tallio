@@ -46,7 +46,7 @@ export function buildTransactionsCsv(accounts, transactions, categoriesById) {
   return '﻿' + lines.join('\n');
 }
 
-export function buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks = null) {
+export function buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks = null, templates = null) {
   return JSON.stringify({
     schemaVersion,
     exportedAt: now.toISOString(),
@@ -56,12 +56,13 @@ export function buildDataJson(accounts, transactions, categories, accountTypes, 
     categories: categories || [],
     accountTypes: accountTypes || [],
     reportAcks: reportAcks || { subscriptions: {}, dismissedDuplicates: [] },
+    templates: templates || [],
   }, null, 2);
 }
 
-export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, images, appearance }) {
+export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, images, appearance, templates }) {
   const categoriesById = new Map((categories || []).map(c => [c.id, c]));
-  const jsonString = buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks);
+  const jsonString = buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, templates);
   const csvString = buildTransactionsCsv(accounts, transactions, categoriesById);
   const encoder = new TextEncoder();
   const jsonBytes = new Uint8Array(Array.from(encoder.encode(jsonString)));

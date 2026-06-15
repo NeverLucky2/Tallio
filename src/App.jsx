@@ -442,8 +442,9 @@ function Tallio() {
       accounts: ledger.accounts, transactions: ledger.transactions,
       categories: cats.categories, accountTypes: accountTypes.types,
       reportAcks: acks.exportSnapshot(),
+      templates: templates.exportSnapshot(),
       images, appearance: appearanceSettings,
-      schemaVersion: 4, appVersion: pkg.version, now: new Date(),
+      schemaVersion: 5, appVersion: pkg.version, now: new Date(),
     });
     const blob = new Blob([bytes], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
