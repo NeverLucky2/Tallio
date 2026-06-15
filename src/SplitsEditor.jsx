@@ -20,6 +20,9 @@ export default function SplitsEditor({
   const [targets, setTargets] = useState(new Map(initialSplitTargets));
   const [error, setError] = useState(null);
   const [dirs, setDirs] = useState(new Map());
+  // Raw amount-input strings per line id, so a zero/empty amount shows a blank box
+  // (matching new-transaction fields) and partial typing like "0.05" isn't snapped.
+  const [amountDrafts, setAmountDrafts] = useState(new Map());
   const dirOf = (line) => dirs.get(line.id) ?? (line.amount < 0 ? 'out' : line.amount > 0 ? 'in' : 'out');
 
   const parentCents = Math.round(parentAmount * 100);
@@ -109,7 +112,13 @@ export default function SplitsEditor({
                       <button type="button" className={`dir-btn${dirOf(line) === 'out' ? ' active' : ''}`} aria-label="Line out" onClick={() => setLineDir('out')}>− Out</button>
                       <button type="button" className={`dir-btn${dirOf(line) === 'in' ? ' active' : ''}`} aria-label="Line in" onClick={() => setLineDir('in')}>+ In</button>
                     </span>
-                    <input type="number" step="0.01" min="0" aria-label="Line amount" className="input" value={Math.abs(line.amount)} onChange={(e) => setLineMagnitude(parseFloat(e.target.value) || 0)} />
+                    <input type="number" step="0.01" min="0" aria-label="Line amount" className="input"
+                      value={amountDrafts.has(line.id) ? amountDrafts.get(line.id) : (line.amount ? String(Math.abs(line.amount)) : '')}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setAmountDrafts(prev => new Map(prev).set(line.id, raw));
+                        setLineMagnitude(parseFloat(raw) || 0);
+                      }} />
                   </td>
                   <td>
                     <button
