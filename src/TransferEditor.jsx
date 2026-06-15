@@ -5,28 +5,29 @@ import { iconGlyph } from './iconValue.js';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
+import { makeTransferDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
-  const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
-  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : (toAccountId || ''));
-  const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : todayISO());
-  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (initialAmount != null ? String(initialAmount) : ''));
-  const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : '');
+  const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (prefill?.fromId || fromAccountId || (accounts[0] && accounts[0].id) || ''));
+  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : (prefill?.toId || toAccountId || ''));
+  const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : (prefill?.date || todayISO()));
+  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (prefill ? String(prefill.amount) : (initialAmount != null ? String(initialAmount) : '')));
+  const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : (prefill?.description || ''));
   const transferCats = (categories || [])
     .filter(c => c && c.flow === 'transfer')
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const [categoryId, setCategoryId] = useState(
     transfer
       ? (transfer.fromLeg.categoryId || '')
-      : (suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
+      : (prefill?.categoryId || suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
   );
   const [typeTouched, setTypeTouched] = useState(false);
-  const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? null);
-  const [splitTargets, setSplitTargets] = useState(new Map());
+  const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? prefill?.splits ?? null);
+  const [splitTargets, setSplitTargets] = useState(prefill?.splitTargets instanceof Map ? prefill.splitTargets : new Map());
   const [splitsOpen, setSplitsOpen] = useState(false);
 
   const hasSplits = Array.isArray(splits) && splits.length > 0;
@@ -67,6 +68,11 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
       ...(hasSplits ? { splits, splitTargets } : {}),
     });
   };
+
+  const buildTemplateDraft = () => makeTransferDraft({
+    fromId, toId, amount: mag, categoryId: categoryId || null, description: description.trim(),
+    splits: hasSplits ? splits : null,
+  }, splitTargets);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -130,6 +136,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         <div className="dialog-actions">
           <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
+          {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
         </div>

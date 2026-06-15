@@ -214,3 +214,27 @@ describe('TransferEditor split source-leg wire-up', () => {
     expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-250, 5);
   });
 });
+
+describe('TransferEditor prefill + template', () => {
+  afterEach(() => cleanup());
+
+  it('prefill seeds a NEW transfer', () => {
+    const accts = [{ id: 'a_bank', name: 'Chase', type: 'bank' }, { id: 'a_sav', name: 'Savings', type: 'bank' }];
+    render(<TransferEditor accounts={accts} categories={[]}
+      prefill={{ fromId: 'a_bank', toId: 'a_sav', amount: 200, date: '2026-06-15', description: 'move', categoryId: null }}
+      onSave={() => {}} onClose={() => {}} />);
+    expect(screen.getByText(/New transfer/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^Amount$/i).value).toBe('200');
+    expect(screen.getByLabelText(/^Notes$/i).value).toBe('move');
+  });
+
+  it('Save as template builds a transfer draft', async () => {
+    const accts = [{ id: 'a_bank', name: 'Chase', type: 'bank' }, { id: 'a_sav', name: 'Savings', type: 'bank' }];
+    const onSaveAsTemplate = vi.fn();
+    render(<TransferEditor accounts={accts} categories={[]}
+      fromAccountId="a_bank" toAccountId="a_sav" initialAmount={100}
+      onSaveAsTemplate={onSaveAsTemplate} onSave={() => {}} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /save as template/i }));
+    expect(onSaveAsTemplate.mock.calls[0][0]).toMatchObject({ kind: 'transfer', payload: { fromId: 'a_bank', toId: 'a_sav', amount: 100 } });
+  });
+});

@@ -5,24 +5,26 @@ import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
 import CategoryPicker from './CategoryPicker.jsx';
+import { makeTransactionDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
+export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, prefill = null, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null }) {
   const isEdit = !!transaction;
-  const initialAmount = transaction ? Math.abs(transaction.amount) : '';
-  const initialDir = transaction ? (transaction.amount >= 0 ? 'in' : 'out') : 'out';
+  const seed = transaction || prefill || null;
+  const initialAmount = seed ? Math.abs(seed.amount) : '';
+  const initialDir = seed ? (seed.amount >= 0 ? 'in' : 'out') : 'out';
 
-  const [date, setDate] = useState(transaction?.date || todayISO());
-  const [description, setDescription] = useState(transaction?.description || '');
+  const [date, setDate] = useState(seed?.date || todayISO());
+  const [description, setDescription] = useState(seed?.description || '');
   const [magnitude, setMagnitude] = useState(initialAmount);
   const [direction, setDirection] = useState(initialDir);
-  const [categoryId, setCategoryId] = useState(transaction?.categoryId || (categories[0] && categories[0].id) || '');
-  const [subId, setSubId] = useState(transaction?.subId ?? null);
-  const [payee, setPayee] = useState(transaction?.payee || '');
-  const [checkNumber, setCheckNumber] = useState(transaction?.checkNumber || '');
-  const [splits, setSplits] = useState(transaction?.splits ?? null);
-  const [splitTargets, setSplitTargets] = useState(new Map());
+  const [categoryId, setCategoryId] = useState(seed?.categoryId || (categories[0] && categories[0].id) || '');
+  const [subId, setSubId] = useState(seed?.subId ?? null);
+  const [payee, setPayee] = useState(seed?.payee || '');
+  const [checkNumber, setCheckNumber] = useState(seed?.checkNumber || '');
+  const [splits, setSplits] = useState(seed?.splits ?? null);
+  const [splitTargets, setSplitTargets] = useState(prefill?.splitTargets instanceof Map ? prefill.splitTargets : new Map());
   const [splitsOpen, setSplitsOpen] = useState(false);
   const [pendingSeed, setPendingSeed] = useState(null);
 
@@ -71,6 +73,15 @@ export default function TransactionEditor({ account, transaction, categories, ac
       ...(hasSplits ? { splitTargets } : {}),
     });
   };
+
+  const buildTemplateDraft = () => makeTransactionDraft({
+    description: description.trim(),
+    amount: parentAmount,
+    categoryId, subId,
+    payee: isBank ? (payee.trim() || null) : null,
+    checkNumber: isBank ? (checkNumber.trim() || null) : null,
+    splits: hasSplits ? splits : null,
+  }, splitTargets);
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -124,6 +135,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
         <div className="dialog-actions">
           <UndoButton count={undoCount} onUndo={onUndo} />
           {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transaction.id)}>Delete</button>}
+          {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={save}>Save</button>
         </div>

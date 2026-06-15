@@ -205,3 +205,29 @@ describe('TransactionEditor sub-category', () => {
     expect(saved.subId == null).toBe(true);
   });
 });
+
+describe('TransactionEditor prefill + template', () => {
+  afterEach(() => cleanup());
+
+  it('prefill seeds a NEW transaction (no Delete, fields filled)', () => {
+    const account = { id: 'a_bank', name: 'Chase', type: 'bank' };
+    render(<TransactionEditor account={account} categories={[{ id: 'c_food', name: 'Food', flow: 'expense' }]}
+      accounts={[account]} prefill={{ accountId: 'a_bank', date: '2026-06-15', amount: -25, categoryId: 'c_food', description: 'Lunch', payee: 'Cafe', checkNumber: null, splits: null }}
+      onSave={() => {}} onClose={() => {}} />);
+    expect(screen.getByText(/New transaction/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^delete$/i })).toBeNull();
+    expect(screen.getByLabelText(/^Description$/i).value).toBe('Lunch');
+    expect(screen.getByLabelText(/^Amount$/i).value).toBe('25');
+  });
+
+  it('Save as template builds a draft from current fields', async () => {
+    const account = { id: 'a_bank', name: 'Chase', type: 'bank' };
+    const onSaveAsTemplate = vi.fn();
+    render(<TransactionEditor account={account} categories={[{ id: 'c_food', name: 'Food', flow: 'expense' }]}
+      accounts={[account]} onSaveAsTemplate={onSaveAsTemplate} onSave={() => {}} onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText(/^Description$/i), 'Coffee');
+    await userEvent.click(screen.getByRole('button', { name: /save as template/i }));
+    expect(onSaveAsTemplate).toHaveBeenCalledTimes(1);
+    expect(onSaveAsTemplate.mock.calls[0][0]).toMatchObject({ kind: 'transaction', payload: { description: 'Coffee' } });
+  });
+});
