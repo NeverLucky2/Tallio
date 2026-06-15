@@ -30,6 +30,10 @@ import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
 import TransferEditor from './TransferEditor.jsx';
+import TemplateNameDialog from './TemplateNameDialog.jsx';
+import useClipboard from './useClipboard.js';
+import useTemplates from './useTemplates.js';
+import { draftFromTransaction, draftFromTransfer, instantiateTransaction, instantiateTransfer, labelFor } from './entryDrafts.js';
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
@@ -142,9 +146,22 @@ function Tallio() {
 
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
   const [selectedAccountId, setSelectedAccountId] = useState(initAccounts[0]?.id ?? null);
-  const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction? }
-  const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer? }
+  const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction?, prefill? }
+  const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer?, prefill? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
+
+  // Copy/paste clipboard + named templates, and a transient confirmation toast.
+  const clip = useClipboard();
+  const templates = useTemplates();
+  const [templateDraft, setTemplateDraft] = useState(null); // { draft, defaultName } | null
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const flashToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const appearance = useAppearance();
   const library = useIconLibrary();
@@ -353,6 +370,54 @@ function Tallio() {
     const account = ledger.accounts.find(a => a.id === accountId);
     const draft = transferDraftForAccount(account, ledger.transactions, ledger.accounts, accountTypes.typesById);
     setEditingTransfer({ mode: 'new', ...draft });
+  };
+
+  // Copy/paste, duplicate, and templates — all built on entryDrafts snapshots,
+  // routed through the existing save handlers (so history + ledger are consistent).
+  const fallbackCategoryId = () => (cats.categories[0] && cats.categories[0].id) || null;
+
+  const copyEntry = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    const draft = pair ? draftFromTransfer(pair) : draftFromTransaction(row);
+    const label = labelFor(draft);
+    clip.copy(draft, label);
+    flashToast(`Copied “${label}”`);
+  };
+
+  const pasteEntry = () => {
+    if (!clip.clipboard) return;
+    const { draft } = clip.clipboard;
+    if (draft.kind === 'transfer') {
+      saveTransfer(instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }));
+    } else if (selectedAccount) {
+      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    }
+  };
+
+  const duplicateEntry = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    if (pair) saveTransfer(instantiateTransfer(draftFromTransfer(pair), { fallbackCategoryId: fallbackCategoryId() }));
+    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    flashToast('Duplicated');
+  };
+
+  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft) });
+  const saveTemplateFromRow = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    requestSaveTemplate(pair ? draftFromTransfer(pair) : draftFromTransaction(row));
+  };
+  const confirmSaveTemplate = (name) => {
+    if (templateDraft) { templates.addTemplate(name, templateDraft.draft); flashToast(`Saved template “${name}”`); }
+    setTemplateDraft(null);
+  };
+
+  const applyTemplate = (tpl) => {
+    const draft = { kind: tpl.kind, payload: tpl.payload };
+    if (tpl.kind === 'transfer') {
+      setEditingTransfer({ mode: 'new', prefill: instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }) });
+    } else if (selectedAccount) {
+      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }) });
+    }
   };
 
   const exportData = async () => {
@@ -585,10 +650,12 @@ function Tallio() {
         <TransactionEditor
           account={selectedAccount}
           transaction={editingTxn.transaction || null}
+          prefill={editingTxn.prefill || null}
           categories={cats.categories}
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
+          onSaveAsTemplate={requestSaveTemplate}
           onUndo={undo} undoCount={history.length}
         />
       )}
@@ -602,10 +669,21 @@ function Tallio() {
           toAccountId={editingTransfer.toAccountId || null}
           initialAmount={editingTransfer.initialAmount ?? null}
           transfer={editingTransfer.transfer || null}
+          prefill={editingTransfer.prefill || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
+          onSaveAsTemplate={requestSaveTemplate}
           onUndo={undo} undoCount={history.length}
         />
       )}
+
+      {templateDraft && (
+        <TemplateNameDialog
+          defaultName={templateDraft.defaultName}
+          onSave={confirmSaveTemplate}
+          onCancel={() => setTemplateDraft(null)}
+        />
+      )}
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       {migrationBanner && (
         <div className="toast toast-error">{migrationBanner.message}
@@ -687,6 +765,15 @@ function Tallio() {
                   onTransfer={openTransfer}
                   onSelectAccount={setSelectedAccountId}
                   onEditAccount={() => setEditingAccount({ mode: 'edit', account: selectedAccount })}
+                  onCopyEntry={copyEntry}
+                  onDuplicateEntry={duplicateEntry}
+                  onSaveTemplateEntry={saveTemplateFromRow}
+                  clipboard={clip.clipboard}
+                  onPaste={pasteEntry}
+                  onClearClipboard={clip.clear}
+                  templates={templates.templates}
+                  onApplyTemplate={applyTemplate}
+                  onDeleteTemplate={templates.deleteTemplate}
                 />
               </>
             )}
