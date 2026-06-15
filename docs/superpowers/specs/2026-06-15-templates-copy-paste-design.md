@@ -128,10 +128,22 @@ new ledger code, and template-apply can pre-fill the editors directly.
 
 ### Wiring (`App.jsx`)
 - `copyEntry(row)` — resolve transfer pair via `resolveTransfer`; build the right draft;
-  store with a label.
+  store with a label; **flash a confirmation toast** (`Copied "<label>"`).
 - `pasteEntry()` — instantiate against the **currently selected account** (transactions)
   or the draft's own from/to (transfers) with today's date, then route through
   `saveTransaction` / `saveTransfer`. Does **not** clear the clipboard (repeatable).
+
+### Transient toast (new, shared)
+The existing toasts (`migrationBanner`, `storageError`) use the base `.toast` class but
+are persistent (manual `×` dismiss). Copy needs *transient* feedback because the result
+lands on an invisible clipboard. Add a minimal flash-toast mechanism in `App.jsx`:
+- `flashToast(message)` sets a `toast` state string and auto-clears it after ~2s via a
+  `setTimeout` (cleared on unmount / replaced on re-flash).
+- Rendered with the existing `.toast` base style (gold accent, the non-error variant) —
+  no manual dismiss button.
+- Reused for the other "did something invisible" confirmations: **Copied "<label>"**,
+  **Duplicated**, and **Saved template "<name>"**. (Paste needs none — the new row is
+  visible.)
 
 ### UI (`Register.jsx` header actions)
 - A **Paste** button rendered only when `clipboard` is non-null:
@@ -143,6 +155,7 @@ new ledger code, and template-apply can pre-fill the editors directly.
   fresh id, same category/amount/description.
 - Paste of a transfer recreates between the original two accounts.
 - Paste twice → two entries. Clear hides the button.
+- Copy flashes a `Copied "<label>"` toast that auto-clears after the timeout.
 
 ## Component 4 — Templates
 
