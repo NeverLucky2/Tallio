@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { iconGlyph } from './iconValue.js';
 import { flattenForPicker, filterOptions } from './categoriesSearch.js';
+import QuickCreateCategory from './QuickCreateCategory.jsx';
 
 const FLOW_LABELS = { income: 'Income', expense: 'Expense', savings: 'Savings', transfer: 'Transfer' };
 
-export default function CategoryPicker({ categories, value, onChange, ariaLabel = 'Category' }) {
+export default function CategoryPicker({ categories, value, onChange, ariaLabel = 'Category',
+  onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
+  const [creating, setCreating] = useState(false);
   const rootRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -17,6 +20,10 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
   const selected =
     allOptions.find(o => value && o.categoryId === value.categoryId && (o.subId || null) === (value.subId || null)) ||
     allOptions.find(o => value && o.kind === 'category' && o.categoryId === value.categoryId) || null;
+
+  const q = query.trim();
+  const exactExists = allOptions.some(o => o.kind === 'category' && (o.name || '').trim().toLowerCase() === q.toLowerCase());
+  const showCreate = !!onCreateCategory && q !== '' && !exactExists;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -33,6 +40,13 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
     onChange({ categoryId: opt.categoryId, subId: opt.kind === 'sub' ? opt.subId : null });
     setQuery('');
     setOpen(false);
+  };
+  const createCategory = (payload) => {
+    const id = onCreateCategory(payload);
+    setCreating(false);
+    setQuery('');
+    setOpen(false);
+    onChange({ categoryId: id, subId: null });
   };
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, options.length - 1)); }
@@ -77,6 +91,16 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
             })}
             {options.length === 0 && <li className="cat-picker-empty">No matches</li>}
           </ul>
+          {showCreate && (
+            <button type="button" className="cat-picker-create"
+              onMouseDown={(e) => e.preventDefault()} onClick={() => setCreating(true)}>
+              ＋ New category “{q}”
+            </button>
+          )}
+          {creating && (
+            <QuickCreateCategory initialName={q} flow={createFlow} lockFlow={lockCreateFlow}
+              onSubmit={createCategory} onCancel={() => setCreating(false)} />
+          )}
         </div>
       )}
     </div>

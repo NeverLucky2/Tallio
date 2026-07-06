@@ -53,3 +53,37 @@ describe('CategoryPicker', () => {
     expect(onChange).toHaveBeenCalledWith({ categoryId: 'tax', subId: 'fed' });
   });
 });
+
+describe('CategoryPicker — inline create category', () => {
+  afterEach(() => cleanup());
+
+  it('shows a create footer for an unknown query and creates + selects', async () => {
+    const onChange = vi.fn();
+    const onCreateCategory = vi.fn(() => 'new1');
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={onChange} ariaLabel="Category" onCreateCategory={onCreateCategory} createFlow="expense" />);
+    await userEvent.click(screen.getByRole('button', { name: /category/i }));
+    await userEvent.type(screen.getByRole('combobox'), 'Vet bills');
+    await userEvent.click(screen.getByRole('button', { name: /new category .*vet bills/i }));
+    // quick dialog appears, prefilled; submit it
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onCreateCategory).toHaveBeenCalledWith({ name: 'Vet bills', icon: '📋', flow: 'expense' });
+    expect(onChange).toHaveBeenCalledWith({ categoryId: 'new1', subId: null });
+  });
+
+  it('does not show the create footer when the query exactly matches an existing name', async () => {
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={vi.fn()} ariaLabel="Category" onCreateCategory={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: /category/i }));
+    await userEvent.type(screen.getByRole('combobox'), 'Groceries');
+    expect(screen.queryByRole('button', { name: /new category/i })).toBeNull();
+  });
+
+  it('shows no create footer when onCreateCategory is absent (back-compat)', async () => {
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={vi.fn()} ariaLabel="Category" />);
+    await userEvent.click(screen.getByRole('button', { name: /category/i }));
+    await userEvent.type(screen.getByRole('combobox'), 'Zzz');
+    expect(screen.queryByRole('button', { name: /new category/i })).toBeNull();
+  });
+});
