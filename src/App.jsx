@@ -677,6 +677,8 @@ function Tallio() {
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
           onSaveAsTemplate={requestSaveTemplate}
           onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
+          onCreateAccount={(data) => { pushHistory(); return ledger.addAccount(data); }}
+          onAddType={(p) => { pushHistory(); return accountTypes.addType(p); }}
           onUndo={undo} undoCount={history.length}
         />
       )}

@@ -1,6 +1,6 @@
 // src/TransferEditor.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TransferEditor from './TransferEditor.jsx';
 import { DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
@@ -261,5 +261,37 @@ describe('TransferEditor — Type picker', () => {
     await userEvent.click(screen.getByRole('button', { name: /new transfer type .*payback/i }));
     await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
     expect(onAddCategory).toHaveBeenCalledWith({ name: 'Payback', icon: '📋', flow: 'transfer' });
+  });
+});
+
+describe('TransferEditor — inline create account', () => {
+  afterEach(() => cleanup());
+
+  const accts = [
+    { id: 'a_chk', name: 'Checking', type: 'bank' },
+    { id: 'newacct', name: 'Brokerage', type: 'bank' }, // simulates the post-add accounts list
+  ];
+
+  it('creates a new account from the From selector and selects it', async () => {
+    const onCreateAccount = vi.fn(() => 'newacct');
+    render(<TransferEditor accounts={accts} categories={[]} fromAccountId="a_chk"
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onCreateAccount={onCreateAccount} />);
+    await userEvent.selectOptions(screen.getByLabelText(/from account/i), '__new_account__');
+    const dialog = screen.getByText('New account').closest('.dialog-card');
+    await userEvent.type(within(dialog).getByLabelText(/^name$/i), 'Brokerage');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^save$/i }));
+    expect(onCreateAccount.mock.calls[0][0].name).toBe('Brokerage');
+    expect(screen.getByLabelText(/from account/i).value).toBe('newacct');
+  });
+
+  it('creates a new account from the To selector and selects it', async () => {
+    const onCreateAccount = vi.fn(() => 'newacct');
+    render(<TransferEditor accounts={accts} categories={[]} fromAccountId="a_chk"
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onCreateAccount={onCreateAccount} />);
+    await userEvent.selectOptions(screen.getByLabelText(/to account/i), '__new_account__');
+    const dialog = screen.getByText('New account').closest('.dialog-card');
+    await userEvent.type(within(dialog).getByLabelText(/^name$/i), 'Brokerage');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^save$/i }));
+    expect(screen.getByLabelText(/to account/i).value).toBe('newacct');
   });
 });

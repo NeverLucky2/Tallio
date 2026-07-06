@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
 import CategoryPicker from './CategoryPicker.jsx';
+import AccountEditor from './AccountEditor.jsx';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -9,7 +10,7 @@ import { makeTransferDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null, onCreateAccount = null, onAddType = null }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (prefill?.fromId || fromAccountId || (accounts[0] && accounts[0].id) || ''));
@@ -29,11 +30,13 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
   const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? prefill?.splits ?? null);
   const [splitTargets, setSplitTargets] = useState(prefill?.splitTargets instanceof Map ? prefill.splitTargets : new Map());
   const [splitsOpen, setSplitsOpen] = useState(false);
+  const [creatingAccountFor, setCreatingAccountFor] = useState(null); // 'from' | 'to' | null
 
   const hasSplits = Array.isArray(splits) && splits.length > 0;
 
   const onToChange = (e) => {
     const next = e.target.value;
+    if (next === '__new_account__') { setCreatingAccountFor('to'); return; }
     setToId(next);
     if (!isEdit && !typeTouched) {
       setCategoryId(suggestTransferCategoryId(accounts.find(a => a.id === next), transferCats) || '');
@@ -79,12 +82,17 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         <h2 className="dialog-title">{isEdit ? 'Edit transfer' : 'New transfer'}</h2>
 
         <label className="field"><span>From</span>
-          <select aria-label="From account" value={fromId} onChange={(e) => setFromId(e.target.value)} className="select">
+          <select aria-label="From account" value={fromId}
+            onChange={(e) => {
+              if (e.target.value === '__new_account__') setCreatingAccountFor('from');
+              else setFromId(e.target.value);
+            }} className="select">
             {groups.map(({ group, accounts: list }) => (
               <optgroup key={group} label={group}>
                 {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </optgroup>
             ))}
+            {onCreateAccount && <option value="__new_account__">＋ New account…</option>}
           </select>
         </label>
 
@@ -96,6 +104,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
                 {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </optgroup>
             ))}
+            {onCreateAccount && <option value="__new_account__">＋ New account…</option>}
           </select>
         </label>
 
@@ -147,6 +156,23 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
             <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
           </div>
         </div>
+
+        {creatingAccountFor && (
+          <AccountEditor
+            account={null}
+            types={types}
+            onAddType={onAddType}
+            onSave={(data) => {
+              const id = onCreateAccount(data);
+              if (creatingAccountFor === 'from') setFromId(id);
+              else setToId(id);
+              setCreatingAccountFor(null);
+            }}
+            onDelete={() => {}}
+            onClose={() => setCreatingAccountFor(null)}
+            onUndo={onUndo} undoCount={undoCount}
+          />
+        )}
 
         {splitsOpen && (
           <SplitsEditor
