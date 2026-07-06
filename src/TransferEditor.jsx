@@ -134,11 +134,15 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         {sameAccount && <p className="field-error">From and To must be different accounts.</p>}
 
         <div className="dialog-actions">
-          <UndoButton count={undoCount} onUndo={onUndo} />
-          {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
-          {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
+          <div className="dialog-actions-secondary">
+            <UndoButton count={undoCount} onUndo={onUndo} />
+            {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
+            {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
+          </div>
+          <div className="dialog-actions-primary">
+            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
+          </div>
         </div>
 
         {splitsOpen && (

@@ -43,10 +43,14 @@ export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, 
         <p className="dialog-hint">For a credit card or loan, enter the amount owed as a negative number.</p>
 
         <div className="dialog-actions">
-          <UndoButton count={undoCount} onUndo={onUndo} />
-          {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(account.id)}>Delete</button>}
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save}>Save</button>
+          <div className="dialog-actions-secondary">
+            <UndoButton count={undoCount} onUndo={onUndo} />
+            {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(account.id)}>Delete</button>}
+          </div>
+          <div className="dialog-actions-primary">
+            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={save}>Save</button>
+          </div>
         </div>
       </div>
     </div>

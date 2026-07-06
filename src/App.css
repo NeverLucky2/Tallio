@@ -2597,12 +2597,26 @@
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 9px;
 }
-/* Undo is a utility, not a form action — park it on the left so the
-   Delete/Cancel/Save cluster always fits on the right. */
-.dialog-actions .btn-undo { margin-right: auto; }
+/* Entry editors carry more actions than fit on one line at the card's width,
+   so their footer splits into two tiers: the utilities (Undo / Delete / Save
+   as template) share the top row, and the primary Cancel / Save cluster sits
+   on the row below. Each tier spans the full width so they always stack
+   cleanly instead of individual buttons spilling past the card's edge. */
+.dialog-actions-secondary,
+.dialog-actions-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  flex-basis: 100%;
+}
+.dialog-actions-secondary { justify-content: flex-start; }
+.dialog-actions-primary { justify-content: flex-end; }
 
 .dialog-btn-cancel,
 .dialog-btn-confirm {

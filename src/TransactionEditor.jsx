@@ -133,11 +133,15 @@ export default function TransactionEditor({ account, transaction, categories, ac
         </div>
 
         <div className="dialog-actions">
-          <UndoButton count={undoCount} onUndo={onUndo} />
-          {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transaction.id)}>Delete</button>}
-          {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save}>Save</button>
+          <div className="dialog-actions-secondary">
+            <UndoButton count={undoCount} onUndo={onUndo} />
+            {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transaction.id)}>Delete</button>}
+            {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
+          </div>
+          <div className="dialog-actions-primary">
+            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={save}>Save</button>
+          </div>
         </div>
 
         {splitsOpen && (
