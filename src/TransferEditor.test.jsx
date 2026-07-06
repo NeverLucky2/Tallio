@@ -115,14 +115,14 @@ describe('TransferEditor', () => {
     { id: 'a_visa', name: 'Visa', type: 'credit_card' },
   ];
 
-  it('Type dropdown lists only transfer-flow categories plus None', () => {
+  it('Type picker lists only transfer-flow categories plus None', async () => {
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
       onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />);
-    const select = screen.getByLabelText(/^type$/i);
-    const optionText = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
-    expect(optionText.some(t => /none/i.test(t))).toBe(true);
-    expect(optionText.some(t => /Credit Card Payment/.test(t))).toBe(true);
-    expect(optionText.some(t => /Groceries/.test(t))).toBe(false); // expense flow excluded
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i }));
+    expect(screen.getByRole('option', { name: /none/i })).toBeTruthy();
+    expect(screen.getByText('Credit Card Payment')).toBeTruthy();
+    expect(screen.getByText('Investment Transfer')).toBeTruthy();
+    expect(screen.queryByText('Groceries')).toBeNull(); // expense flow excluded
   });
 
   it('new transfer auto-suggests a type from the destination account', async () => {
@@ -139,7 +139,8 @@ describe('TransferEditor', () => {
     const onSave = vi.fn();
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
-    await userEvent.selectOptions(screen.getByLabelText(/^type$/i), 'iv'); // user picks Investment Transfer
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i })); // open Type picker
+    await userEvent.click(screen.getByText('Investment Transfer'));         // user picks it
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // would suggest 'cc'
     await userEvent.type(screen.getByLabelText(/amount/i), '200');
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
@@ -155,7 +156,7 @@ describe('TransferEditor', () => {
     };
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} transfer={transfer}
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByLabelText(/^type$/i).value).toBe('iv');
+    expect(screen.getByRole('button', { name: /^type$/i }).textContent).toMatch(/Investment Transfer/);
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('iv');
   });
@@ -236,5 +237,29 @@ describe('TransferEditor prefill + template', () => {
       onSaveAsTemplate={onSaveAsTemplate} onSave={() => {}} onClose={() => {}} />);
     await userEvent.click(screen.getByRole('button', { name: /save as template/i }));
     expect(onSaveAsTemplate.mock.calls[0][0]).toMatchObject({ kind: 'transfer', payload: { fromId: 'a_bank', toId: 'a_sav', amount: 100 } });
+  });
+});
+
+describe('TransferEditor — Type picker', () => {
+  afterEach(() => cleanup());
+
+  const acctList = [
+    { id: 'a_check', name: 'Checking', type: 'bank' },
+    { id: 'a_save',  name: 'Savings',  type: 'bank' },
+  ];
+  const cats = [{ id: 'reimb', name: 'Reimbursement', icon: '💸', flow: 'transfer' }];
+
+  it('creates a transfer-flow type from the picker', async () => {
+    const onAddCategory = vi.fn(() => 'tnew');
+    render(
+      <TransferEditor accounts={acctList} categories={cats}
+        onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onAddCategory={onAddCategory} />
+    );
+    // The Type control is now a searchable picker (aria-label "Type").
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i }));
+    await userEvent.type(screen.getByRole('combobox', { name: /type search/i }), 'Payback');
+    await userEvent.click(screen.getByRole('button', { name: /new transfer type .*payback/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddCategory).toHaveBeenCalledWith({ name: 'Payback', icon: '📋', flow: 'transfer' });
   });
 });

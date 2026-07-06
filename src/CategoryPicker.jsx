@@ -7,7 +7,7 @@ const FLOW_LABELS = { income: 'Income', expense: 'Expense', savings: 'Savings', 
 
 export default function CategoryPicker({ categories, value, onChange, ariaLabel = 'Category',
   onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false, onCreateSub = null,
-  allowNone = false, noneLabel = '— None —' }) {
+  allowNone = false, noneLabel = '— None —', createLabel = 'New category' }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
@@ -138,7 +138,7 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
           {showCreate && (
             <button type="button" className="cat-picker-create"
               onMouseDown={(e) => e.preventDefault()} onClick={() => setCreating(true)}>
-              ＋ New category “{q}”
+              ＋ {createLabel} “{q}”
             </button>
           )}
           {creating && (

@@ -1,7 +1,7 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
-import { iconGlyph } from './iconValue.js';
+import CategoryPicker from './CategoryPicker.jsx';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
@@ -9,7 +9,7 @@ import { makeTransferDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
   const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (prefill?.fromId || fromAccountId || (accounts[0] && accounts[0].id) || ''));
@@ -39,7 +39,6 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
       setCategoryId(suggestTransferCategoryId(accounts.find(a => a.id === next), transferCats) || '');
     }
   };
-  const onTypeChange = (e) => { setTypeTouched(true); setCategoryId(e.target.value); };
 
   const splitSum = hasSplits ? splits.reduce((s, l) => s + (Number.isFinite(l.amount) ? l.amount : 0), 0) : 0;
   const mag = hasSplits ? Math.abs(splitSum) : Math.abs(parseFloat(magnitude) || 0);
@@ -112,12 +111,16 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
           <input type="text" aria-label="Notes" value={description} onChange={(e) => setDescription(e.target.value)} className="input" />
         </label>
 
-        <label className="field"><span>Type</span>
-          <select aria-label="Type" value={categoryId} onChange={onTypeChange} className="select">
-            <option value="">— None —</option>
-            {transferCats.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
-          </select>
-        </label>
+        <div className="field"><span>Type</span>
+          <CategoryPicker
+            categories={transferCats}
+            value={{ categoryId: categoryId || null, subId: null }}
+            onChange={({ categoryId: c }) => { setTypeTouched(true); setCategoryId(c || ''); }}
+            ariaLabel="Type"
+            allowNone noneLabel="— None —"
+            onCreateCategory={onAddCategory ? (p) => onAddCategory({ ...p, flow: 'transfer' }) : null}
+            createFlow="transfer" lockCreateFlow createLabel="New transfer type" />
+        </div>
 
         {hasSplits ? (
           <div className="field">

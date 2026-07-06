@@ -675,6 +675,7 @@ function Tallio() {
           prefill={editingTransfer.prefill || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
           onSaveAsTemplate={requestSaveTemplate}
+          onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
           onUndo={undo} undoCount={history.length}
         />
       )}
