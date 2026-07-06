@@ -760,6 +760,7 @@ function Tallio() {
                   categories={cats.categories}
                   categoriesById={categoriesById}
                   typesById={accountTypes.typesById}
+                  onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
                   onEditTransaction={(t) => {
                     const pair = resolveTransfer(t, ledger.transactions);
                     if (pair) setEditingTransfer({ mode: 'edit', transfer: pair });

@@ -227,4 +227,17 @@ describe('Register — paste + templates header', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: /paycheck/i }));
     expect(onApplyTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: 'tpl1' }));
   });
+
+  it('opens the quick dialog from the filter and selects the new category', async () => {
+    const onAddCategory = vi.fn(() => 'fcat');
+    renderRegister({
+      onAddCategory,
+      categories: [{ id: 'fcat', name: 'Charity', icon: '❤️', flow: 'expense' }],
+    });
+    await userEvent.selectOptions(screen.getByLabelText(/category filter/i), '__new_category__');
+    await userEvent.type(screen.getByLabelText(/category name/i), 'Charity');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddCategory).toHaveBeenCalledWith({ name: 'Charity', icon: '📋', flow: 'expense' });
+    expect(screen.getByLabelText(/category filter/i).value).toBe('fcat');
+  });
 });
