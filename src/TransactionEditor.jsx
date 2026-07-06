@@ -9,7 +9,7 @@ import { makeTransactionDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, prefill = null, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null }) {
+export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, prefill = null, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null, onAddSub = null }) {
   const isEdit = !!transaction;
   const seed = transaction || prefill || null;
   const initialAmount = seed ? Math.abs(seed.amount) : '';
@@ -110,7 +110,9 @@ export default function TransactionEditor({ account, transaction, categories, ac
         <div className="field">
           <span>Category</span>
           <CategoryPicker categories={categories} value={{ categoryId, subId }}
-            onChange={({ categoryId: c, subId: s }) => { setCategoryId(c); setSubId(s); }} ariaLabel="Category" />
+            onChange={({ categoryId: c, subId: s }) => { setCategoryId(c); setSubId(s); }} ariaLabel="Category"
+            onCreateCategory={onAddCategory} onCreateSub={onAddSub}
+            createFlow={direction === 'in' ? 'income' : 'expense'} />
           {hasSplits ? (
             <>
               <span className="split-summary">▼ {splits.length} split lines</span>

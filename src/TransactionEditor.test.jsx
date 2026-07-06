@@ -231,3 +231,25 @@ describe('TransactionEditor prefill + template', () => {
     expect(onSaveAsTemplate.mock.calls[0][0]).toMatchObject({ kind: 'transaction', payload: { description: 'Coffee' } });
   });
 });
+
+describe('TransactionEditor — inline create category', () => {
+  afterEach(() => cleanup());
+
+  it('creates a category from the picker with flow from the out/in direction', async () => {
+    const onAddCategory = vi.fn(() => 'newcat');
+    render(
+      <TransactionEditor
+        account={{ id: 'a1', name: 'Mastercard', type: 'credit_card' }}
+        transaction={null} categories={categories}
+        onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()}
+        onAddCategory={onAddCategory}
+      />
+    );
+    // default direction = out -> expense
+    await userEvent.click(screen.getByRole('button', { name: /^category$/i }));
+    await userEvent.type(screen.getByRole('combobox'), 'Vet bills');
+    await userEvent.click(screen.getByRole('button', { name: /new category .*vet bills/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddCategory).toHaveBeenCalledWith({ name: 'Vet bills', icon: '📋', flow: 'expense' });
+  });
+});
