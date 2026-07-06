@@ -6,7 +6,8 @@ import QuickCreateCategory from './QuickCreateCategory.jsx';
 const FLOW_LABELS = { income: 'Income', expense: 'Expense', savings: 'Savings', transfer: 'Transfer' };
 
 export default function CategoryPicker({ categories, value, onChange, ariaLabel = 'Category',
-  onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false, onCreateSub = null }) {
+  onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false, onCreateSub = null,
+  allowNone = false, noneLabel = '— None —' }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
@@ -67,7 +68,9 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
     else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
   };
 
-  const triggerLabel = selected ? `${iconGlyph(selected.icon)} ${selected.path}` : 'Select category…';
+  const triggerLabel = selected
+    ? `${iconGlyph(selected.icon)} ${selected.path}`
+    : (allowNone ? noneLabel : 'Select category…');
   const showGroups = query.trim() === '';
   // Header shown before each option when not searching: the flow label at each
   // flow boundary. Derived by index (no render-time mutation) to stay immutable.
@@ -87,6 +90,13 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
             aria-label={`${ariaLabel} search`} aria-expanded="true" placeholder="Type to filter…"
             value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
           <ul className="cat-picker-list" role="listbox">
+            {allowNone && (
+              <li role="option" aria-selected={!selected} className="cat-picker-option cat-picker-none"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onChange({ categoryId: null, subId: null }); setQuery(''); setOpen(false); }}>
+                {noneLabel}
+              </li>
+            )}
             {options.map((o, i) => {
               const header = groupHeaders[i];
               return (

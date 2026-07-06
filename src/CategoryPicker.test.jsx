@@ -111,3 +111,18 @@ describe('CategoryPicker — inline create sub-category', () => {
     expect(screen.queryByRole('button', { name: /add sub-category/i })).toBeNull();
   });
 });
+
+describe('CategoryPicker — allowNone', () => {
+  afterEach(() => cleanup());
+
+  it('renders a None row that emits nulls, and labels the trigger when empty', async () => {
+    const onChange = vi.fn();
+    render(<CategoryPicker categories={categories} value={{ categoryId: null, subId: null }}
+      onChange={onChange} ariaLabel="Type" allowNone noneLabel="— None —" />);
+    // trigger shows the none label
+    expect(screen.getByRole('button', { name: /type/i }).textContent).toMatch(/—\s*None\s*—/);
+    await userEvent.click(screen.getByRole('button', { name: /type/i }));
+    await userEvent.click(screen.getByRole('option', { name: /—\s*None\s*—/i }));
+    expect(onChange).toHaveBeenCalledWith({ categoryId: null, subId: null });
+  });
+});
