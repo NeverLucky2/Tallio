@@ -6,11 +6,13 @@ import QuickCreateCategory from './QuickCreateCategory.jsx';
 const FLOW_LABELS = { income: 'Income', expense: 'Expense', savings: 'Savings', transfer: 'Transfer' };
 
 export default function CategoryPicker({ categories, value, onChange, ariaLabel = 'Category',
-  onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false }) {
+  onCreateCategory = null, createFlow = 'expense', lockCreateFlow = false, onCreateSub = null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [subFor, setSubFor] = useState(null);   // parent categoryId whose sub-form is open
+  const [subName, setSubName] = useState('');
   const rootRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -47,6 +49,16 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
     setQuery('');
     setOpen(false);
     onChange({ categoryId: id, subId: null });
+  };
+  const commitSub = (parentId) => {
+    const nm = subName.trim();
+    if (!nm) return;
+    const subId = onCreateSub(parentId, { name: nm });
+    setSubFor(null);
+    setSubName('');
+    setQuery('');
+    setOpen(false);
+    onChange({ categoryId: parentId, subId });
   };
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, options.length - 1)); }
@@ -85,7 +97,29 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
                     onMouseEnter={() => setHighlight(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(o)}>
                     <span className="cat-picker-opt-icon" aria-hidden="true">{iconGlyph(o.icon)}</span>
                     <span className="cat-picker-opt-name">{o.name}</span>
+                    {onCreateSub && o.kind === 'category' && (
+                      <button type="button" className="cat-picker-subadd"
+                        aria-label={`Add sub-category to ${o.name}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => { e.stopPropagation(); setSubFor(o.categoryId); setSubName(''); }}>
+                        ＋ sub
+                      </button>
+                    )}
                   </li>
+                  {onCreateSub && subFor === o.categoryId && o.kind === 'category' && (
+                    <li className="cat-picker-subform">
+                      <input type="text" className="input" aria-label={`New sub-category under ${o.name}`}
+                        value={subName} autoFocus
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onChange={(e) => setSubName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitSub(o.categoryId); }
+                          else if (e.key === 'Escape') { e.preventDefault(); setSubFor(null); }
+                        }} />
+                      <button type="button" className="btn btn-small"
+                        onMouseDown={(e) => e.preventDefault()} onClick={() => commitSub(o.categoryId)}>Add</button>
+                    </li>
+                  )}
                 </span>
               );
             })}

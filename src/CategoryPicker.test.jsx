@@ -87,3 +87,27 @@ describe('CategoryPicker — inline create category', () => {
     expect(screen.queryByRole('button', { name: /new category/i })).toBeNull();
   });
 });
+
+describe('CategoryPicker — inline create sub-category', () => {
+  afterEach(() => cleanup());
+
+  it('adds a sub under a parent and selects it', async () => {
+    const onChange = vi.fn();
+    const onCreateSub = vi.fn(() => 'sub9');
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={onChange} ariaLabel="Category" onCreateSub={onCreateSub} />);
+    await userEvent.click(screen.getByRole('button', { name: /category/i }));
+    await userEvent.click(screen.getByRole('button', { name: /add sub-category to groceries/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /new sub-category under groceries/i }), 'Produce');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onCreateSub).toHaveBeenCalledWith('gro', { name: 'Produce' });
+    expect(onChange).toHaveBeenCalledWith({ categoryId: 'gro', subId: 'sub9' });
+  });
+
+  it('shows no "＋ sub" affordance when onCreateSub is absent (back-compat)', async () => {
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={vi.fn()} ariaLabel="Category" />);
+    await userEvent.click(screen.getByRole('button', { name: /category/i }));
+    expect(screen.queryByRole('button', { name: /add sub-category/i })).toBeNull();
+  });
+});
