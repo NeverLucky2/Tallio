@@ -643,6 +643,7 @@ function Tallio() {
         <AccountEditor
           account={editingAccount.account || null}
           types={accountTypes.types}
+          onAddType={(p) => { pushHistory(); return accountTypes.addType(p); }}
           onSave={saveAccount} onDelete={deleteAccount} onClose={() => setEditingAccount(null)}
           onUndo={undo} undoCount={history.length}
         />

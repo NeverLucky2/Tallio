@@ -40,3 +40,22 @@ describe('AccountEditor', () => {
     expect(onDelete).toHaveBeenCalledWith('a1');
   });
 });
+
+describe('AccountEditor — inline create type', () => {
+  afterEach(() => cleanup());
+
+  it('creates a type from the select and selects it', async () => {
+    const onAddType = vi.fn(() => 'nt1');
+    const types = [
+      { id: 'untyped', label: 'Unassigned' },
+      { id: 'nt1', label: 'Brokerage' }, // simulates the post-add types list
+    ];
+    render(<AccountEditor account={null} types={types}
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onAddType={onAddType} />);
+    await userEvent.selectOptions(screen.getByLabelText(/^type$/i), '__new_type__');
+    await userEvent.type(screen.getByLabelText(/type label/i), 'Brokerage');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddType).toHaveBeenCalledWith({ label: 'Brokerage', icon: '🏷️', klass: 'asset' });
+    expect(screen.getByLabelText(/^type$/i).value).toBe('nt1');
+  });
+});
