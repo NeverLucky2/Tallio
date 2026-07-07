@@ -62,7 +62,10 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
             {list.map(a => {
               const bal = accountBalance(a, transactions);
               const klass = accountClass(a.type, typesById);
-              const display = klass === 'liability' ? -Math.abs(bal) : bal;
+              const raw = klass === 'liability' ? -Math.abs(bal) : bal;
+              // Snap sub-cent floating-point residue (and negative zero) to a clean +0 so a
+              // paid-off or emptied account shows "$0.00", never a misleading "-$0.00".
+              const display = Math.abs(raw) < 0.005 ? 0 : raw;
               return (
                 <div key={a.id} className="account-row-wrap">
                   <button
@@ -72,7 +75,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
                   >
                     <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
                     <span className="account-row-name">{a.name}</span>
-                    <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
+                    <span className={`account-row-balance${display < 0 ? ' neg' : display === 0 ? ' zero' : ''}`}>{fmt(display)}</span>
                   </button>
                   <div className="account-row-actions">
                     <ActionMenu label={`${a.name} actions`} items={[{ label: 'Edit account', onSelect: () => onEditAccount(a) }]} />

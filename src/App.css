@@ -3519,6 +3519,7 @@
 .account-row-name { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .account-row-balance { font-family: var(--font-mono); font-size: 11.5px; }
 .account-row-balance.neg { color: var(--red); }
+.account-row-balance.zero { color: var(--green); }
 /* Per-account ⋮ menu overlaid at the right; the row keeps its own margin/bleed via the wrap. */
 .account-row-wrap { position: relative; margin: 1px -9px; }
 .account-row-wrap .account-row { margin: 0; padding-right: 34px; }

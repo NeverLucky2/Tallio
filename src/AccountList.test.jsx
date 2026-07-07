@@ -109,3 +109,42 @@ describe('AccountList — per-account edit menu', () => {
     expect(screen.getByRole('button', { name: /mom.*actions/i })).toBeTruthy();
   });
 });
+
+describe('AccountList — zero / paid-off balance', () => {
+  afterEach(() => cleanup());
+
+  it('shows a paid-off liability as green "$0.00", not red "-$0.00"', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: 0 }];
+    // 0.1 + 0.2 − 0.3 leaves a floating-point residue that must not render as -$0.00.
+    const txns = [
+      { id: 't1', accountId: 'a_cc', date: '2026-05-01', amount: 0.1 },
+      { id: 't2', accountId: 'a_cc', date: '2026-05-02', amount: 0.2 },
+      { id: 't3', accountId: 'a_cc', date: '2026-05-03', amount: -0.3 },
+    ];
+    const { container } = render(<AccountList accounts={accts} transactions={txns} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toBe('$0.00');
+    expect(bal.className).not.toMatch(/neg/);
+    expect(bal.className).toMatch(/zero/);
+  });
+
+  it('shows an emptied asset account as green "$0.00"', () => {
+    const accts = [{ id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 0 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toBe('$0.00');
+    expect(bal.className).toMatch(/zero/);
+  });
+
+  it('still shows a real amount owed as a red negative', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: -500 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toMatch(/-\$500\.00/);
+    expect(bal.className).toMatch(/neg/);
+    expect(bal.className).not.toMatch(/zero/);
+  });
+});
