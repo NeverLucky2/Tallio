@@ -743,6 +743,7 @@ function Tallio() {
               types={accountTypes.types}
               selectedId={selectedAccount?.id ?? null}
               onSelect={setSelectedAccountId}
+              onEditAccount={(account) => setEditingAccount({ mode: 'edit', account })}
               onAddAccount={() => setEditingAccount({ mode: 'new' })}
             />
           </aside>

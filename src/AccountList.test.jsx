@@ -85,3 +85,27 @@ describe('AccountList', () => {
     expect(screen.getByText('Fidelity HSA')).toBeTruthy();
   });
 });
+
+describe('AccountList — per-account edit menu', () => {
+  afterEach(() => cleanup());
+
+  it('the ⋮ menu Edit-account item calls onEditAccount with that account, without selecting', async () => {
+    const onSelect = vi.fn();
+    const onEditAccount = vi.fn();
+    render(<AccountList accounts={accounts} transactions={transactions} selectedId="a_chk"
+      onSelect={onSelect} onEditAccount={onEditAccount} onAddAccount={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /mastercard actions/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit account/i }));
+    expect(onEditAccount).toHaveBeenCalledTimes(1);
+    expect(onEditAccount.mock.calls[0][0].id).toBe('a_cc');
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('renders a ⋮ menu for every account', () => {
+    render(<AccountList accounts={accounts} transactions={transactions} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    expect(screen.getByRole('button', { name: /chase checking actions/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /mastercard actions/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /mom.*actions/i })).toBeTruthy();
+  });
+});

@@ -2,13 +2,14 @@
 import React, { useMemo } from 'react';
 import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, monthToDateDelta, netWorthSeries, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import Icon from './Icon.jsx';
+import ActionMenu from './ActionMenu.jsx';
 import NetWorthSpark from './NetWorthSpark.jsx';
 import useCountUp from './useCountUp.js';
 import useValueFlash from './useValueFlash.js';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onAddAccount, now = new Date() }) {
+export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onEditAccount = () => {}, onAddAccount, now = new Date() }) {
   const typesById = useMemo(() => new Map(types.map(t => [t.id, t])), [types]);
   const order = useMemo(() => groupOrder(types), [types]);
   const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
@@ -63,16 +64,20 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
               const klass = accountClass(a.type, typesById);
               const display = klass === 'liability' ? -Math.abs(bal) : bal;
               return (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
-                  onClick={() => onSelect(a.id)}
-                >
-                  <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
-                  <span className="account-row-name">{a.name}</span>
-                  <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
-                </button>
+                <div key={a.id} className="account-row-wrap">
+                  <button
+                    type="button"
+                    className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
+                    onClick={() => onSelect(a.id)}
+                  >
+                    <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
+                    <span className="account-row-name">{a.name}</span>
+                    <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
+                  </button>
+                  <div className="account-row-actions">
+                    <ActionMenu label={`${a.name} actions`} items={[{ label: 'Edit account', onSelect: () => onEditAccount(a) }]} />
+                  </div>
+                </div>
               );
             })}
           </div>

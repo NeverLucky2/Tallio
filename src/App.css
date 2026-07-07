@@ -3519,6 +3519,12 @@
 .account-row-name { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .account-row-balance { font-family: var(--font-mono); font-size: 11.5px; }
 .account-row-balance.neg { color: var(--red); }
+/* Per-account ⋮ menu overlaid at the right; the row keeps its own margin/bleed via the wrap. */
+.account-row-wrap { position: relative; margin: 1px -9px; }
+.account-row-wrap .account-row { margin: 0; padding-right: 34px; }
+.account-row-actions { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); }
+.account-row-actions .action-menu-trigger { background: transparent; color: var(--text-muted); }
+.account-row-actions .action-menu-trigger:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
 
 .account-add {
   margin-top: 18px;
