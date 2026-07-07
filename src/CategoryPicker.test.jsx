@@ -112,6 +112,32 @@ describe('CategoryPicker — inline create sub-category', () => {
   });
 });
 
+describe('CategoryPicker — viewport-aware drop direction', () => {
+  afterEach(() => cleanup());
+
+  function setupWithRect(rect) {
+    render(<CategoryPicker categories={categories} value={{ categoryId: 'gro', subId: null }}
+      onChange={vi.fn()} ariaLabel="Category" />);
+    const trigger = screen.getByRole('button', { name: /category/i });
+    trigger.getBoundingClientRect = () => ({ ...rect, x: rect.left, y: rect.top, toJSON() {} });
+    return trigger;
+  }
+
+  it('opens upward when the trigger sits near the bottom of the viewport', async () => {
+    window.innerHeight = 768;
+    const trigger = setupWithRect({ top: 700, bottom: 740, left: 0, right: 300, width: 300, height: 40 });
+    await userEvent.click(trigger);
+    expect(document.querySelector('.cat-picker-popover').className).toMatch(/drop-up/);
+  });
+
+  it('opens downward when there is room below', async () => {
+    window.innerHeight = 768;
+    const trigger = setupWithRect({ top: 60, bottom: 100, left: 0, right: 300, width: 300, height: 40 });
+    await userEvent.click(trigger);
+    expect(document.querySelector('.cat-picker-popover').className).not.toMatch(/drop-up/);
+  });
+});
+
 describe('CategoryPicker — allowNone', () => {
   afterEach(() => cleanup());
 

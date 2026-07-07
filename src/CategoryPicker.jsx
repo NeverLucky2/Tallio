@@ -14,6 +14,7 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
   const [creating, setCreating] = useState(false);
   const [subFor, setSubFor] = useState(null);   // parent categoryId whose sub-form is open
   const [subName, setSubName] = useState('');
+  const [dropUp, setDropUp] = useState(false);
   const rootRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -39,6 +40,19 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHighlight(0); }, [query, open]);
 
+  // Decide drop direction at open time from the trigger's viewport position, the way
+  // ActionMenu decides horizontal alignment. The popover can be ~330px tall (search +
+  // list + create footer); flip above the trigger only when there isn't room below and
+  // there's more room above — keeps it on-screen inside centered, non-scrolling dialogs.
+  const toggleOpen = (e) => {
+    if (!open) {
+      const r = e.currentTarget.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+      const spaceBelow = vh - r.bottom;
+      setDropUp(spaceBelow < 320 && r.top > spaceBelow);
+    }
+    setOpen(o => !o);
+  };
   const choose = (opt) => {
     onChange({ categoryId: opt.categoryId, subId: opt.kind === 'sub' ? opt.subId : null });
     setQuery('');
@@ -80,12 +94,12 @@ export default function CategoryPicker({ categories, value, onChange, ariaLabel 
   return (
     <div className="cat-picker" ref={rootRef}>
       <button type="button" className="cat-picker-trigger select" aria-label={ariaLabel}
-        aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        aria-haspopup="listbox" aria-expanded={open} onClick={toggleOpen}>
         <span className="cat-picker-value">{triggerLabel}</span>
         <span className="cat-picker-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div className="cat-picker-popover">
+        <div className={`cat-picker-popover${dropUp ? ' drop-up' : ''}`}>
           <input ref={inputRef} type="text" role="combobox" className="cat-picker-input input"
             aria-label={`${ariaLabel} search`} aria-expanded="true" placeholder="Type to filter…"
             value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown} />
