@@ -79,8 +79,13 @@ describe('handle persistence', () => {
 });
 
 describe('readBytesFromFile', () => {
-  it('reads a File to a Uint8Array', async () => {
+  it('reads a File to a Uint8Array via arrayBuffer()', async () => {
     const file = { arrayBuffer: () => Promise.resolve(new Uint8Array([7, 8]).buffer) };
     expect(Array.from(await readBytesFromFile(file))).toEqual([7, 8]);
+  });
+  it('falls back to FileReader when arrayBuffer is absent (jsdom / old Safari)', async () => {
+    const file = new File([new Uint8Array([7, 8, 9])], 'x.bin'); // jsdom File has no arrayBuffer()
+    expect(typeof file.arrayBuffer).not.toBe('function');
+    expect(Array.from(await readBytesFromFile(file))).toEqual([7, 8, 9]);
   });
 });

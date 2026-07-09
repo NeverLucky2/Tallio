@@ -18,7 +18,15 @@ export function downloadArchive(bytes, filename = DEFAULT_FILE_NAME) {
 }
 
 export async function readBytesFromFile(file) {
-  return new Uint8Array(await file.arrayBuffer());
+  if (typeof file.arrayBuffer === 'function') return new Uint8Array(await file.arrayBuffer());
+  // Fallback for environments without Blob.arrayBuffer (jsdom, older Safari).
+  const buf = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsArrayBuffer(file);
+  });
+  return new Uint8Array(buf);
 }
 
 // --- File System Access API (Chrome/Edge) ---

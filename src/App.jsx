@@ -42,8 +42,11 @@ import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
-import { buildArchive } from './exportArchive.js';
+import { buildArchive, parseArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
+import { restoreArchiveToStorage } from './archiveRestore.js';
+import { downloadArchive, readBytesFromFile } from './fileStore.js';
+import { reloadApp } from './reloadApp.js';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -287,6 +290,7 @@ function Tallio() {
   const [settingsBanner, setSettingsBanner] = useState(null);
 
   const fileInputRef = useRef(null);
+  const importInputRef = useRef(null);
 
   const openSettings = (banner = null) => {
     setSettingsBanner(banner);
@@ -420,7 +424,8 @@ function Tallio() {
     }
   };
 
-  const exportData = async () => {
+  // Build the full archive bytes from current state (shared by Export + live-file autosave).
+  const buildCurrentArchiveBytes = async () => {
     let images = [];
     try {
       const recs = await listImages();
@@ -438,7 +443,7 @@ function Tallio() {
       if (raw) appearanceSettings = JSON.parse(raw);
     } catch { /* ignore */ }
 
-    const bytes = buildArchive({
+    return buildArchive({
       accounts: ledger.accounts, transactions: ledger.transactions,
       categories: cats.categories, accountTypes: accountTypes.types,
       reportAcks: acks.exportSnapshot(),
@@ -446,11 +451,24 @@ function Tallio() {
       images, appearance: appearanceSettings,
       schemaVersion: 5, appVersion: pkg.version, now: new Date(),
     });
-    const blob = new Blob([bytes], { type: 'application/zip' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `tallio-${new Date().toISOString().split('T')[0]}.zip`; a.click();
-    URL.revokeObjectURL(url);
+  };
+
+  const exportData = async () => {
+    const bytes = await buildCurrentArchiveBytes();
+    downloadArchive(bytes, `Tallio-${new Date().toISOString().split('T')[0]}.tallio`);
+  };
+
+  const handleImportFile = async (file) => {
+    if (!file) return;
+    try {
+      const bytes = await readBytesFromFile(file);
+      const parsed = parseArchive(bytes);
+      if (!window.confirm('Restore this backup? It replaces ALL current data on this device.')) return;
+      await restoreArchiveToStorage(parsed);
+      reloadApp();
+    } catch (e) {
+      window.alert(`Couldn't restore that file: ${e.message}`);
+    }
   };
 
   const handleCapture = async (imageData, source) => {
@@ -544,6 +562,7 @@ function Tallio() {
           { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
           { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
           { icon: '↗', label: 'Export', onSelect: () => exportData() },
+          { icon: '↙', label: 'Restore from backup', onSelect: () => importInputRef.current?.click() },
         ]}
       />
 
@@ -723,6 +742,11 @@ function Tallio() {
         </nav>
         <div className="header-actions">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
+          <input
+            type="file" ref={importInputRef} accept=".tallio,.zip,application/zip"
+            onChange={(e) => { handleImportFile(e.target.files?.[0]); e.target.value = ''; }}
+            style={{ display: 'none' }}
+          />
           <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
           <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone linked' : '⌘ Pair phone'}</button>
           <UndoButton count={history.length} onUndo={undo} />
