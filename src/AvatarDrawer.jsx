@@ -9,7 +9,7 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export default function AvatarDrawer({ open, onClose, items = [], version = '', avatar = null, reducedMotion }) {
+export default function AvatarDrawer({ open, onClose, items = [], version = '', avatar = null, reducedMotion, statusSlot = null }) {
   const rm = reducedMotion ?? prefersReducedMotion();
 
   useEffect(() => {
@@ -35,6 +35,7 @@ export default function AvatarDrawer({ open, onClose, items = [], version = '', 
           </div>
           <button type="button" className="avatar-drawer-close" aria-label="Close menu" onClick={() => onClose && onClose()}>×</button>
         </div>
+        {statusSlot && <div className="avatar-drawer-status">{statusSlot}</div>}
         <nav className="avatar-drawer-items">
           {items.map((it) => (
             <button key={it.label} type="button" className="avatar-drawer-item" onClick={() => select(it)}>

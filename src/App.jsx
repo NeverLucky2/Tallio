@@ -47,6 +47,8 @@ import { listImages } from './imageStore.js';
 import { restoreArchiveToStorage } from './archiveRestore.js';
 import { downloadArchive, readBytesFromFile } from './fileStore.js';
 import { reloadApp } from './reloadApp.js';
+import useLiveFile from './useLiveFile.js';
+import LiveFilePill from './LiveFilePill.jsx';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -471,6 +473,16 @@ function Tallio() {
     }
   };
 
+  const liveFile = useLiveFile({
+    getBytes: buildCurrentArchiveBytes,
+    applyBytes: async (bytes) => { await restoreArchiveToStorage(parseArchive(bytes)); reloadApp(); },
+  });
+
+  // Autosave to the linked file whenever the ledger changes (debounced in the hook).
+  useEffect(() => {
+    if (liveFile.status === 'linked') liveFile.scheduleSave();
+  }, [ledger.accounts, ledger.transactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
     if (!settings.hasKey) {
@@ -558,11 +570,17 @@ function Tallio() {
         onClose={() => setDrawerOpen(false)}
         version={pkg.version}
         avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
+        statusSlot={liveFile.supported ? <LiveFilePill status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt} /> : null}
         items={[
           { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
           { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
           { icon: '↗', label: 'Export', onSelect: () => exportData() },
           { icon: '↙', label: 'Restore from backup', onSelect: () => importInputRef.current?.click() },
+          ...(liveFile.supported ? [
+            { icon: '🔗', label: liveFile.status === 'linked' ? 'Save to a different file' : 'Save to a budget file', onSelect: () => liveFile.linkNewFile() },
+            { icon: '📂', label: 'Open a budget file', onSelect: () => liveFile.openFile() },
+            ...(liveFile.status === 'linked' ? [{ icon: '⛓', label: 'Unlink file', onSelect: () => liveFile.unlink() }] : []),
+          ] : []),
         ]}
       />
 
