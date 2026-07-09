@@ -1,3 +1,11 @@
+/* Self-hosted fonts (offline; no Google CDN, no visitor-IP leak). */
+@import '@fontsource-variable/fraunces/index.css';
+@import '@fontsource-variable/geist/index.css';
+@import '@fontsource-variable/geist-mono/index.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

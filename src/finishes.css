@@ -15,7 +15,7 @@
 }
 
 .app-root[data-finish="instrument"] {
-  --font-mono: 'Geist Mono', monospace;
+  --font-mono: 'Geist Mono Variable', monospace;
   --debit-color: var(--red);
   --well-radius: 6px;
   --well-border: var(--border);

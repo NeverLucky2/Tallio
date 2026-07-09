@@ -37,8 +37,8 @@
   --purple-dim:     rgba(164, 125, 234, 0.10);
   --purple-border:  rgba(164, 125, 234, 0.22);
 
-  --font-display:  'Fraunces', Georgia, serif;
-  --font-ui:       'Geist', system-ui, sans-serif;
+  --font-display:  'Fraunces Variable', Georgia, serif;
+  --font-ui:       'Geist Variable', system-ui, sans-serif;
   --font-mono:     'IBM Plex Mono', monospace;
 
   /* Finish-scoped tokens (defaults = Bullion; finishes.css overrides per data-finish). */
