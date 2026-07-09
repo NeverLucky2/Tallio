@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { clampUiScale, UI_SCALE_MIN, UI_SCALE_MAX, UI_SCALE_STEP } from './useSettings.js';
+import { getStorageEstimate } from './storagePersist.js';
 import './SettingsPanel.css';
+
+function StorageHealth() {
+  const [info, setInfo] = useState(null);
+  useEffect(() => { getStorageEstimate().then(setInfo); }, []);
+  if (!info || !info.supported) return null;
+  const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return (
+    <p className="settings-privacy">
+      Data lives only on this device. Using {mb(info.usage)} of {mb(info.quota)}.
+    </p>
+  );
+}
 
 const MODELS = [
   { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', cost: '~$0.005/receipt' },
@@ -133,6 +146,7 @@ export default function SettingsPanel({ settings, celebrationStyle = 'festive', 
           <p className="settings-privacy">
             Key is stored only in this browser. Never sent to Tallio servers.
           </p>
+          <StorageHealth />
         </div>
 
         <div className="pair-footer">

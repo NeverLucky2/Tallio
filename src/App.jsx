@@ -49,6 +49,7 @@ import { downloadArchive, readBytesFromFile } from './fileStore.js';
 import { reloadApp } from './reloadApp.js';
 import useLiveFile from './useLiveFile.js';
 import LiveFilePill from './LiveFilePill.jsx';
+import { requestPersistentStorage } from './storagePersist.js';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -482,6 +483,9 @@ function Tallio() {
   useEffect(() => {
     if (liveFile.status === 'linked') liveFile.scheduleSave();
   }, [ledger.accounts, ledger.transactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ask the browser not to evict our data (feature-detected; no-op under jsdom).
+  useEffect(() => { requestPersistentStorage(); }, []);
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
