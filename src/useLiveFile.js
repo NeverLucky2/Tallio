@@ -14,7 +14,9 @@ export default function useLiveFile({ getBytes, applyBytes }) {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const timerRef = useRef(null);
   const handleRef = useRef(null);
-  handleRef.current = handle;
+  // Mirror the latest handle into a ref so the debounced timer/callbacks read a
+  // fresh value without re-subscribing. Synced in an effect (not during render).
+  useEffect(() => { handleRef.current = handle; }, [handle]);
 
   // Reattach a previously linked file on mount (no import — storage is source of truth).
   useEffect(() => {
