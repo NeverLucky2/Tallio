@@ -67,9 +67,10 @@ export function accountBalance(account, transactions) {
 }
 
 // Transactions for one account, sorted oldest→newest (date asc; array order for
-// same-day ties), each annotated with the running balance after it. Reverse for
-// newest-first display.
-export function computeRegister(account, transactions) {
+// same-day ties), each annotated with the running balance after it and the
+// resolved payeeName (display-only — stripped before anything is persisted).
+// Reverse for newest-first display.
+export function computeRegister(account, transactions, payeesById = null) {
   const mine = (transactions || [])
     .map((t, i) => ({ t, i }))
     .filter(({ t }) => t && t.accountId === account.id);
@@ -81,7 +82,11 @@ export function computeRegister(account, transactions) {
   let bal = opening(account);
   return mine.map(({ t }) => {
     bal += Number.isFinite(t.amount) ? t.amount : 0;
-    return { ...t, balance: bal };
+    return {
+      ...t,
+      balance: bal,
+      payeeName: (payeesById && t.payeeId && (payeesById.get(t.payeeId)?.name)) || '',
+    };
   });
 }
 
@@ -145,7 +150,7 @@ export function filterTransactions(rows, { search = '', month = null, categoryId
     }
     if (!term) return true;
     if ((r.description || '').toLowerCase().includes(term)) return true;
-    if ((r.payee || '').toLowerCase().includes(term)) return true;
+    if ((r.payeeName || '').toLowerCase().includes(term)) return true;
     const cat = categoriesById && categoriesById.get(r.categoryId);
     if (cat && (cat.name || '').toLowerCase().includes(term)) return true;
     if (Number.isFinite(num) && Math.abs(Math.abs(r.amount || 0) - Math.abs(num)) < 0.01) return true;
@@ -200,8 +205,9 @@ export function sortRows(rows, { key = 'date', dir = 'desc' } = {}, categoriesBy
           sb = (cb && cb.name ? cb.name : '').toLowerCase();
         }
       } else if (key === 'payee' || key === 'checkNumber' || key === 'description') {
-        sa = (a[key] || '').toLowerCase();
-        sb = (b[key] || '').toLowerCase();
+        const field = key === 'payee' ? 'payeeName' : key;
+        sa = (a[field] || '').toLowerCase();
+        sb = (b[field] || '').toLowerCase();
       } else { // 'date' (default)
         sa = a.date || '';
         sb = b.date || '';

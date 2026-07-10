@@ -7,7 +7,7 @@ import TransactionRow from './TransactionRow.jsx';
 const cat = { id: 'c_util', name: 'Utilities', icon: '⚡', color: '#F59E0B' };
 const catsById = new Map([[cat.id, cat]]);
 
-const baseRow = { id: 't1', date: '2026-04-15', amount: -96.30, categoryId: 'c_util', description: 'Electricity', payee: 'ComEd', checkNumber: '1042', balance: 903.70 };
+const baseRow = { id: 't1', date: '2026-04-15', amount: -96.30, categoryId: 'c_util', description: 'Electricity', payeeName: 'ComEd', checkNumber: '1042', balance: 903.70 };
 
 describe('TransactionRow', () => {
   afterEach(() => cleanup());

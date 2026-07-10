@@ -364,7 +364,8 @@ function Tallio() {
   // Transaction CRUD
   const saveTransaction = (data) => {
     pushHistory();
-    const { splitTargets, ...rest } = data;
+    // Strip display-only row fields that ride along when a register row is edited.
+    const { splitTargets, payeeName, balance, _matchedSplitId, ...rest } = data; // eslint-disable-line no-unused-vars
     const opts = splitTargets ? { splitTargets } : {};
     if (rest.id) ledger.updateTransaction(rest.id, rest, opts);
     else ledger.addTransaction(rest, opts);
@@ -850,6 +851,7 @@ function Tallio() {
                   accounts={ledger.accounts}
                   categories={cats.categories}
                   categoriesById={categoriesById}
+                  payeesById={payees.payeesById}
                   typesById={accountTypes.typesById}
                   onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
                   onEditTransaction={(t) => {

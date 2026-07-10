@@ -8,8 +8,8 @@ const account = { id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '�
 const cat = { id: 'c_shop', name: 'Shopping', icon: '🛍️' };
 const categoriesById = new Map([[cat.id, cat]]);
 const transactions = [
-  { id: 't1', accountId: 'a_cc', date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payee: null, checkNumber: null, transferId: null },
-  { id: 't2', accountId: 'a_cc', date: '2026-04-02', amount: -15.99, categoryId: 'c_shop', description: 'Netflix', payee: null, checkNumber: null, transferId: null },
+  { id: 't1', accountId: 'a_cc', date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payeeId: null, checkNumber: null, transferId: null },
+  { id: 't2', accountId: 'a_cc', date: '2026-04-02', amount: -15.99, categoryId: 'c_shop', description: 'Netflix', payeeId: null, checkNumber: null, transferId: null },
 ];
 
 describe('Register', () => {
@@ -137,8 +137,8 @@ describe('Register', () => {
     const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
     const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };
     const txns = [
-      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
-      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
     ];
     render(<Register account={chk} transactions={txns} accounts={[chk, sav]} categories={[]} categoriesById={new Map()} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={() => {}} />);
     expect(screen.getByText('Savings')).toBeTruthy(); // counterpart name
@@ -150,8 +150,8 @@ describe('Register', () => {
     const chk = { id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 1000 };
     const sav = { id: 'a_sav', name: 'Savings',  type: 'bank', icon: '🏦', openingBalance: 0 };
     const txns = [
-      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
-      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
     ];
     render(<Register account={chk} transactions={txns} accounts={[chk, sav]} categories={[]} categoriesById={new Map()} onEditTransaction={() => {}} onAddTransaction={() => {}} onTransfer={() => {}} onSelectAccount={onSelectAccount} />);
     await userEvent.click(screen.getByRole('button', { name: /go to savings/i }));
@@ -170,7 +170,7 @@ describe('Register with split transactions', () => {
   const splitCatsById = new Map(splitCats.map(c => [c.id, c]));
   const splitTxns = [{
     id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -4300,
-    payee: 'Costco', checkNumber: null, transferId: null,
+    payeeId: null, checkNumber: null, transferId: null,
     description: 'Costco big shop', categoryId: null,
     splits: [
       { id: 's1', amount:  -180, categoryId: 'c_grocery', description: 'Weekly groceries' },
