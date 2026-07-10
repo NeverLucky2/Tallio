@@ -15,7 +15,7 @@ import RecurringList from './RecurringList.jsx';
 import UndoButton from './UndoButton.jsx';
 
 export default function ReportsScreen({
-  accounts, transactions, categories, types, typesById, onClose, now,
+  accounts, transactions, categories, types, typesById, payeesById = null, onClose, now,
   subscriptions = {}, dismissedDuplicates = [],
   onSetStatus = () => {}, onClearStatus = () => {}, onDismissDuplicate = () => {},
   onUndo = () => {}, undoCount = 0,
@@ -37,10 +37,10 @@ export default function ReportsScreen({
   const categoryRows = useMemo(() => spendingByCategory(transactions, categoriesById, opts), [transactions, categoriesById, opts]);
   const cashFlow = useMemo(() => cashFlowByMonth(transactions, categoriesById, opts, months), [transactions, categoriesById, opts, months]);
   const netWorth = useMemo(() => netWorthByMonth(accounts, transactions, typesById, opts, months), [accounts, transactions, typesById, opts, months]);
-  const recurring = useMemo(() => recurringCharges(transactions, categoriesById, { ...opts, now: nowDate }), [transactions, categoriesById, opts, nowDate]);
+  const recurring = useMemo(() => recurringCharges(transactions, categoriesById, { ...opts, now: nowDate, payeesById }), [transactions, categoriesById, opts, nowDate, payeesById]);
   const classified = useMemo(() => classifyRecurring(recurring, subscriptions), [recurring, subscriptions]);
   const dismissedSet = useMemo(() => new Set(dismissedDuplicates), [dismissedDuplicates]);
-  const duplicates = useMemo(() => findDuplicates(transactions, { ...opts, dismissed: dismissedSet }), [transactions, opts, dismissedSet]);
+  const duplicates = useMemo(() => findDuplicates(transactions, { ...opts, dismissed: dismissedSet, payeesById }), [transactions, opts, dismissedSet, payeesById]);
 
   return (
     <div className="screen-overlay">

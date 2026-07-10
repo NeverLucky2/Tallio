@@ -60,11 +60,12 @@ describe('ReportsScreen', () => {
   });
   it('hides a duplicate whose signature has been dismissed', () => {
     const dupTxns = [
-      { id: 'p1', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payee: 'OfficeMax' },
-      { id: 'p2', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payee: 'OfficeMax' },
+      { id: 'p1', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payeeId: 'p_om' },
+      { id: 'p2', accountId: 'a1', date: '2026-05-08', amount: -12.40, categoryId: 'gro', payeeId: 'p_om' },
     ];
     const base = {
       accounts, categories, types: DEFAULT_ACCOUNT_TYPES, typesById: DEFAULT_ACCOUNT_TYPES_BY_ID,
+      payeesById: new Map([['p_om', { id: 'p_om', name: 'OfficeMax' }]]),
       now: NOW, onClose: () => {},
     };
     const { rerender } = render(<ReportsScreen {...base} transactions={dupTxns} />);

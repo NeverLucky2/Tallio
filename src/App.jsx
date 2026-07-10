@@ -651,6 +651,7 @@ function Tallio() {
           categories={cats.categories}
           types={accountTypes.types}
           typesById={accountTypes.typesById}
+          payeesById={payees.payeesById}
           subscriptions={acks.subscriptions}
           dismissedDuplicates={acks.dismissedDuplicates}
           onSetStatus={(key, status, month) => { pushHistory(); acks.setStatus(key, status, month); }}

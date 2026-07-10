@@ -220,26 +220,32 @@ describe('netWorthByMonth', () => {
   });
 });
 
-import { recurringCharges, findDuplicates } from './reportsModel.js';
+import { recurringCharges, findDuplicates, flattenForReports } from './reportsModel.js';
 
 describe('recurringCharges', () => {
   const cats3 = new Map([['exp', { flow: 'expense' }], ['inc', { flow: 'income' }]]);
   const now = new Date(2026, 4, 20); // May 2026
+  const recPayees = new Map([
+    ['p_netflix', { id: 'p_netflix', name: 'Netflix' }],
+    ['p_oldapp', { id: 'p_oldapp', name: 'OldApp' }],
+    ['p_cafe', { id: 'p_cafe', name: 'Cafe' }],
+    ['p_work', { id: 'p_work', name: 'Work' }],
+  ]);
   const recTxns = [
     // Netflix every month Mar/Apr/May → active
-    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
-    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
-    { id: 'n3', accountId: 'a', date: '2026-05-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payeeId: 'p_netflix' },
+    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payeeId: 'p_netflix' },
+    { id: 'n3', accountId: 'a', date: '2026-05-04', amount: -15.99, categoryId: 'exp', payeeId: 'p_netflix' },
     // OldApp Jan/Feb only → stale (not active in May)
-    { id: 'o1', accountId: 'a', date: '2026-01-09', amount: -9.99, categoryId: 'exp', payee: 'OldApp' },
-    { id: 'o2', accountId: 'a', date: '2026-02-09', amount: -9.99, categoryId: 'exp', payee: 'OldApp' },
+    { id: 'o1', accountId: 'a', date: '2026-01-09', amount: -9.99, categoryId: 'exp', payeeId: 'p_oldapp' },
+    { id: 'o2', accountId: 'a', date: '2026-02-09', amount: -9.99, categoryId: 'exp', payeeId: 'p_oldapp' },
     // single-month coffee → not recurring
-    { id: 'c1', accountId: 'a', date: '2026-05-01', amount: -4.50, categoryId: 'exp', payee: 'Cafe' },
+    { id: 'c1', accountId: 'a', date: '2026-05-01', amount: -4.50, categoryId: 'exp', payeeId: 'p_cafe' },
     // income ignored
-    { id: 'p1', accountId: 'a', date: '2026-05-01', amount: 4000, categoryId: 'inc', payee: 'Work' },
+    { id: 'p1', accountId: 'a', date: '2026-05-01', amount: 4000, categoryId: 'inc', payeeId: 'p_work' },
   ];
   it('groups ≥2-month expense charges, flags active vs stale, active-first', () => {
-    const rows = recurringCharges(recTxns, cats3, { now });
+    const rows = recurringCharges(recTxns, cats3, { now, payeesById: recPayees });
     expect(rows.map(r => r.label)).toEqual(['Netflix', 'OldApp']); // active first
     const netflix = rows[0];
     expect(netflix).toMatchObject({ active: true, occurrences: 3, monthCount: 3 });
@@ -255,26 +261,28 @@ describe('recurringCharges', () => {
     ]);
     const now = new Date('2026-05-31');
     const mk = (id, date) => ({
-      id, accountId: 'a', date, amount: 3000, payee: 'Acme', categoryId: 'exp',
+      id, accountId: 'a', date, amount: 3000, payeeId: 'p_acme', categoryId: 'exp',
       splits: [
         { id: id + 'a', amount: 4000, categoryId: 'inc' },
         { id: id + 'b', amount: -1000, categoryId: 'sav' },
       ],
     });
-    const rows = recurringCharges([mk('p1', '2026-04-15'), mk('p2', '2026-05-15')], cats, { now });
+    const acmePayees = new Map([['p_acme', { id: 'p_acme', name: 'Acme' }]]);
+    const rows = recurringCharges([mk('p1', '2026-04-15'), mk('p2', '2026-05-15')], cats, { now, payeesById: acmePayees });
     expect(rows.some(r => /acme/i.test(r.label || ''))).toBe(false);
   });
 });
 
 describe('findDuplicates', () => {
+  const dupPayees = new Map([['p_amazon', { id: 'p_amazon', name: 'Amazon' }]]);
   const dupTxns = [
-    { id: 'd1', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' },
-    { id: 'd2', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: 'Amazon', categoryId: 'exp' }, // dup
-    { id: 'n1', accountId: 'a', date: '2026-04-04', amount: -54.10, payee: 'Amazon', categoryId: 'exp' }, // diff day
-    { id: 'tr', accountId: 'a', date: '2026-04-03', amount: -54.10, payee: null, transferId: 'x', categoryId: null },
+    { id: 'd1', accountId: 'a', date: '2026-04-03', amount: -54.10, payeeId: 'p_amazon', categoryId: 'exp' },
+    { id: 'd2', accountId: 'a', date: '2026-04-03', amount: -54.10, payeeId: 'p_amazon', categoryId: 'exp' }, // dup
+    { id: 'n1', accountId: 'a', date: '2026-04-04', amount: -54.10, payeeId: 'p_amazon', categoryId: 'exp' }, // diff day
+    { id: 'tr', accountId: 'a', date: '2026-04-03', amount: -54.10, payeeId: null, transferId: 'x', categoryId: null },
   ];
   it('flags same account+date+amount+label collisions; ignores diff-day and transfers', () => {
-    const dups = findDuplicates(dupTxns, {});
+    const dups = findDuplicates(dupTxns, { payeesById: dupPayees });
     expect(dups).toHaveLength(1);
     expect(dups[0]).toMatchObject({ accountId: 'a', amount: -54.10, date: '2026-04-03', label: 'Amazon' });
     expect(dups[0].ids.sort()).toEqual(['d1', 'd2']);
@@ -318,13 +326,27 @@ import { classifyRecurring } from './reportsModel.js';
 describe('recurringCharges key', () => {
   const cats4 = new Map([['exp', { flow: 'expense' }]]);
   const now2 = new Date(2026, 4, 20);
+  const keyPayees = new Map([['p_netflix', { id: 'p_netflix', name: 'Netflix' }]]);
   const t = [
-    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
-    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payee: 'Netflix' },
+    { id: 'n1', accountId: 'a', date: '2026-03-04', amount: -15.99, categoryId: 'exp', payeeId: 'p_netflix' },
+    { id: 'n2', accountId: 'a', date: '2026-04-04', amount: -15.99, categoryId: 'exp', payeeId: 'p_netflix' },
   ];
   it('exposes a normalized key for acknowledgments', () => {
-    const rows = recurringCharges(t, cats4, { now: now2 });
+    const rows = recurringCharges(t, cats4, { now: now2, payeesById: keyPayees });
     expect(rows[0].key).toBe('NETFLIX');
+  });
+});
+
+describe('flattenForReports payee passthrough', () => {
+  it('split rows carry the parent payeeId, never a payee string', () => {
+    const parent = {
+      id: 't1', accountId: 'a', date: '2026-01-05', amount: -15.99, categoryId: 'c1',
+      description: '', payeeId: 'p1', checkNumber: null, transferId: null,
+      splits: [{ id: 's1', amount: -15.99, categoryId: 'c1', description: '' }],
+    };
+    const [row] = [...flattenForReports([parent])];
+    expect(row.payeeId).toBe('p1');
+    expect('payee' in row).toBe(false);
   });
 });
 
