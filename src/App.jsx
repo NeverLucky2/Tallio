@@ -22,6 +22,7 @@ import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
+import usePayees from './usePayees.js';
 import useLedger from './useLedger.js';
 import useAccountTypes from './useAccountTypes.js';
 import useReportAcks from './useReportAcks.js';
@@ -149,6 +150,7 @@ function Tallio() {
   const cats = useCategories();
   const accountTypes = useAccountTypes();
   const acks = useReportAcks();
+  const payees = usePayees();
   const categoriesById = useMemo(() => new Map(cats.categories.map(c => [c.id, c])), [cats.categories]);
 
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
@@ -189,6 +191,7 @@ function Tallio() {
   const pushHistory = (opKey = null) => setHistory(prev => coalesceHistory(prev, () => ({
     ledger: ledger.snapshot(),
     acks: acks.exportSnapshot(),
+    payees: payees.snapshot(),
     categories: cats.snapshot(),
     accountTypes: accountTypes.snapshot(),
     appearance: appearance.snapshot(),
@@ -200,6 +203,7 @@ function Tallio() {
       const entry = prev[prev.length - 1];
       ledger.restore(entry.ledger);
       acks.restore(entry.acks);
+      payees.restore(entry.payees);
       cats.restore(entry.categories);
       accountTypes.restore(entry.accountTypes);
       appearance.restore(entry.appearance);
@@ -777,6 +781,11 @@ function Tallio() {
       {acks.storageError && (
         <div className="toast toast-error">{acks.storageError.message}
           <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={acks.clearStorageError}>×</button>
+        </div>
+      )}
+      {payees.storageError && (
+        <div className="toast toast-error">{payees.storageError.message}
+          <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={payees.clearStorageError}>×</button>
         </div>
       )}
 
