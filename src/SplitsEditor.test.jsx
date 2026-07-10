@@ -253,6 +253,29 @@ describe('SplitsEditor per-line direction', () => {
   });
 });
 
+describe('SplitsEditor blank amounts', () => {
+  afterEach(() => cleanup());
+
+  it('renders a blank amount box for a newly added line (not "0")', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: /add line/i }));
+    const amountInputs = screen.getAllByLabelText(/line amount/i);
+    const added = amountInputs[amountInputs.length - 1];
+    expect(added.value).toBe('');
+  });
+
+  it('lets a line amount be typed as cents without snapping back', async () => {
+    setup({ initialSplits: [
+      { id: 's1', amount: -1, categoryId: 'c_grocery', description: '' },
+      { id: 's2', amount: 0,  categoryId: 'c_household', description: '' },
+    ]});
+    const amountInputs = screen.getAllByLabelText(/line amount/i);
+    const second = amountInputs[1];
+    await userEvent.type(second, '0.05');
+    expect(second.value).toBe('0.05');
+  });
+});
+
 describe('SplitsEditor Done validation and Unsplit', () => {
   afterEach(() => cleanup());
 

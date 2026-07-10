@@ -30,6 +30,11 @@ import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
 import TransferEditor from './TransferEditor.jsx';
+import ScanReview from './ScanReview.jsx';
+import TemplateNameDialog from './TemplateNameDialog.jsx';
+import useClipboard from './useClipboard.js';
+import useTemplates from './useTemplates.js';
+import { draftFromTransaction, draftFromTransfer, instantiateTransaction, instantiateTransfer, labelFor } from './entryDrafts.js';
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
@@ -38,8 +43,14 @@ import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
-import { buildArchive } from './exportArchive.js';
+import { buildArchive, parseArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
+import { restoreArchiveToStorage } from './archiveRestore.js';
+import { downloadArchive, readBytesFromFile } from './fileStore.js';
+import { reloadApp } from './reloadApp.js';
+import useLiveFile from './useLiveFile.js';
+import LiveFilePill from './LiveFilePill.jsx';
+import { requestPersistentStorage } from './storagePersist.js';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -142,9 +153,22 @@ function Tallio() {
 
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
   const [selectedAccountId, setSelectedAccountId] = useState(initAccounts[0]?.id ?? null);
-  const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction? }
-  const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer? }
+  const [editingTxn, setEditingTxn] = useState(null);       // { mode:'new'|'edit', accountId, transaction?, prefill? }
+  const [editingTransfer, setEditingTransfer] = useState(null); // { mode:'new'|'edit', fromAccountId?, transfer?, prefill? }
   const [editingAccount, setEditingAccount] = useState(null); // { mode:'new'|'edit', account? }
+
+  // Copy/paste clipboard + named templates, and a transient confirmation toast.
+  const clip = useClipboard();
+  const templates = useTemplates();
+  const [templateDraft, setTemplateDraft] = useState(null); // { draft, defaultName } | null
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const flashToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }, []);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const appearance = useAppearance();
   const library = useIconLibrary();
@@ -265,11 +289,16 @@ function Tallio() {
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [pendingScan, setPendingScan] = useState(null); // { vendor, month, items, source } | null
   const [showPairing, setShowPairing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsBanner, setSettingsBanner] = useState(null);
 
   const fileInputRef = useRef(null);
+  const importInputRef = useRef(null);
+  const scanAbortRef = useRef(null);
+  const scanCancelledRef = useRef(false);
+  const cancelScan = () => { scanCancelledRef.current = true; scanAbortRef.current?.abort(); };
 
   const openSettings = (banner = null) => {
     setSettingsBanner(banner);
@@ -355,7 +384,56 @@ function Tallio() {
     setEditingTransfer({ mode: 'new', ...draft });
   };
 
-  const exportData = async () => {
+  // Copy/paste, duplicate, and templates — all built on entryDrafts snapshots,
+  // routed through the existing save handlers (so history + ledger are consistent).
+  const fallbackCategoryId = () => (cats.categories[0] && cats.categories[0].id) || null;
+
+  const copyEntry = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    const draft = pair ? draftFromTransfer(pair) : draftFromTransaction(row);
+    const label = labelFor(draft);
+    clip.copy(draft, label);
+    flashToast(`Copied “${label}”`);
+  };
+
+  const pasteEntry = () => {
+    if (!clip.clipboard) return;
+    const { draft } = clip.clipboard;
+    if (draft.kind === 'transfer') {
+      saveTransfer(instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }));
+    } else if (selectedAccount) {
+      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    }
+  };
+
+  const duplicateEntry = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    if (pair) saveTransfer(instantiateTransfer(draftFromTransfer(pair), { fallbackCategoryId: fallbackCategoryId() }));
+    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    flashToast('Duplicated');
+  };
+
+  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft) });
+  const saveTemplateFromRow = (row) => {
+    const pair = resolveTransfer(row, ledger.transactions);
+    requestSaveTemplate(pair ? draftFromTransfer(pair) : draftFromTransaction(row));
+  };
+  const confirmSaveTemplate = (name) => {
+    if (templateDraft) { templates.addTemplate(name, templateDraft.draft); flashToast(`Saved template “${name}”`); }
+    setTemplateDraft(null);
+  };
+
+  const applyTemplate = (tpl) => {
+    const draft = { kind: tpl.kind, payload: tpl.payload };
+    if (tpl.kind === 'transfer') {
+      setEditingTransfer({ mode: 'new', prefill: instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }) });
+    } else if (selectedAccount) {
+      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }) });
+    }
+  };
+
+  // Build the full archive bytes from current state (shared by Export + live-file autosave).
+  const buildCurrentArchiveBytes = async () => {
     let images = [];
     try {
       const recs = await listImages();
@@ -373,19 +451,46 @@ function Tallio() {
       if (raw) appearanceSettings = JSON.parse(raw);
     } catch { /* ignore */ }
 
-    const bytes = buildArchive({
+    return buildArchive({
       accounts: ledger.accounts, transactions: ledger.transactions,
       categories: cats.categories, accountTypes: accountTypes.types,
       reportAcks: acks.exportSnapshot(),
+      templates: templates.exportSnapshot(),
       images, appearance: appearanceSettings,
-      schemaVersion: 4, appVersion: pkg.version, now: new Date(),
+      schemaVersion: 5, appVersion: pkg.version, now: new Date(),
     });
-    const blob = new Blob([bytes], { type: 'application/zip' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `tallio-${new Date().toISOString().split('T')[0]}.zip`; a.click();
-    URL.revokeObjectURL(url);
   };
+
+  const exportData = async () => {
+    const bytes = await buildCurrentArchiveBytes();
+    downloadArchive(bytes, `Tallio-${new Date().toISOString().split('T')[0]}.tallio`);
+  };
+
+  const handleImportFile = async (file) => {
+    if (!file) return;
+    try {
+      const bytes = await readBytesFromFile(file);
+      const parsed = parseArchive(bytes);
+      if (!window.confirm('Restore this backup? It replaces ALL current data on this device.')) return;
+      await restoreArchiveToStorage(parsed);
+      reloadApp();
+    } catch (e) {
+      window.alert(`Couldn't restore that file: ${e.message}`);
+    }
+  };
+
+  const liveFile = useLiveFile({
+    getBytes: buildCurrentArchiveBytes,
+    applyBytes: async (bytes) => { await restoreArchiveToStorage(parseArchive(bytes)); reloadApp(); },
+  });
+
+  // Autosave to the linked file whenever the ledger changes (debounced in the hook).
+  useEffect(() => {
+    if (liveFile.status === 'linked') liveFile.scheduleSave();
+  }, [ledger.accounts, ledger.transactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ask the browser not to evict our data (feature-detected; no-op under jsdom).
+  useEffect(() => { requestPersistentStorage(); }, []);
 
   const handleCapture = async (imageData, source) => {
     setShowCamera(false);
@@ -395,34 +500,43 @@ function Tallio() {
         : 'Add an Anthropic API key to scan bills.');
       return false;
     }
+    scanCancelledRef.current = false;
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
     setIsProcessing(true);
-    setProcessingStatus('Reading bill…');
+    setProcessingStatus('Reading bill… multi-page PDFs can take up to a minute');
     try {
-      const { vendor, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model });
-      pushHistory();
-      // Target account: the selected one, else create an untyped account named after the vendor.
-      let targetId = selectedAccountId;
-      if (!targetId) targetId = ledger.addAccount({ name: vendor || 'Scanned account', type: 'untyped', icon: '🏦' });
-      for (const it of items) {
-        const ac = cats.autoCategorize(it.description);
-        const flow = (categoriesById.get(ac.categoryId)?.flow) || 'expense';
-        const sign = flow === 'income' ? 1 : -1;
-        ledger.addTransaction({
-          accountId: targetId,
-          date: it.date || new Date().toISOString().slice(0, 10),
-          amount: sign * (Number.isFinite(it.amount) ? it.amount : 0),
-          categoryId: ac.categoryId,
-          ...(ac.subId ? { subId: ac.subId } : {}),
-          description: it.description,
-        });
-      }
-      setSelectedAccountId(targetId);
+      const { vendor, month, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model, signal: controller.signal });
+      setPendingScan({ vendor, month, items, source });
     } catch (err) {
-      setMigrationBanner({ message: `Scan failed: ${err.message || 'extraction error'}.`, recovered: false });
+      if (!scanCancelledRef.current && err?.name !== 'APIUserAbortError') {
+        setMigrationBanner({ message: `Scan failed: ${err.message || 'extraction error'}.`, recovered: false });
+      }
     } finally {
+      scanAbortRef.current = null;
       setIsProcessing(false); setProcessingStatus('');
     }
     return true;
+  };
+
+  const applyScan = (accountId) => {
+    if (!pendingScan) return;
+    pushHistory();
+    for (const it of pendingScan.items) {
+      const ac = cats.autoCategorize(it.description);
+      const flow = (categoriesById.get(ac.categoryId)?.flow) || 'expense';
+      const sign = flow === 'income' ? 1 : -1;
+      ledger.addTransaction({
+        accountId,
+        date: it.date || new Date().toISOString().slice(0, 10),
+        amount: sign * (Number.isFinite(it.amount) ? it.amount : 0),
+        categoryId: ac.categoryId,
+        ...(ac.subId ? { subId: ac.subId } : {}),
+        description: it.description,
+      });
+    }
+    setSelectedAccountId(accountId);
+    setPendingScan(null);
   };
 
   useEffect(() => {
@@ -474,10 +588,17 @@ function Tallio() {
         onClose={() => setDrawerOpen(false)}
         version={pkg.version}
         avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
+        statusSlot={liveFile.supported ? <LiveFilePill status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt} /> : null}
         items={[
           { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
           { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
           { icon: '↗', label: 'Export', onSelect: () => exportData() },
+          { icon: '↙', label: 'Restore from backup', onSelect: () => importInputRef.current?.click() },
+          ...(liveFile.supported ? [
+            { icon: '🔗', label: liveFile.status === 'linked' ? 'Save to a different file' : 'Save to a budget file', onSelect: () => liveFile.linkNewFile() },
+            { icon: '📂', label: 'Open a budget file', onSelect: () => liveFile.openFile() },
+            ...(liveFile.status === 'linked' ? [{ icon: '⛓', label: 'Unlink file', onSelect: () => liveFile.unlink() }] : []),
+          ] : []),
         ]}
       />
 
@@ -537,7 +658,24 @@ function Tallio() {
 
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
-        <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
+        <div className="processing-overlay">
+          <div className="processing-spinner" />
+          <p className="processing-label">{processingStatus || 'Processing...'}</p>
+          <button type="button" className="btn processing-cancel" onClick={cancelScan}>Cancel</button>
+        </div>
+      )}
+
+      {pendingScan && (
+        <ScanReview
+          scan={pendingScan}
+          accounts={ledger.accounts}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
+          onConfirm={applyScan}
+          onCancel={() => setPendingScan(null)}
+          onCreateAccount={(p) => ledger.addAccount(p)}
+          onAddType={accountTypes.addType}
+        />
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
       {showPhotoUpload && (
@@ -577,6 +715,7 @@ function Tallio() {
         <AccountEditor
           account={editingAccount.account || null}
           types={accountTypes.types}
+          onAddType={(p) => { pushHistory(); return accountTypes.addType(p); }}
           onSave={saveAccount} onDelete={deleteAccount} onClose={() => setEditingAccount(null)}
           onUndo={undo} undoCount={history.length}
         />
@@ -585,10 +724,14 @@ function Tallio() {
         <TransactionEditor
           account={selectedAccount}
           transaction={editingTxn.transaction || null}
+          prefill={editingTxn.prefill || null}
           categories={cats.categories}
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
+          onSaveAsTemplate={requestSaveTemplate}
+          onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
+          onAddSub={(catId, opts) => { pushHistory(); return cats.addSub(catId, opts); }}
           onUndo={undo} undoCount={history.length}
         />
       )}
@@ -602,10 +745,24 @@ function Tallio() {
           toAccountId={editingTransfer.toAccountId || null}
           initialAmount={editingTransfer.initialAmount ?? null}
           transfer={editingTransfer.transfer || null}
+          prefill={editingTransfer.prefill || null}
           onSave={saveTransfer} onDelete={deleteTransfer} onClose={() => setEditingTransfer(null)}
+          onSaveAsTemplate={requestSaveTemplate}
+          onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
+          onCreateAccount={(data) => { pushHistory(); return ledger.addAccount(data); }}
+          onAddType={(p) => { pushHistory(); return accountTypes.addType(p); }}
           onUndo={undo} undoCount={history.length}
         />
       )}
+
+      {templateDraft && (
+        <TemplateNameDialog
+          defaultName={templateDraft.defaultName}
+          onSave={confirmSaveTemplate}
+          onCancel={() => setTemplateDraft(null)}
+        />
+      )}
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       {migrationBanner && (
         <div className="toast toast-error">{migrationBanner.message}
@@ -638,7 +795,12 @@ function Tallio() {
         </nav>
         <div className="header-actions">
           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" style={{ display: 'none' }} />
-          <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
+          <input
+            type="file" ref={importInputRef} accept=".tallio,.zip,application/zip"
+            onChange={(e) => { handleImportFile(e.target.files?.[0]); e.target.value = ''; }}
+            style={{ display: 'none' }}
+          />
+          <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">↑ Upload</button>
           <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone linked' : '⌘ Pair phone'}</button>
           <UndoButton count={history.length} onUndo={undo} />
           <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan bill</button>
@@ -658,6 +820,7 @@ function Tallio() {
               types={accountTypes.types}
               selectedId={selectedAccount?.id ?? null}
               onSelect={setSelectedAccountId}
+              onEditAccount={(account) => setEditingAccount({ mode: 'edit', account })}
               onAddAccount={() => setEditingAccount({ mode: 'new' })}
             />
           </aside>
@@ -678,6 +841,7 @@ function Tallio() {
                   categories={cats.categories}
                   categoriesById={categoriesById}
                   typesById={accountTypes.typesById}
+                  onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
                   onEditTransaction={(t) => {
                     const pair = resolveTransfer(t, ledger.transactions);
                     if (pair) setEditingTransfer({ mode: 'edit', transfer: pair });
@@ -687,6 +851,15 @@ function Tallio() {
                   onTransfer={openTransfer}
                   onSelectAccount={setSelectedAccountId}
                   onEditAccount={() => setEditingAccount({ mode: 'edit', account: selectedAccount })}
+                  onCopyEntry={copyEntry}
+                  onDuplicateEntry={duplicateEntry}
+                  onSaveTemplateEntry={saveTemplateFromRow}
+                  clipboard={clip.clipboard}
+                  onPaste={pasteEntry}
+                  onClearClipboard={clip.clear}
+                  templates={templates.templates}
+                  onApplyTemplate={applyTemplate}
+                  onDeleteTemplate={templates.deleteTemplate}
                 />
               </>
             )}

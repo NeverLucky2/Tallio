@@ -2,13 +2,14 @@
 import React, { useMemo } from 'react';
 import { groupOrder, groupFor, accountClass, accountBalance, householdTotals, monthToDateDelta, netWorthSeries, DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 import Icon from './Icon.jsx';
+import ActionMenu from './ActionMenu.jsx';
 import NetWorthSpark from './NetWorthSpark.jsx';
 import useCountUp from './useCountUp.js';
 import useValueFlash from './useValueFlash.js';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onAddAccount, now = new Date() }) {
+export default function AccountList({ accounts, transactions, types = DEFAULT_ACCOUNT_TYPES, selectedId, onSelect, onEditAccount = () => {}, onAddAccount, now = new Date() }) {
   const typesById = useMemo(() => new Map(types.map(t => [t.id, t])), [types]);
   const order = useMemo(() => groupOrder(types), [types]);
   const totals = useMemo(() => householdTotals(accounts, transactions, typesById), [accounts, transactions, typesById]);
@@ -45,7 +46,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
           <span>Cash &amp; investments</span><span className="networth-lead" aria-hidden="true" /><b>{fmt(totals.assets)}</b>
         </div>
         <div className="networth-pair">
-          <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className="neg">{fmt(totals.owed)}</b>
+          <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className={totals.owed < 0.005 ? 'zero' : 'neg'}>{fmt(totals.owed)}</b>
         </div>
         {hasHistory && (
           <div className="networth-spark"><NetWorthSpark series={series} /></div>
@@ -61,18 +62,25 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
             {list.map(a => {
               const bal = accountBalance(a, transactions);
               const klass = accountClass(a.type, typesById);
-              const display = klass === 'liability' ? -Math.abs(bal) : bal;
+              const raw = klass === 'liability' ? -Math.abs(bal) : bal;
+              // Snap sub-cent floating-point residue (and negative zero) to a clean +0 so a
+              // paid-off or emptied account shows "$0.00", never a misleading "-$0.00".
+              const display = Math.abs(raw) < 0.005 ? 0 : raw;
               return (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
-                  onClick={() => onSelect(a.id)}
-                >
-                  <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
-                  <span className="account-row-name">{a.name}</span>
-                  <span className={`account-row-balance${display < 0 ? ' neg' : ''}`}>{fmt(display)}</span>
-                </button>
+                <div key={a.id} className="account-row-wrap">
+                  <button
+                    type="button"
+                    className={`account-row${a.id === selectedId ? ' account-row-selected' : ''}`}
+                    onClick={() => onSelect(a.id)}
+                  >
+                    <span className="icon-well account-row-well"><Icon value={a.icon} className="account-row-icon" /></span>
+                    <span className="account-row-name">{a.name}</span>
+                    <span className={`account-row-balance${display < 0 ? ' neg' : display === 0 ? ' zero' : ''}`}>{fmt(display)}</span>
+                  </button>
+                  <div className="account-row-actions">
+                    <ActionMenu label={`${a.name} actions`} items={[{ label: 'Edit account', onSelect: () => onEditAccount(a) }]} />
+                  </div>
+                </div>
               );
             })}
           </div>

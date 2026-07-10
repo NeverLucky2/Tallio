@@ -5,6 +5,8 @@ import UiIcon from './ui/UiIcon.jsx';
 import { iconGlyph } from './iconValue.js';
 import { computeRegister, filterTransactions, sortRows, layoutFor, accountClass, accountBalance, transferInfo, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import TransactionRow from './TransactionRow.jsx';
+import TemplatesMenu from './TemplatesMenu.jsx';
+import QuickCreateCategory from './QuickCreateCategory.jsx';
 import { groupCategoriesByFlow } from './categoriesView.js';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -31,10 +33,11 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null, onCopyEntry = null, onDuplicateEntry = null, onSaveTemplateEntry = null, clipboard = null, onPaste = () => {}, onClearClipboard = () => {}, templates = [], onApplyTemplate = () => {}, onDeleteTemplate = () => {}, onAddCategory = null }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [creatingCat, setCreatingCat] = useState(false);
   const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
 
   const layout = layoutFor(account.type, typesById);
@@ -95,6 +98,15 @@ export default function Register({ account, transactions, accounts = [], categor
         <div className="register-actions">
           <button type="button" className="btn btn-primary" onClick={() => onAddTransaction(account.id)} aria-label="Add transaction">+ New entry</button>
           <button type="button" className="btn" onClick={() => onTransfer(account.id)} aria-label="Transfer">⇄ Transfer</button>
+          {clipboard && (
+            <span className="paste-chip">
+              <button type="button" className="btn" onClick={onPaste} aria-label={`Paste "${clipboard.label}"`}>
+                ⎘ Paste “{clipboard.label}”
+              </button>
+              <button type="button" className="btn-icon paste-clear" onClick={onClearClipboard} aria-label="Clear clipboard">×</button>
+            </span>
+          )}
+          <TemplatesMenu templates={templates} onApply={onApplyTemplate} onDelete={onDeleteTemplate} />
           {onEditAccount && (
             <button type="button" className="btn btn-icon" onClick={onEditAccount} aria-label="Edit account" title="Edit account">✎</button>
           )}
@@ -110,13 +122,18 @@ export default function Register({ account, transactions, accounts = [], categor
           <UiIcon name="calendar" size={14} />
           <input type="month" className="register-month-input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Month filter" />
         </label>
-        <select className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label="Category filter">
+        <select className="select" value={categoryId}
+          onChange={(e) => {
+            if (e.target.value === '__new_category__') setCreatingCat(true);
+            else setCategoryId(e.target.value);
+          }} aria-label="Category filter">
           <option value="">All categories</option>
           {groupCategoriesByFlow(categories).map(group => (
             <optgroup key={group.flow} label={group.label}>
               {group.items.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
             </optgroup>
           ))}
+          {onAddCategory && <option value="__new_category__">＋ New category…</option>}
         </select>
       </div>
 
@@ -134,11 +151,12 @@ export default function Register({ account, transactions, accounts = [], categor
                 </th>
               );
             })}
+            <th className="th-actions" aria-hidden="true"></th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan={columns.length} className="register-empty">No transactions.</td></tr>
+            <tr><td colSpan={columns.length + 1} className="register-empty">No transactions.</td></tr>
           ) : (
             rows.map(r => (
               <TransactionRow
@@ -150,6 +168,9 @@ export default function Register({ account, transactions, accounts = [], categor
                 onNavigate={onSelectAccount}
                 onEdit={onEditTransaction}
                 expandSplitHint={r._matchedSplitId || null}
+                onCopy={onCopyEntry}
+                onDuplicate={onDuplicateEntry}
+                onSaveTemplate={onSaveTemplateEntry}
               />
             ))
           )}
@@ -160,6 +181,12 @@ export default function Register({ account, transactions, accounts = [], categor
         <span>{rows.length} {rows.length === 1 ? 'entry' : 'entries'} · {monthLabel}</span>
         <span>{lastEntryLabel}</span>
       </div>
+
+      {creatingCat && (
+        <QuickCreateCategory
+          onSubmit={(p) => { const id = onAddCategory(p); setCreatingCat(false); setCategoryId(id); }}
+          onCancel={() => setCreatingCat(false)} />
+      )}
     </div>
   );
 }

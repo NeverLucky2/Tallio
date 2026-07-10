@@ -1,6 +1,7 @@
 // src/TransactionRow.jsx
 import React, { useState } from 'react';
 import Icon from './Icon.jsx';
+import ActionMenu from './ActionMenu.jsx';
 
 const money = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 const plain = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n));
@@ -51,8 +52,16 @@ function SplitChevron({ expanded, onClick, count }) {
   );
 }
 
-export default function TransactionRow({ layout, row, categoriesById, transfer = null, onNavigate, onEdit, expandSplitHint = null }) {
+export default function TransactionRow({ layout, row, categoriesById, transfer = null, onNavigate, onEdit, expandSplitHint = null, onCopy = null, onDuplicate = null, onSaveTemplate = null }) {
   const isSplit = Array.isArray(row.splits) && row.splits.length > 0;
+  const actionItems = [
+    onCopy && { label: 'Copy', onSelect: () => onCopy(row) },
+    onDuplicate && { label: 'Duplicate', onSelect: () => onDuplicate(row) },
+    onSaveTemplate && { label: 'Save as template…', onSelect: () => onSaveTemplate(row) },
+  ].filter(Boolean);
+  const actionsCell = actionItems.length > 0
+    ? <td className="txn-actions" onClick={(e) => e.stopPropagation()}><ActionMenu label="Row actions" items={actionItems} /></td>
+    : <td className="txn-actions" />;
   // null = follow hint; true/false = user override. A fresh hint re-shows hint state until clicked.
   const [userExpanded, setUserExpanded] = useState(null);
   const expanded = userExpanded ?? !!expandSplitHint;
@@ -84,6 +93,7 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
           <td className="txn-amt neg">{isPayment ? plain(row.amount) : ''}</td>
           <td className="txn-amt pos">{!isPayment ? plain(row.amount) : ''}</td>
           <td className={`txn-bal${row.balance < 0 ? ' neg' : ''}`}>{money(row.balance)}</td>
+          {actionsCell}
         </tr>
         {isSplit && expanded && row.splits.map(s => (
           <tr key={s.id} className="txn-split-line">
@@ -94,6 +104,7 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
             <td className="txn-notes">{s.description}</td>
             <td className="txn-amt neg">{s.amount < 0 ? plain(s.amount) : ''}</td>
             <td className="txn-amt pos">{s.amount >= 0 ? plain(s.amount) : ''}</td>
+            <td></td>
             <td></td>
           </tr>
         ))}
@@ -109,6 +120,7 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
         <td>{categoryCell}</td>
         <td className={`txn-amt${row.amount < 0 ? ' neg' : ' pos'}`}>{row.amount < 0 ? '-' : '+'}{money(Math.abs(row.amount))}</td>
         <td className={`txn-bal${row.balance < 0 ? ' neg' : ''}`}>{money(row.balance)}</td>
+        {actionsCell}
       </tr>
       {isSplit && expanded && row.splits.map(s => (
         <tr key={s.id} className="txn-split-line">
@@ -116,6 +128,7 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
           <td className="txn-desc">{s.description}</td>
           <td>{s.categoryId ? (categoriesById?.get(s.categoryId)?.name || '—') : '⇄ Transfer'}</td>
           <td className={`txn-amt${s.amount < 0 ? ' neg' : ' pos'}`}>{s.amount < 0 ? '-' : '+'}{money(Math.abs(s.amount))}</td>
+          <td></td>
           <td></td>
         </tr>
       ))}

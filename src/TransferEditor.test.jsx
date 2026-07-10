@@ -1,6 +1,6 @@
 // src/TransferEditor.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TransferEditor from './TransferEditor.jsx';
 import { DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
@@ -115,14 +115,14 @@ describe('TransferEditor', () => {
     { id: 'a_visa', name: 'Visa', type: 'credit_card' },
   ];
 
-  it('Type dropdown lists only transfer-flow categories plus None', () => {
+  it('Type picker lists only transfer-flow categories plus None', async () => {
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
       onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} />);
-    const select = screen.getByLabelText(/^type$/i);
-    const optionText = Array.from(select.querySelectorAll('option')).map(o => o.textContent);
-    expect(optionText.some(t => /none/i.test(t))).toBe(true);
-    expect(optionText.some(t => /Credit Card Payment/.test(t))).toBe(true);
-    expect(optionText.some(t => /Groceries/.test(t))).toBe(false); // expense flow excluded
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i }));
+    expect(screen.getByRole('option', { name: /none/i })).toBeTruthy();
+    expect(screen.getByText('Credit Card Payment')).toBeTruthy();
+    expect(screen.getByText('Investment Transfer')).toBeTruthy();
+    expect(screen.queryByText('Groceries')).toBeNull(); // expense flow excluded
   });
 
   it('new transfer auto-suggests a type from the destination account', async () => {
@@ -139,7 +139,8 @@ describe('TransferEditor', () => {
     const onSave = vi.fn();
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} fromAccountId="a_chk"
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
-    await userEvent.selectOptions(screen.getByLabelText(/^type$/i), 'iv'); // user picks Investment Transfer
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i })); // open Type picker
+    await userEvent.click(screen.getByText('Investment Transfer'));         // user picks it
     await userEvent.selectOptions(screen.getByLabelText(/to account/i), 'a_visa'); // would suggest 'cc'
     await userEvent.type(screen.getByLabelText(/amount/i), '200');
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
@@ -155,7 +156,7 @@ describe('TransferEditor', () => {
     };
     render(<TransferEditor accounts={acctsTyped} categories={transferCats} transfer={transfer}
       onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByLabelText(/^type$/i).value).toBe('iv');
+    expect(screen.getByRole('button', { name: /^type$/i }).textContent).toMatch(/Investment Transfer/);
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(onSave.mock.calls[0][0].categoryId).toBe('iv');
   });
@@ -212,5 +213,85 @@ describe('TransferEditor split source-leg wire-up', () => {
     const payload = onSave.mock.calls[0][0];
     expect(payload.amount).toBeCloseTo(250, 5);
     expect(payload.splits.reduce((s, l) => s + l.amount, 0)).toBeCloseTo(-250, 5);
+  });
+});
+
+describe('TransferEditor prefill + template', () => {
+  afterEach(() => cleanup());
+
+  it('prefill seeds a NEW transfer', () => {
+    const accts = [{ id: 'a_bank', name: 'Chase', type: 'bank' }, { id: 'a_sav', name: 'Savings', type: 'bank' }];
+    render(<TransferEditor accounts={accts} categories={[]}
+      prefill={{ fromId: 'a_bank', toId: 'a_sav', amount: 200, date: '2026-06-15', description: 'move', categoryId: null }}
+      onSave={() => {}} onClose={() => {}} />);
+    expect(screen.getByText(/New transfer/i)).toBeTruthy();
+    expect(screen.getByLabelText(/^Amount$/i).value).toBe('200');
+    expect(screen.getByLabelText(/^Notes$/i).value).toBe('move');
+  });
+
+  it('Save as template builds a transfer draft', async () => {
+    const accts = [{ id: 'a_bank', name: 'Chase', type: 'bank' }, { id: 'a_sav', name: 'Savings', type: 'bank' }];
+    const onSaveAsTemplate = vi.fn();
+    render(<TransferEditor accounts={accts} categories={[]}
+      fromAccountId="a_bank" toAccountId="a_sav" initialAmount={100}
+      onSaveAsTemplate={onSaveAsTemplate} onSave={() => {}} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /save as template/i }));
+    expect(onSaveAsTemplate.mock.calls[0][0]).toMatchObject({ kind: 'transfer', payload: { fromId: 'a_bank', toId: 'a_sav', amount: 100 } });
+  });
+});
+
+describe('TransferEditor — Type picker', () => {
+  afterEach(() => cleanup());
+
+  const acctList = [
+    { id: 'a_check', name: 'Checking', type: 'bank' },
+    { id: 'a_save',  name: 'Savings',  type: 'bank' },
+  ];
+  const cats = [{ id: 'reimb', name: 'Reimbursement', icon: '💸', flow: 'transfer' }];
+
+  it('creates a transfer-flow type from the picker', async () => {
+    const onAddCategory = vi.fn(() => 'tnew');
+    render(
+      <TransferEditor accounts={acctList} categories={cats}
+        onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onAddCategory={onAddCategory} />
+    );
+    // The Type control is now a searchable picker (aria-label "Type").
+    await userEvent.click(screen.getByRole('button', { name: /^type$/i }));
+    await userEvent.type(screen.getByRole('combobox', { name: /type search/i }), 'Payback');
+    await userEvent.click(screen.getByRole('button', { name: /new transfer type .*payback/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddCategory).toHaveBeenCalledWith({ name: 'Payback', icon: '📋', flow: 'transfer' });
+  });
+});
+
+describe('TransferEditor — inline create account', () => {
+  afterEach(() => cleanup());
+
+  const accts = [
+    { id: 'a_chk', name: 'Checking', type: 'bank' },
+    { id: 'newacct', name: 'Brokerage', type: 'bank' }, // simulates the post-add accounts list
+  ];
+
+  it('creates a new account from the From selector and selects it', async () => {
+    const onCreateAccount = vi.fn(() => 'newacct');
+    render(<TransferEditor accounts={accts} categories={[]} fromAccountId="a_chk"
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onCreateAccount={onCreateAccount} />);
+    await userEvent.selectOptions(screen.getByLabelText(/from account/i), '__new_account__');
+    const dialog = screen.getByText('New account').closest('.dialog-card');
+    await userEvent.type(within(dialog).getByLabelText(/^name$/i), 'Brokerage');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^save$/i }));
+    expect(onCreateAccount.mock.calls[0][0].name).toBe('Brokerage');
+    expect(screen.getByLabelText(/from account/i).value).toBe('newacct');
+  });
+
+  it('creates a new account from the To selector and selects it', async () => {
+    const onCreateAccount = vi.fn(() => 'newacct');
+    render(<TransferEditor accounts={accts} categories={[]} fromAccountId="a_chk"
+      onSave={vi.fn()} onDelete={vi.fn()} onClose={vi.fn()} onCreateAccount={onCreateAccount} />);
+    await userEvent.selectOptions(screen.getByLabelText(/to account/i), '__new_account__');
+    const dialog = screen.getByText('New account').closest('.dialog-card');
+    await userEvent.type(within(dialog).getByLabelText(/^name$/i), 'Brokerage');
+    await userEvent.click(within(dialog).getByRole('button', { name: /^save$/i }));
+    expect(screen.getByLabelText(/to account/i).value).toBe('newacct');
   });
 });

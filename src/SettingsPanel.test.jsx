@@ -4,9 +4,24 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SettingsPanel from './SettingsPanel.jsx';
 
+vi.mock('./storagePersist.js', () => ({
+  requestPersistentStorage: vi.fn().mockResolvedValue({ supported: true, persisted: true }),
+  getStorageEstimate: vi.fn().mockResolvedValue({ supported: true, usage: 5 * 1024 * 1024, quota: 100 * 1024 * 1024 }),
+}));
+
 function makeSettings(uiScale = 1.1) {
   return { apiKey: 'sk-ant-test', model: 'claude-haiku-4-5-20251001', uiScale, save: vi.fn() };
 }
+
+describe('SettingsPanel storage health', () => {
+  afterEach(() => cleanup());
+
+  it('shows a storage-health line with usage', async () => {
+    render(<SettingsPanel settings={makeSettings()} onClose={() => {}} />);
+    expect(await screen.findByText(/lives only on this device/i)).toBeTruthy();
+    expect(screen.getByText(/5\.0 MB of 100\.0 MB/)).toBeTruthy();
+  });
+});
 
 describe('SettingsPanel display size', () => {
   afterEach(() => cleanup());

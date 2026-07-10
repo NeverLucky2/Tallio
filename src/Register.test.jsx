@@ -193,3 +193,51 @@ describe('Register with split transactions', () => {
     expect(screen.getByText('5kW solar panel kit')).toBeTruthy();
   });
 });
+
+describe('Register — paste + templates header', () => {
+  afterEach(() => cleanup());
+
+  const pAccount = { id: 'a1', name: 'Checking', type: 'bank', icon: '🏦' };
+  const pTypes = new Map([['bank', { layout: 'bank', label: 'Bank', class: 'asset' }]]);
+  const renderRegister = (extra = {}) => render(
+    <Register
+      account={pAccount} transactions={[]} accounts={[pAccount]}
+      categories={[]} categoriesById={new Map()} typesById={pTypes}
+      onEditTransaction={() => {}} onAddTransaction={() => {}}
+      {...extra}
+    />
+  );
+
+  it('hides the Paste button when the clipboard is empty', () => {
+    renderRegister({ clipboard: null });
+    expect(screen.queryByRole('button', { name: /paste/i })).toBeNull();
+  });
+
+  it('shows the Paste button when the clipboard is full and fires onPaste', async () => {
+    const onPaste = vi.fn();
+    renderRegister({ clipboard: { draft: {}, label: 'Zelle — Mom' }, onPaste });
+    await userEvent.click(screen.getByRole('button', { name: /paste "Zelle — Mom"/i }));
+    expect(onPaste).toHaveBeenCalled();
+  });
+
+  it('lists templates and applies one on click', async () => {
+    const onApplyTemplate = vi.fn();
+    renderRegister({ templates: [{ id: 'tpl1', name: 'Paycheck', kind: 'transaction', payload: {} }], onApplyTemplate, onDeleteTemplate: () => {} });
+    await userEvent.click(screen.getByRole('button', { name: /templates/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /paycheck/i }));
+    expect(onApplyTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: 'tpl1' }));
+  });
+
+  it('opens the quick dialog from the filter and selects the new category', async () => {
+    const onAddCategory = vi.fn(() => 'fcat');
+    renderRegister({
+      onAddCategory,
+      categories: [{ id: 'fcat', name: 'Charity', icon: '❤️', flow: 'expense' }],
+    });
+    await userEvent.selectOptions(screen.getByLabelText(/category filter/i), '__new_category__');
+    await userEvent.type(screen.getByLabelText(/category name/i), 'Charity');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(onAddCategory).toHaveBeenCalledWith({ name: 'Charity', icon: '📋', flow: 'expense' });
+    expect(screen.getByLabelText(/category filter/i).value).toBe('fcat');
+  });
+});

@@ -1,44 +1,47 @@
 // src/TransferEditor.jsx
 import React, { useState } from 'react';
 import { nanoid } from 'nanoid';
-import { iconGlyph } from './iconValue.js';
+import CategoryPicker from './CategoryPicker.jsx';
+import AccountEditor from './AccountEditor.jsx';
 import { groupAccounts, suggestTransferCategoryId, DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
+import { makeTransferDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0 }) {
+export default function TransferEditor({ accounts = [], categories = [], fromAccountId = null, toAccountId = null, initialAmount = null, transfer = null, prefill = null, types = DEFAULT_ACCOUNT_TYPES, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null, onCreateAccount = null, onAddType = null }) {
   const groups = groupAccounts(accounts, types, typesById);
   const isEdit = !!transfer;
-  const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (fromAccountId || (accounts[0] && accounts[0].id) || ''));
-  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : (toAccountId || ''));
-  const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : todayISO());
-  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (initialAmount != null ? String(initialAmount) : ''));
-  const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : '');
+  const [fromId, setFromId] = useState(transfer ? transfer.fromLeg.accountId : (prefill?.fromId || fromAccountId || (accounts[0] && accounts[0].id) || ''));
+  const [toId, setToId]     = useState(transfer ? transfer.toLeg.accountId : (prefill?.toId || toAccountId || ''));
+  const [date, setDate]     = useState(transfer ? (transfer.fromLeg.date || todayISO()) : (prefill?.date || todayISO()));
+  const [magnitude, setMagnitude]     = useState(transfer ? Math.abs(transfer.fromLeg.amount) : (prefill ? String(prefill.amount) : (initialAmount != null ? String(initialAmount) : '')));
+  const [description, setDescription] = useState(transfer ? (transfer.fromLeg.description || '') : (prefill?.description || ''));
   const transferCats = (categories || [])
     .filter(c => c && c.flow === 'transfer')
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const [categoryId, setCategoryId] = useState(
     transfer
       ? (transfer.fromLeg.categoryId || '')
-      : (suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
+      : (prefill?.categoryId || suggestTransferCategoryId(accounts.find(a => a.id === (toAccountId || '')), transferCats) || '')
   );
   const [typeTouched, setTypeTouched] = useState(false);
-  const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? null);
-  const [splitTargets, setSplitTargets] = useState(new Map());
+  const [splits, setSplits] = useState(transfer?.fromLeg?.splits ?? prefill?.splits ?? null);
+  const [splitTargets, setSplitTargets] = useState(prefill?.splitTargets instanceof Map ? prefill.splitTargets : new Map());
   const [splitsOpen, setSplitsOpen] = useState(false);
+  const [creatingAccountFor, setCreatingAccountFor] = useState(null); // 'from' | 'to' | null
 
   const hasSplits = Array.isArray(splits) && splits.length > 0;
 
   const onToChange = (e) => {
     const next = e.target.value;
+    if (next === '__new_account__') { setCreatingAccountFor('to'); return; }
     setToId(next);
     if (!isEdit && !typeTouched) {
       setCategoryId(suggestTransferCategoryId(accounts.find(a => a.id === next), transferCats) || '');
     }
   };
-  const onTypeChange = (e) => { setTypeTouched(true); setCategoryId(e.target.value); };
 
   const splitSum = hasSplits ? splits.reduce((s, l) => s + (Number.isFinite(l.amount) ? l.amount : 0), 0) : 0;
   const mag = hasSplits ? Math.abs(splitSum) : Math.abs(parseFloat(magnitude) || 0);
@@ -68,18 +71,28 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
     });
   };
 
+  const buildTemplateDraft = () => makeTransferDraft({
+    fromId, toId, amount: mag, categoryId: categoryId || null, description: description.trim(),
+    splits: hasSplits ? splits : null,
+  }, splitTargets);
+
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
         <h2 className="dialog-title">{isEdit ? 'Edit transfer' : 'New transfer'}</h2>
 
         <label className="field"><span>From</span>
-          <select aria-label="From account" value={fromId} onChange={(e) => setFromId(e.target.value)} className="select">
+          <select aria-label="From account" value={fromId}
+            onChange={(e) => {
+              if (e.target.value === '__new_account__') setCreatingAccountFor('from');
+              else setFromId(e.target.value);
+            }} className="select">
             {groups.map(({ group, accounts: list }) => (
               <optgroup key={group} label={group}>
                 {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </optgroup>
             ))}
+            {onCreateAccount && <option value="__new_account__">＋ New account…</option>}
           </select>
         </label>
 
@@ -91,6 +104,7 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
                 {list.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </optgroup>
             ))}
+            {onCreateAccount && <option value="__new_account__">＋ New account…</option>}
           </select>
         </label>
 
@@ -106,12 +120,16 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
           <input type="text" aria-label="Notes" value={description} onChange={(e) => setDescription(e.target.value)} className="input" />
         </label>
 
-        <label className="field"><span>Type</span>
-          <select aria-label="Type" value={categoryId} onChange={onTypeChange} className="select">
-            <option value="">— None —</option>
-            {transferCats.map(c => <option key={c.id} value={c.id}>{iconGlyph(c.icon)} {c.name}</option>)}
-          </select>
-        </label>
+        <div className="field"><span>Type</span>
+          <CategoryPicker
+            categories={transferCats}
+            value={{ categoryId: categoryId || null, subId: null }}
+            onChange={({ categoryId: c }) => { setTypeTouched(true); setCategoryId(c || ''); }}
+            ariaLabel="Type"
+            allowNone noneLabel="— None —"
+            onCreateCategory={onAddCategory ? (p) => onAddCategory({ ...p, flow: 'transfer' }) : null}
+            createFlow="transfer" lockCreateFlow createLabel="New transfer type" />
+        </div>
 
         {hasSplits ? (
           <div className="field">
@@ -128,11 +146,33 @@ export default function TransferEditor({ accounts = [], categories = [], fromAcc
         {sameAccount && <p className="field-error">From and To must be different accounts.</p>}
 
         <div className="dialog-actions">
-          <UndoButton count={undoCount} onUndo={onUndo} />
-          {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
+          <div className="dialog-actions-secondary">
+            <UndoButton count={undoCount} onUndo={onUndo} />
+            {isEdit && <button type="button" className="btn btn-danger" onClick={() => onDelete(transfer.transferId)}>Delete</button>}
+            {onSaveAsTemplate && <button type="button" className="btn" onClick={() => onSaveAsTemplate(buildTemplateDraft())}>Save as template…</button>}
+          </div>
+          <div className="dialog-actions-primary">
+            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn btn-primary" onClick={save} disabled={!valid}>Save</button>
+          </div>
         </div>
+
+        {creatingAccountFor && (
+          <AccountEditor
+            account={null}
+            types={types}
+            onAddType={onAddType}
+            onSave={(data) => {
+              const id = onCreateAccount(data);
+              if (creatingAccountFor === 'from') setFromId(id);
+              else setToId(id);
+              setCreatingAccountFor(null);
+            }}
+            onDelete={() => {}}
+            onClose={() => setCreatingAccountFor(null)}
+            onUndo={onUndo} undoCount={undoCount}
+          />
+        )}
 
         {splitsOpen && (
           <SplitsEditor

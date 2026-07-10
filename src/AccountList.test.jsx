@@ -85,3 +85,86 @@ describe('AccountList', () => {
     expect(screen.getByText('Fidelity HSA')).toBeTruthy();
   });
 });
+
+describe('AccountList — per-account edit menu', () => {
+  afterEach(() => cleanup());
+
+  it('the ⋮ menu Edit-account item calls onEditAccount with that account, without selecting', async () => {
+    const onSelect = vi.fn();
+    const onEditAccount = vi.fn();
+    render(<AccountList accounts={accounts} transactions={transactions} selectedId="a_chk"
+      onSelect={onSelect} onEditAccount={onEditAccount} onAddAccount={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: /mastercard actions/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit account/i }));
+    expect(onEditAccount).toHaveBeenCalledTimes(1);
+    expect(onEditAccount.mock.calls[0][0].id).toBe('a_cc');
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('renders a ⋮ menu for every account', () => {
+    render(<AccountList accounts={accounts} transactions={transactions} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    expect(screen.getByRole('button', { name: /chase checking actions/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /mastercard actions/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /mom.*actions/i })).toBeTruthy();
+  });
+});
+
+describe('AccountList — zero / paid-off balance', () => {
+  afterEach(() => cleanup());
+
+  it('shows a paid-off liability as green "$0.00", not red "-$0.00"', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: 0 }];
+    // 0.1 + 0.2 − 0.3 leaves a floating-point residue that must not render as -$0.00.
+    const txns = [
+      { id: 't1', accountId: 'a_cc', date: '2026-05-01', amount: 0.1 },
+      { id: 't2', accountId: 'a_cc', date: '2026-05-02', amount: 0.2 },
+      { id: 't3', accountId: 'a_cc', date: '2026-05-03', amount: -0.3 },
+    ];
+    const { container } = render(<AccountList accounts={accts} transactions={txns} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toBe('$0.00');
+    expect(bal.className).not.toMatch(/neg/);
+    expect(bal.className).toMatch(/zero/);
+  });
+
+  it('shows an emptied asset account as green "$0.00"', () => {
+    const accts = [{ id: 'a_chk', name: 'Checking', type: 'bank', icon: '🏦', openingBalance: 0 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toBe('$0.00');
+    expect(bal.className).toMatch(/zero/);
+  });
+
+  it('still shows a real amount owed as a red negative', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: -500 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const bal = container.querySelector('.account-row-balance');
+    expect(bal.textContent).toMatch(/-\$500\.00/);
+    expect(bal.className).toMatch(/neg/);
+    expect(bal.className).not.toMatch(/zero/);
+  });
+
+  it('shows "You owe" as green "$0.00" when every liability is paid off', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: 0 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const owed = screen.getByText(/You owe/i).parentElement.querySelector('b');
+    expect(owed.textContent).toBe('$0.00');
+    expect(owed.className).not.toMatch(/neg/);
+    expect(owed.className).toMatch(/zero/);
+  });
+
+  it('still shows "You owe" as red when there is a real balance owed', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: -500 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const owed = screen.getByText(/You owe/i).parentElement.querySelector('b');
+    expect(owed.textContent).toBe('$500.00');
+    expect(owed.className).toMatch(/neg/);
+    expect(owed.className).not.toMatch(/zero/);
+  });
+});
