@@ -14,20 +14,20 @@ const typesById = new Map([
 describe('transaction drafts', () => {
   it('round-trips category, amount, description, payee through draft + instantiate', () => {
     const txn = { id: 't1', accountId: 'a_bank', date: '2026-01-01', amount: -42.5,
-      categoryId: 'c_food', subId: null, description: 'Lunch', payee: 'Cafe', checkNumber: '101' };
+      categoryId: 'c_food', subId: null, description: 'Lunch', payeeId: 'p_cafe', checkNumber: '101' };
     const draft = draftFromTransaction(txn);
     const out = instantiateTransaction(draft, { account: bank, typesById, date: '2026-06-15' });
     expect(out).toMatchObject({
       accountId: 'a_bank', date: '2026-06-15', amount: -42.5,
-      categoryId: 'c_food', description: 'Lunch', payee: 'Cafe', checkNumber: '101', splits: null,
+      categoryId: 'c_food', description: 'Lunch', payeeId: 'p_cafe', checkNumber: '101', splits: null,
     });
     expect(out.id).toBeUndefined();
   });
 
   it('drops payee/check when target account is not a bank layout', () => {
-    const draft = makeTransactionDraft({ description: 'x', amount: -5, categoryId: 'c', payee: 'P', checkNumber: '9' });
+    const draft = makeTransactionDraft({ description: 'x', amount: -5, categoryId: 'c', payeeId: 'p_x', checkNumber: '9' });
     const out = instantiateTransaction(draft, { account: wallet, typesById, date: '2026-06-15' });
-    expect(out.payee).toBeNull();
+    expect(out.payeeId).toBeNull();
     expect(out.checkNumber).toBeNull();
   });
 
@@ -85,11 +85,36 @@ describe('transfer drafts', () => {
 });
 
 describe('labelFor', () => {
-  it('prefers payee, then description, with type fallbacks', () => {
-    expect(labelFor(makeTransactionDraft({ payee: 'Mom', description: 'Zelle', amount: 50 }))).toBe('Mom');
+  it('prefers the resolved payee name, then description, with type fallbacks', () => {
+    const payeesById = new Map([['p_mom', { id: 'p_mom', name: 'Mom' }]]);
+    expect(labelFor(makeTransactionDraft({ payeeId: 'p_mom', description: 'Zelle', amount: 50 }), payeesById)).toBe('Mom');
     expect(labelFor(makeTransactionDraft({ description: 'Zelle', amount: 50 }))).toBe('Zelle');
     expect(labelFor(makeTransactionDraft({ amount: 50 }))).toBe('Transaction');
     expect(labelFor(makeTransferDraft({ fromId: 'a', toId: 'b', amount: 5, description: 'rent' }))).toBe('rent');
     expect(labelFor(makeTransferDraft({ fromId: 'a', toId: 'b', amount: 5 }))).toBe('Transfer');
+  });
+});
+
+describe('payeeId in drafts', () => {
+  const payeesById = new Map([['p1', { id: 'p1', name: 'Costco', defaultCategoryId: null, defaultSubcategoryId: null }]]);
+
+  it('makeTransactionDraft carries payeeId, never payee', () => {
+    const draft = makeTransactionDraft({ description: 'x', amount: -5, categoryId: 'c', subId: null, payeeId: 'p1', checkNumber: null, splits: null });
+    expect(draft.payload.payeeId).toBe('p1');
+    expect('payee' in draft.payload).toBe(false);
+  });
+
+  it('instantiateTransaction keeps a live payeeId, degrades a dead one when payeesById is given', () => {
+    const draft = makeTransactionDraft({ description: 'x', amount: -5, categoryId: 'c', subId: null, payeeId: 'p1', checkNumber: null, splits: null });
+    expect(instantiateTransaction(draft, { account: bank, typesById, payeesById }).payeeId).toBe('p1');
+    const dead = makeTransactionDraft({ description: 'x', amount: -5, categoryId: 'c', subId: null, payeeId: 'gone', checkNumber: null, splits: null });
+    expect(instantiateTransaction(dead, { account: bank, typesById, payeesById }).payeeId).toBeNull();
+  });
+
+  it('labelFor falls back to description when no map is provided', () => {
+    const draft = makeTransactionDraft({ description: 'weekly run', amount: -5, categoryId: 'c', subId: null, payeeId: 'p1', checkNumber: null, splits: null });
+    expect(labelFor(draft)).toBe('weekly run');
+    const bare = makeTransactionDraft({ description: '', amount: -5, categoryId: 'c', subId: null, payeeId: null, checkNumber: null, splits: null });
+    expect(labelFor(bare, payeesById)).toBe('Transaction');
   });
 });

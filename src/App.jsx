@@ -395,7 +395,7 @@ function Tallio() {
   const copyEntry = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     const draft = pair ? draftFromTransfer(pair) : draftFromTransaction(row);
-    const label = labelFor(draft);
+    const label = labelFor(draft, payees.payeesById);
     clip.copy(draft, label);
     flashToast(`Copied “${label}”`);
   };
@@ -406,18 +406,18 @@ function Tallio() {
     if (draft.kind === 'transfer') {
       saveTransfer(instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }));
     } else if (selectedAccount) {
-      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }));
     }
   };
 
   const duplicateEntry = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     if (pair) saveTransfer(instantiateTransfer(draftFromTransfer(pair), { fallbackCategoryId: fallbackCategoryId() }));
-    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }));
     flashToast('Duplicated');
   };
 
-  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft) });
+  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft, payees.payeesById) });
   const saveTemplateFromRow = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     requestSaveTemplate(pair ? draftFromTransfer(pair) : draftFromTransaction(row));
@@ -432,7 +432,7 @@ function Tallio() {
     if (tpl.kind === 'transfer') {
       setEditingTransfer({ mode: 'new', prefill: instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }) });
     } else if (selectedAccount) {
-      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }) });
+      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }) });
     }
   };
 
