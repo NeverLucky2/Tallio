@@ -12,8 +12,8 @@ const accounts = [
   { id: 'a_chk', name: 'Chase',      type: 'bank',        icon: '🏦', openingBalance: 1000 },
 ];
 const transactions = [
-  { id: 't1', accountId: 'a_cc',  date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payee: null, checkNumber: null, transferId: null },
-  { id: 't2', accountId: 'a_chk', date: '2026-05-01', amount: 3200,   categoryId: 'c_pay',  description: 'Salary',  payee: 'Acme', checkNumber: null, transferId: null },
+  { id: 't1', accountId: 'a_cc',  date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payeeId: null, checkNumber: null, transferId: null },
+  { id: 't2', accountId: 'a_chk', date: '2026-05-01', amount: 3200,   categoryId: 'c_pay',  description: 'Salary',  payeeId: 'p_acme', checkNumber: null, transferId: null },
 ];
 
 describe('export v4', () => {
@@ -47,8 +47,8 @@ describe('export v4', () => {
       { id: 'a_sav', name: 'Savings',  type: 'bank', openingBalance: 0 },
     ];
     const txns = [
-      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
-      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
     ];
     const csv = buildTransactionsCsv(accts, txns, new Map());
     const lines = csv.replace(/^\uFEFF/, '').split('\n');
@@ -63,8 +63,8 @@ describe('export v4', () => {
       { id: 'a_sav', name: 'Savings',  type: 'bank', openingBalance: 0 },
     ];
     const txns = [
-      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
-      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payee: null, checkNumber: null, transferId: 'x' },
+      { id: 'tf', accountId: 'a_chk', date: '2026-05-20', amount: -500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
+      { id: 'tt', accountId: 'a_sav', date: '2026-05-20', amount:  500, categoryId: null, payeeId: null, checkNumber: null, transferId: 'x' },
     ];
     const bytes = buildArchive({ accounts: accts, transactions: txns, categories: [], schemaVersion: 4, appVersion: '1.0.0', now: new Date('2026-05-20T00:00:00Z') });
     const data = JSON.parse(strFromU8(unzipSync(bytes)['data.json']));
@@ -126,7 +126,7 @@ describe('export with split transactions', () => {
   it('preserves splits[] verbatim in the data.json payload', () => {
     const txns = [{
       id: 't1', accountId: 'a_chk', date: '2026-05-20', amount: -180,
-      categoryId: null, description: 'Costco', payee: 'Costco', checkNumber: null, transferId: null,
+      categoryId: null, description: 'Costco', payeeId: 'p_costco', checkNumber: null, transferId: null,
       splits: [
         { id: 's1', amount: -100, categoryId: 'c_shop', description: 'Groceries' },
         { id: 's2', amount:  -80, categoryId: 'c_shop', description: 'Soap' },
@@ -156,5 +156,35 @@ describe('templates in the archive', () => {
     // Legacy archive without templates → field defaults to [].
     const legacy = JSON.parse(buildDataJson([], [], [], [], 4, '0.0.0', new Date('2026-06-15')));
     expect(legacy.templates ?? []).toEqual([]);
+  });
+});
+
+describe('archive v6 payees', () => {
+  const payees = [{ id: 'p1', name: 'Costco', defaultCategoryId: null, defaultSubcategoryId: null }];
+  const payeesById = new Map(payees.map(p => [p.id, p]));
+  const v6Accounts = [{ id: 'a1', name: 'Chase' }];
+  const v6Txns = [{ id: 't1', accountId: 'a1', date: '2026-01-05', amount: -10, categoryId: 'c1', description: 'run', payeeId: 'p1', checkNumber: null, transferId: null }];
+
+  it('buildDataJson includes payees', () => {
+    const data = JSON.parse(buildDataJson(v6Accounts, v6Txns, [], [], 6, '1.0.0', new Date('2026-01-02T00:00:00Z'), null, null, payees));
+    expect(data.schemaVersion).toBe(6);
+    expect(data.payees).toEqual(payees);
+  });
+
+  it('buildDataJson defaults payees to [] when omitted', () => {
+    const data = JSON.parse(buildDataJson([], [], [], [], 6, '1.0.0', new Date('2026-01-02T00:00:00Z')));
+    expect(data.payees).toEqual([]);
+  });
+
+  it('buildTransactionsCsv resolves the payee column to the entity name', () => {
+    const csv = buildTransactionsCsv(v6Accounts, v6Txns, new Map(), payeesById);
+    const dataRow = csv.split('\n')[1];
+    expect(dataRow).toContain('Costco');
+  });
+
+  it('buildArchive round-trips payees through parseArchive', () => {
+    const bytes = buildArchive({ accounts: v6Accounts, transactions: v6Txns, categories: [], accountTypes: [], schemaVersion: 6, appVersion: '1', now: new Date('2026-01-02T00:00:00Z'), payees });
+    const { data } = parseArchive(bytes);
+    expect(data.payees).toEqual(payees);
   });
 });
