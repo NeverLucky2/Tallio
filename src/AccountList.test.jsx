@@ -147,4 +147,24 @@ describe('AccountList — zero / paid-off balance', () => {
     expect(bal.className).toMatch(/neg/);
     expect(bal.className).not.toMatch(/zero/);
   });
+
+  it('shows "You owe" as green "$0.00" when every liability is paid off', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: 0 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const owed = screen.getByText(/You owe/i).parentElement.querySelector('b');
+    expect(owed.textContent).toBe('$0.00');
+    expect(owed.className).not.toMatch(/neg/);
+    expect(owed.className).toMatch(/zero/);
+  });
+
+  it('still shows "You owe" as red when there is a real balance owed', () => {
+    const accts = [{ id: 'a_cc', name: 'Mastercard', type: 'credit_card', icon: '💳', openingBalance: -500 }];
+    const { container } = render(<AccountList accounts={accts} transactions={[]} selectedId={null}
+      onSelect={() => {}} onEditAccount={() => {}} onAddAccount={() => {}} />);
+    const owed = screen.getByText(/You owe/i).parentElement.querySelector('b');
+    expect(owed.textContent).toBe('$500.00');
+    expect(owed.className).toMatch(/neg/);
+    expect(owed.className).not.toMatch(/zero/);
+  });
 });

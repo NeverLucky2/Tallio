@@ -46,7 +46,7 @@ export default function AccountList({ accounts, transactions, types = DEFAULT_AC
           <span>Cash &amp; investments</span><span className="networth-lead" aria-hidden="true" /><b>{fmt(totals.assets)}</b>
         </div>
         <div className="networth-pair">
-          <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className="neg">{fmt(totals.owed)}</b>
+          <span>You owe</span><span className="networth-lead" aria-hidden="true" /><b className={totals.owed < 0.005 ? 'zero' : 'neg'}>{fmt(totals.owed)}</b>
         </div>
         {hasHistory && (
           <div className="networth-spark"><NetWorthSpark series={series} /></div>
