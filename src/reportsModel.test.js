@@ -220,7 +220,7 @@ describe('netWorthByMonth', () => {
   });
 });
 
-import { recurringCharges, findDuplicates, flattenForReports } from './reportsModel.js';
+import { recurringCharges, findDuplicates } from './reportsModel.js';
 
 describe('recurringCharges', () => {
   const cats3 = new Map([['exp', { flow: 'expense' }], ['inc', { flow: 'income' }]]);
