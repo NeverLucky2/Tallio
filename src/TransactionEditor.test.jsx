@@ -48,7 +48,7 @@ describe('TransactionEditor', () => {
   });
 
   it('editing an existing transaction shows delete', async () => {
-    const { onDelete } = setup({ transaction: { id: 't1', accountId: 'a1', date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payee: null, checkNumber: null, transferId: null } });
+    const { onDelete } = setup({ transaction: { id: 't1', accountId: 'a1', date: '2026-05-05', amount: -96.20, categoryId: 'c_shop', description: 'Walmart', payeeId: null, checkNumber: null, transferId: null } });
     await userEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('t1');
   });
@@ -112,7 +112,7 @@ describe('TransactionEditor split wire-up', () => {
   it('Unsplit on a committed split collapses to a single category and saves without splits', async () => {
     const { onSave } = setupSplit({
       id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
-      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
+      categoryId: 'c_pay', description: 'Costco', payeeId: null,
       splits: [
         { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
@@ -131,7 +131,7 @@ describe('TransactionEditor split wire-up', () => {
   it('an existing split transaction shows the summary chip AND keeps the editable category field', () => {
     setupSplit({
       id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
-      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
+      categoryId: 'c_pay', description: 'Costco', payeeId: null,
       splits: [
         { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
@@ -146,7 +146,7 @@ describe('TransactionEditor split wire-up', () => {
   it('saving a split transaction keeps its main categoryId (not null)', async () => {
     const { onSave } = setupSplit({
       id: 't1', accountId: 'a_chase', date: '2026-05-20', amount: -180,
-      categoryId: 'c_pay', description: 'Costco', payee: 'Costco',
+      categoryId: 'c_pay', description: 'Costco', payeeId: null,
       splits: [
         { id: 's1', amount: -100, categoryId: 'c_shop', description: '' },
         { id: 's2', amount:  -80, categoryId: 'c_pay',  description: '' },
@@ -181,7 +181,7 @@ describe('TransactionEditor sub-category', () => {
   }
 
   it('shows the current sub on the trigger when editing', () => {
-    setupSub({ transaction: { id: 't1', accountId: 'a1', date: '2026-06-08', amount: -500, categoryId: 'tax', subId: 'fed', description: 'IRS', payee: null, checkNumber: null, transferId: null } });
+    setupSub({ transaction: { id: 't1', accountId: 'a1', date: '2026-06-08', amount: -500, categoryId: 'tax', subId: 'fed', description: 'IRS', payeeId: null, checkNumber: null, transferId: null } });
     expect(screen.getByRole('button', { name: /^category$/i }).textContent).toMatch(/Taxes › Federal Tax/);
   });
 
@@ -212,7 +212,7 @@ describe('TransactionEditor prefill + template', () => {
   it('prefill seeds a NEW transaction (no Delete, fields filled)', () => {
     const account = { id: 'a_bank', name: 'Chase', type: 'bank' };
     render(<TransactionEditor account={account} categories={[{ id: 'c_food', name: 'Food', flow: 'expense' }]}
-      accounts={[account]} prefill={{ accountId: 'a_bank', date: '2026-06-15', amount: -25, categoryId: 'c_food', description: 'Lunch', payee: 'Cafe', checkNumber: null, splits: null }}
+      accounts={[account]} prefill={{ accountId: 'a_bank', date: '2026-06-15', amount: -25, categoryId: 'c_food', description: 'Lunch', payeeId: null, checkNumber: null, splits: null }}
       onSave={() => {}} onClose={() => {}} />);
     expect(screen.getByText(/New transaction/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^delete$/i })).toBeNull();
@@ -251,5 +251,76 @@ describe('TransactionEditor — inline create category', () => {
     await userEvent.click(screen.getByRole('button', { name: /new category .*vet bills/i }));
     await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
     expect(onAddCategory).toHaveBeenCalledWith({ name: 'Vet bills', icon: '📋', flow: 'expense' });
+  });
+});
+
+describe('TransactionEditor payee picker + defaults', () => {
+  afterEach(() => cleanup());
+
+  const bankAccount = { id: 'a1', name: 'Chase', type: 'bank', openingBalance: 0 };
+  const pdCategories = [
+    { id: 'c-first', name: 'First', flow: 'expense', icon: '🧾' },
+    { id: 'c-groceries', name: 'Groceries', flow: 'expense', icon: '🛒' },
+  ];
+  const pdPayees = [{ id: 'p1', name: 'Costco', defaultCategoryId: 'c-groceries', defaultSubcategoryId: null }];
+  const pdPayeesById = new Map(pdPayees.map(p => [p.id, p]));
+  const base = {
+    account: bankAccount, categories: pdCategories, payees: pdPayees, payeesById: pdPayeesById,
+    onDelete: () => {}, onClose: () => {}, onUndo: () => {},
+  };
+
+  const pickPayee = async (name) => {
+    await userEvent.click(screen.getByRole('button', { name: 'Payee' }));
+    await userEvent.click(screen.getByRole('option', { name }));
+  };
+
+  it('renders a payee picker (not a text input) on bank accounts', () => {
+    render(<TransactionEditor {...base} onSave={() => {}} transaction={null} />);
+    const trigger = screen.getByRole('button', { name: 'Payee' });
+    expect(trigger.getAttribute('aria-haspopup')).toBe('listbox');
+  });
+
+  it('saves payeeId from the picker selection and auto-fills the default category on a NEW entry', async () => {
+    const onSave = vi.fn();
+    render(<TransactionEditor {...base} onSave={onSave} transaction={null} />);
+    await pickPayee('Costco');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.payeeId).toBe('p1');
+    expect('payee' in saved).toBe(false);
+    expect(saved.categoryId).toBe('c-groceries'); // untouched seed → default applied
+  });
+
+  it('does NOT auto-fill after the user explicitly chose a category', async () => {
+    const onSave = vi.fn();
+    render(<TransactionEditor {...base} onSave={onSave} transaction={null} />);
+    await userEvent.click(screen.getByRole('button', { name: /^category$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /First/ }));
+    await pickPayee('Costco');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    expect(onSave.mock.calls[0][0].categoryId).toBe('c-first');
+  });
+
+  it('does NOT auto-fill when editing an existing transaction', async () => {
+    const onSave = vi.fn();
+    const txn = { id: 't1', accountId: 'a1', date: '2026-01-05', amount: -10, categoryId: 'c-first', description: '', payeeId: null, checkNumber: null, transferId: null };
+    render(<TransactionEditor {...base} onSave={onSave} transaction={txn} />);
+    await pickPayee('Costco');
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.payeeId).toBe('p1');
+    expect(saved.categoryId).toBe('c-first');
+  });
+
+  it('clearing the payee saves null without touching the category', async () => {
+    const onSave = vi.fn();
+    const txn = { id: 't1', accountId: 'a1', date: '2026-01-05', amount: -10, categoryId: 'c-first', description: '', payeeId: 'p1', checkNumber: null, transferId: null };
+    render(<TransactionEditor {...base} onSave={onSave} transaction={txn} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Payee' }));
+    await userEvent.click(screen.getByRole('option', { name: /No payee/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.payeeId).toBeNull();
+    expect(saved.categoryId).toBe('c-first');
   });
 });

@@ -735,6 +735,9 @@ function Tallio() {
           categories={cats.categories}
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
+          payees={payees.payees}
+          payeesById={payees.payeesById}
+          onCreatePayee={(name) => { pushHistory(); return payees.addPayee(name); }}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
           onSaveAsTemplate={requestSaveTemplate}
           onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
