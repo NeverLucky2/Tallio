@@ -296,6 +296,9 @@ function Tallio() {
 
   const fileInputRef = useRef(null);
   const importInputRef = useRef(null);
+  const scanAbortRef = useRef(null);
+  const scanCancelledRef = useRef(false);
+  const cancelScan = () => { scanCancelledRef.current = true; scanAbortRef.current?.abort(); };
 
   const openSettings = (banner = null) => {
     setSettingsBanner(banner);
@@ -497,14 +500,20 @@ function Tallio() {
         : 'Add an Anthropic API key to scan bills.');
       return false;
     }
+    scanCancelledRef.current = false;
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
     setIsProcessing(true);
-    setProcessingStatus('Reading bill…');
+    setProcessingStatus('Reading bill… multi-page PDFs can take up to a minute');
     try {
-      const { vendor, month, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model });
+      const { vendor, month, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model, signal: controller.signal });
       setPendingScan({ vendor, month, items, source });
     } catch (err) {
-      setMigrationBanner({ message: `Scan failed: ${err.message || 'extraction error'}.`, recovered: false });
+      if (!scanCancelledRef.current && err?.name !== 'APIUserAbortError') {
+        setMigrationBanner({ message: `Scan failed: ${err.message || 'extraction error'}.`, recovered: false });
+      }
     } finally {
+      scanAbortRef.current = null;
       setIsProcessing(false); setProcessingStatus('');
     }
     return true;
@@ -649,7 +658,11 @@ function Tallio() {
 
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
-        <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
+        <div className="processing-overlay">
+          <div className="processing-spinner" />
+          <p className="processing-label">{processingStatus || 'Processing...'}</p>
+          <button type="button" className="btn processing-cancel" onClick={cancelScan}>Cancel</button>
+        </div>
       )}
 
       {pendingScan && (

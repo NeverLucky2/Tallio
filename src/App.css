@@ -1728,6 +1728,8 @@
   margin: 0;
 }
 
+.processing-cancel { margin-top: 14px; }
+
 /* ---- Save-as-template dialog ---- */
 .dialog-card-sm { max-width: 380px; }
 
