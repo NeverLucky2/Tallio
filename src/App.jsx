@@ -30,6 +30,7 @@ import AccountList from './AccountList.jsx';
 import Register from './Register.jsx';
 import TransactionEditor from './TransactionEditor.jsx';
 import TransferEditor from './TransferEditor.jsx';
+import ScanReview from './ScanReview.jsx';
 import TemplateNameDialog from './TemplateNameDialog.jsx';
 import useClipboard from './useClipboard.js';
 import useTemplates from './useTemplates.js';
@@ -288,6 +289,7 @@ function Tallio() {
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [pendingScan, setPendingScan] = useState(null); // { vendor, month, items, source } | null
   const [showPairing, setShowPairing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsBanner, setSettingsBanner] = useState(null);
@@ -498,31 +500,34 @@ function Tallio() {
     setIsProcessing(true);
     setProcessingStatus('Reading bill…');
     try {
-      const { vendor, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model });
-      pushHistory();
-      // Target account: the selected one, else create an untyped account named after the vendor.
-      let targetId = selectedAccountId;
-      if (!targetId) targetId = ledger.addAccount({ name: vendor || 'Scanned account', type: 'untyped', icon: '🏦' });
-      for (const it of items) {
-        const ac = cats.autoCategorize(it.description);
-        const flow = (categoriesById.get(ac.categoryId)?.flow) || 'expense';
-        const sign = flow === 'income' ? 1 : -1;
-        ledger.addTransaction({
-          accountId: targetId,
-          date: it.date || new Date().toISOString().slice(0, 10),
-          amount: sign * (Number.isFinite(it.amount) ? it.amount : 0),
-          categoryId: ac.categoryId,
-          ...(ac.subId ? { subId: ac.subId } : {}),
-          description: it.description,
-        });
-      }
-      setSelectedAccountId(targetId);
+      const { vendor, month, items } = await extractBillFromImage(imageData, { apiKey: settings.apiKey, model: settings.model });
+      setPendingScan({ vendor, month, items, source });
     } catch (err) {
       setMigrationBanner({ message: `Scan failed: ${err.message || 'extraction error'}.`, recovered: false });
     } finally {
       setIsProcessing(false); setProcessingStatus('');
     }
     return true;
+  };
+
+  const applyScan = (accountId) => {
+    if (!pendingScan) return;
+    pushHistory();
+    for (const it of pendingScan.items) {
+      const ac = cats.autoCategorize(it.description);
+      const flow = (categoriesById.get(ac.categoryId)?.flow) || 'expense';
+      const sign = flow === 'income' ? 1 : -1;
+      ledger.addTransaction({
+        accountId,
+        date: it.date || new Date().toISOString().slice(0, 10),
+        amount: sign * (Number.isFinite(it.amount) ? it.amount : 0),
+        categoryId: ac.categoryId,
+        ...(ac.subId ? { subId: ac.subId } : {}),
+        description: it.description,
+      });
+    }
+    setSelectedAccountId(accountId);
+    setPendingScan(null);
   };
 
   useEffect(() => {
@@ -645,6 +650,19 @@ function Tallio() {
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
         <div className="processing-overlay"><div className="processing-spinner" /><p className="processing-label">{processingStatus || 'Processing...'}</p></div>
+      )}
+
+      {pendingScan && (
+        <ScanReview
+          scan={pendingScan}
+          accounts={ledger.accounts}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
+          onConfirm={applyScan}
+          onCancel={() => setPendingScan(null)}
+          onCreateAccount={(p) => ledger.addAccount(p)}
+          onAddType={accountTypes.addType}
+        />
       )}
       {showPairing && <PairingPanel peer={desktopPeer} onClose={() => setShowPairing(false)} />}
       {showPhotoUpload && (
@@ -769,7 +787,7 @@ function Tallio() {
             onChange={(e) => { handleImportFile(e.target.files?.[0]); e.target.value = ''; }}
             style={{ display: 'none' }}
           />
-          <button onClick={() => fileInputRef.current?.click()} className="btn">↑ Upload</button>
+          <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">↑ Upload</button>
           <button onClick={openPairing} className={`btn${desktopPeer.status === 'paired' ? ' btn-paired' : ''}`}>{desktopPeer.status === 'paired' ? '✓ Phone linked' : '⌘ Pair phone'}</button>
           <UndoButton count={history.length} onUndo={undo} />
           <button onClick={() => setShowCamera(true)} className="btn btn-primary">◉ Scan bill</button>
