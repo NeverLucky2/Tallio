@@ -2753,6 +2753,24 @@
 .manage-list-subrow.active { background: var(--bg-card); border-color: var(--border-strong); color: var(--text); }
 .manage-list-subname { flex: 1; }
 
+/* Manage Payees: single full-width list; rows reuse manage-list-row styling. */
+.manage-payees-list { width: 100%; max-width: 640px; }
+.manage-payees-items { list-style: none; margin: 10px 0 0; padding: 0; }
+.manage-payee-row { cursor: default; flex-wrap: wrap; }
+.manage-payee-chip {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.manage-payee-rename { display: flex; align-items: center; gap: 7px; flex: 1; flex-wrap: wrap; }
+.manage-payee-rename .input { flex: 1; min-width: 140px; }
+.manage-payee-error { color: var(--red, #DC2626); font-size: 11px; }
+.manage-payee-merge-note { color: var(--text-muted); font-size: 12px; margin: 4px 0 12px; }
+
 .manage-editor {
   flex: 1;
   padding: 21px;

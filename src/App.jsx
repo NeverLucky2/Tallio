@@ -39,6 +39,7 @@ import { draftFromTransaction, draftFromTransfer, instantiateTransaction, instan
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import ManagePayeesScreen from './ManagePayeesScreen.jsx';
 import UndoButton from './UndoButton.jsx';
 import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
@@ -632,6 +633,37 @@ function Tallio() {
         />
       )}
 
+      {screen === 'manage-payees' && (
+        <ManagePayeesScreen
+          payees={payees.payees}
+          transactions={ledger.transactions}
+          categories={cats.categories}
+          onClose={() => setScreen('main')}
+          onRename={(id, name) => {
+            // Validate BEFORE pushing history so a rejected rename isn't an undo step.
+            const trimmed = (name || '').trim();
+            if (!trimmed) return { ok: false, reason: 'empty' };
+            const conflict = payees.payees.find(p => p.id !== id && p.name.trim().toLowerCase() === trimmed.toLowerCase());
+            if (conflict) return { ok: false, reason: 'duplicate', conflictId: conflict.id };
+            pushHistory();
+            return payees.renamePayee(id, trimmed);
+          }}
+          onSetDefaultCategory={(id, categoryId, subId) => { pushHistory(); payees.setDefaultCategory(id, categoryId, subId); }}
+          onMerge={(sourceId, targetId) => {
+            pushHistory(); // one step: reassignment + entity removal undo together
+            ledger.reassignPayee(sourceId, targetId);
+            payees.mergePayee(sourceId, targetId);
+          }}
+          onDelete={(id) => {
+            pushHistory(); // one step: clearing + entity removal undo together
+            ledger.clearPayee(id);
+            payees.deletePayee(id);
+          }}
+          onUndo={undo}
+          undoCount={history.length}
+        />
+      )}
+
       {screen === 'account-types' && (
         <AccountTypesScreen
           types={accountTypes.types}
@@ -806,6 +838,7 @@ function Tallio() {
           <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('manage-payees')}>Payees</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account-types</button>
         </nav>
         <div className="header-actions">
