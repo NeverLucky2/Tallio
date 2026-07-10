@@ -5,9 +5,9 @@ import UndoButton from './UndoButton.jsx';
 import IconPicker from './IconPicker.jsx';
 import QuickCreateAccountType from './QuickCreateAccountType.jsx';
 
-export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose, onUndo, undoCount = 0, onAddType = null }) {
+export default function AccountEditor({ account, types = DEFAULT_ACCOUNT_TYPES, onSave, onDelete, onClose, onUndo, undoCount = 0, onAddType = null, initialName = '' }) {
   const isEdit = !!account;
-  const [name, setName] = useState(account?.name || '');
+  const [name, setName] = useState(account?.name || initialName || '');
   const [type, setType] = useState(account?.type || 'untyped');
   const [icon, setIcon] = useState(account?.icon || '🏦');
   const [openingBalance, setOpeningBalance] = useState(account?.openingBalance ?? 0);

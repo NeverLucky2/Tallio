@@ -39,6 +39,12 @@ describe('AccountEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith('a1');
   });
+
+  it('prefills the name for a new account from initialName', () => {
+    render(<AccountEditor account={null} initialName="Chase Sapphire" onSave={() => {}} onDelete={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole('heading', { name: /new account/i })).toBeTruthy(); // still "new", not "edit"
+    expect(screen.getByLabelText('Name').value).toBe('Chase Sapphire');
+  });
 });
 
 describe('AccountEditor — inline create type', () => {
