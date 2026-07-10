@@ -7,7 +7,7 @@ beforeEach(() => localStorage.clear());
 
 const seed = {
   accounts: [{ id: 'a1', name: 'Chase', type: 'bank', icon: '🏦', openingBalance: 100 }],
-  transactions: [{ id: 't1', accountId: 'a1', date: '2026-05-01', amount: 50, categoryId: 'c', description: 'x', payee: null, checkNumber: null, transferId: null }],
+  transactions: [{ id: 't1', accountId: 'a1', date: '2026-05-01', amount: 50, categoryId: 'c', description: 'x', payeeId: null, checkNumber: null, transferId: null }],
 };
 
 describe('useLedger', () => {
@@ -157,7 +157,7 @@ describe('addTransaction with splits', () => {
     let id;
     act(() => {
       id = result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco', description: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payeeId: 'p_costco', description: 'Costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
           { id: 's2', amount:  -80, categoryId: 'c_household', description: 'Soap' },
@@ -173,7 +173,7 @@ describe('addTransaction with splits', () => {
     const { result } = renderHook(() => useLedger(seed));
     act(() => {
       result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payeeId: 'p_costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
           { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
@@ -220,7 +220,7 @@ describe('updateTransaction with splits', () => {
     let id;
     act(() => {
       id = result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payeeId: 'p_costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
           { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
@@ -305,7 +305,7 @@ describe('updateTransaction with splits', () => {
     let id;
     act(() => {
       id = result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -130, payee: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -130, payeeId: 'p_costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c_grocery', description: 'Groceries' },
           { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
@@ -355,7 +355,7 @@ describe('deleteTransaction with splits', () => {
     let id;
     act(() => {
       id = result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payeeId: 'p_costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c1', description: '' },
           { id: 's2', amount:  -30, categoryId: 'c1', description: '' },
@@ -478,7 +478,7 @@ describe('deleteAccount with split-line counterparts on other accounts', () => {
     let parentId;
     act(() => {
       parentId = result.current.addTransaction({
-        accountId: 'a_chase', date: '2026-05-20', amount: -180, payee: 'Costco',
+        accountId: 'a_chase', date: '2026-05-20', amount: -180, payeeId: 'p_costco',
         splits: [
           { id: 's1', amount: -100, categoryId: 'c_grocery',   description: 'Groceries' },
           { id: 's2', amount:  -30, categoryId: 'c_household', description: 'Soap' },
@@ -535,5 +535,51 @@ describe('subId persistence', () => {
     const split = txns.find(t => Array.isArray(t.splits));
     expect(split.splits.find(s => s.id === 's1').subId).toBeUndefined();
     expect(split.splits.find(s => s.id === 's2').subId).toBe('state'); // untouched
+  });
+});
+
+describe('useLedger — payee entities', () => {
+  it('stores payeeId on add, and split-transfer counterparts inherit it', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    act(() => { result.current.addAccount({ name: 'Savings', type: 'bank' }); });
+    const target = result.current.accounts.find(a => a.name === 'Savings');
+    let tid;
+    act(() => {
+      tid = result.current.addTransaction(
+        { accountId: 'a1', date: '2026-06-01', amount: -100, categoryId: 'c', description: '', payeeId: 'p1',
+          splits: [
+            { id: 's1', amount: -60, categoryId: 'c', description: '' },
+            { id: 's2', amount: -40, description: '', transferId: 'tr_x' },
+          ] },
+        { splitTargets: new Map([['s2', target.id]]) },
+      );
+    });
+    const parent = result.current.transactions.find(t => t.id === tid);
+    expect(parent.payeeId).toBe('p1');
+    expect('payee' in parent).toBe(false);
+    const counterpart = result.current.transactions.find(t => t.transferId === 'tr_x' && t.id !== tid);
+    expect(counterpart.payeeId).toBe('p1');
+  });
+
+  it('addTransfer legs carry payeeId null', () => {
+    const { result } = renderHook(() => useLedger(seed));
+    act(() => { result.current.addAccount({ name: 'Savings', type: 'bank' }); });
+    const target = result.current.accounts.find(a => a.name === 'Savings');
+    act(() => { result.current.addTransfer({ fromId: 'a1', toId: target.id, amount: 50, date: '2026-06-02' }); });
+    const legs = result.current.transactions.filter(t => t.transferId);
+    expect(legs).toHaveLength(2);
+    expect(legs.every(l => l.payeeId === null)).toBe(true);
+  });
+
+  it('clearPayee nulls payeeId only on matching transactions; reassignPayee moves them', () => {
+    const withPayees = { accounts: seed.accounts, transactions: [
+      { id: 't1', accountId: 'a1', date: '2026-05-01', amount: -5, categoryId: 'c', description: '', payeeId: 'p1', checkNumber: null, transferId: null },
+      { id: 't2', accountId: 'a1', date: '2026-05-02', amount: -6, categoryId: 'c', description: '', payeeId: 'p2', checkNumber: null, transferId: null },
+    ] };
+    const { result } = renderHook(() => useLedger(withPayees));
+    act(() => { result.current.reassignPayee('p1', 'p2'); });
+    expect(result.current.transactions.map(t => t.payeeId)).toEqual(['p2', 'p2']);
+    act(() => { result.current.clearPayee('p2'); });
+    expect(result.current.transactions.map(t => t.payeeId)).toEqual([null, null]);
   });
 });
