@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+const { createMock } = vi.hoisted(() => ({ createMock: vi.fn() }));
+vi.mock('@anthropic-ai/sdk', () => ({ default: class { messages = { create: createMock }; } }));
+
 import {
   parseDataUrl,
   stripMarkdownFences,
   validateResponse,
   mapError,
+  extractBillFromImage,
 } from './billExtractor.js';
 
 describe('parseDataUrl', () => {
@@ -285,5 +290,14 @@ describe('mapError', () => {
   it('falls back to generic message for unknown errors', () => {
     const err = { message: 'something' };
     expect(mapError(err)).toMatch(/couldn't|could not/i);
+  });
+});
+
+describe('extractBillFromImage signal', () => {
+  it('forwards the abort signal to messages.create', async () => {
+    createMock.mockResolvedValue({ content: [{ type: 'text', text: '{"vendor":null,"month":null,"items":[]}' }] });
+    const controller = new AbortController();
+    await extractBillFromImage('data:image/png;base64,QUJD', { apiKey: 'sk-ant-x', model: 'm', signal: controller.signal });
+    expect(createMock).toHaveBeenCalledWith(expect.any(Object), { signal: controller.signal });
   });
 });

@@ -103,7 +103,7 @@ export function mapError(err) {
   return "Couldn't read the receipt. Try a clearer photo.";
 }
 
-export async function extractBillFromImage(imageDataUrl, { apiKey, model }) {
+export async function extractBillFromImage(imageDataUrl, { apiKey, model, signal } = {}) {
   const { mimeType, base64 } = parseDataUrl(imageDataUrl);
   const isPdf = mimeType === 'application/pdf';
 
@@ -130,7 +130,7 @@ export async function extractBillFromImage(imageDataUrl, { apiKey, model }) {
           content: [sourceBlock, { type: 'text', text: PROMPT }],
         },
       ],
-    });
+    }, { signal });
   } catch (err) {
     throw new Error(mapError(err), { cause: err });
   }
