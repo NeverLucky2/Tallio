@@ -16,6 +16,9 @@ describe('assertSupportedSchema', () => {
     expect(() => assertSupportedSchema({ data: { schemaVersion: SUPPORTED_SCHEMA_VERSION + 1 } })).toThrow(/newer version/i);
   });
   it('accepts the current format', () => {
+    expect(assertSupportedSchema({ data: { schemaVersion: 6 } })).toBe(6);
+  });
+  it('still accepts the pre-payees v5 format', () => {
     expect(assertSupportedSchema({ data: { schemaVersion: 5 } })).toBe(5);
   });
 });
@@ -64,5 +67,26 @@ describe('restoreArchiveToStorage', () => {
 
   it('throws on a non-Tallio blob', async () => {
     await expect(restoreArchiveToStorage({ data: null }, { storage, imageStore })).rejects.toThrow(/valid Tallio backup/i);
+  });
+
+  it('accepts v6: writes tallio-payees and stamps storage version 5', async () => {
+    await restoreArchiveToStorage({ data: {
+      schemaVersion: 6, accounts: [], transactions: [], categories: [], accountTypes: [], templates: [],
+      reportAcks: { subscriptions: {}, dismissedDuplicates: [] },
+      payees: [{ id: 'p1', name: 'Costco', defaultCategoryId: null, defaultSubcategoryId: null }],
+    }, appearance: null, images: [] }, { storage, imageStore });
+    expect(JSON.parse(storage.getItem('tallio-payees'))).toHaveLength(1);
+    expect(storage.getItem('tallio-schema-version')).toBe('5');
+  });
+
+  it('restoring a v5 archive clears tallio-payees and drops storage version to 4 (migration re-runs on reload)', async () => {
+    storage.setItem('tallio-payees', '[{"id":"stale"}]');
+    storage.setItem('tallio-schema-version', '5');
+    await restoreArchiveToStorage({ data: {
+      schemaVersion: 5, accounts: [], transactions: [], categories: [], accountTypes: [], templates: [],
+      reportAcks: { subscriptions: {}, dismissedDuplicates: [] },
+    }, appearance: null, images: [] }, { storage, imageStore });
+    expect(storage.getItem('tallio-payees')).toBeNull();
+    expect(storage.getItem('tallio-schema-version')).toBe('4');
   });
 });

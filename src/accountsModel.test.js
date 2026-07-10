@@ -103,9 +103,9 @@ import { filterTransactions } from './accountsModel.js';
 describe('filterTransactions', () => {
   const catsById = new Map([['c_util', { id: 'c_util', name: 'Utilities' }]]);
   const rows = [
-    { id: 'r1', date: '2026-05-05', description: 'Walmart',  payee: '',        categoryId: 'c_shop', amount: -96.20 },
-    { id: 'r2', date: '2026-04-15', description: 'Electric', payee: 'ComEd',   categoryId: 'c_util', amount: -96.30 },
-    { id: 'r3', date: '2026-04-02', description: 'Netflix',  payee: '',        categoryId: 'c_sub',  amount: -15.99 },
+    { id: 'r1', date: '2026-05-05', description: 'Walmart',  payeeName: '',        categoryId: 'c_shop', amount: -96.20 },
+    { id: 'r2', date: '2026-04-15', description: 'Electric', payeeName: 'ComEd',   categoryId: 'c_util', amount: -96.30 },
+    { id: 'r3', date: '2026-04-02', description: 'Netflix',  payeeName: '',        categoryId: 'c_sub',  amount: -15.99 },
   ];
 
   it('no filters → all rows', () => {
@@ -134,9 +134,9 @@ describe('sortRows', () => {
   ]);
   // computeRegister output shape: chronological order, each with a running balance.
   const rows = [
-    { id: 'r1', date: '2026-04-02', description: 'Netflix', payee: '',      checkNumber: '',     categoryId: 'c_z', amount: -15.99, balance: 84.01 },
-    { id: 'r2', date: '2026-04-15', description: 'Apple',   payee: 'ComEd', checkNumber: '1042', categoryId: 'c_a', amount: -96.30, balance: -12.29 },
-    { id: 'r3', date: '2026-05-01', description: 'Zelle',   payee: '',      checkNumber: '',     categoryId: 'c_a', amount: 3200,   balance: 3187.71 },
+    { id: 'r1', date: '2026-04-02', description: 'Netflix', payeeName: '',      checkNumber: '',     categoryId: 'c_z', amount: -15.99, balance: 84.01 },
+    { id: 'r2', date: '2026-04-15', description: 'Apple',   payeeName: 'ComEd', checkNumber: '1042', categoryId: 'c_a', amount: -96.30, balance: -12.29 },
+    { id: 'r3', date: '2026-05-01', description: 'Zelle',   payeeName: '',      checkNumber: '',     categoryId: 'c_a', amount: 3200,   balance: 3187.71 },
   ];
 
   it('date descending is the default and reverses chronological order', () => {
@@ -548,7 +548,7 @@ describe('filterTransactions with splits', () => {
   ]);
   const split = {
     id: 't1', accountId: 'a1', date: '2026-05-20', amount: -4300,
-    payee: 'Costco', description: 'Costco big shop', categoryId: null,
+    payeeName: 'Costco', description: 'Costco big shop', categoryId: null,
     splits: [
       { id: 's1', amount:  -180, categoryId: 'c_grocery', description: 'Weekly groceries' },
       { id: 's2', amount: -4120, categoryId: 'c_solar',   description: '5kW solar panel kit' },
@@ -556,7 +556,7 @@ describe('filterTransactions with splits', () => {
   };
   const other = {
     id: 't2', accountId: 'a1', date: '2026-05-19', amount: -22,
-    payee: 'Starbucks', description: 'Coffee', categoryId: 'c_grocery',
+    payeeName: 'Starbucks', description: 'Coffee', categoryId: 'c_grocery',
   };
 
   it('search term matches a split line description', () => {
@@ -683,5 +683,30 @@ describe('netWorthSeries', () => {
 
   it('is safe with no transactions', () => {
     expect(netWorthSeries(accounts, [], typesById, 4, new Date('2026-06-15'))).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('payee name resolution in the register', () => {
+  const account = { id: 'a1', name: 'Chase', type: 'bank', openingBalance: 0 };
+  const payeesById = new Map([['p1', { id: 'p1', name: 'Costco' }]]);
+  const txns = [
+    { id: 't1', accountId: 'a1', date: '2026-01-05', amount: -10, categoryId: 'c1', description: 'run', payeeId: 'p1', checkNumber: null, transferId: null },
+    { id: 't2', accountId: 'a1', date: '2026-01-06', amount: -20, categoryId: 'c1', description: 'atm', payeeId: null, checkNumber: null, transferId: null },
+  ];
+
+  it('computeRegister decorates rows with payeeName', () => {
+    const rows = computeRegister(account, txns, payeesById);
+    expect(rows.find(r => r.id === 't1').payeeName).toBe('Costco');
+    expect(rows.find(r => r.id === 't2').payeeName).toBe('');
+  });
+
+  it('filterTransactions matches on the resolved payee name', () => {
+    const rows = computeRegister(account, txns, payeesById);
+    expect(filterTransactions(rows, { search: 'costco' }).map(r => r.id)).toEqual(['t1']);
+  });
+
+  it('sortRows key "payee" orders by resolved name, empty last on asc', () => {
+    const rows = computeRegister(account, txns, payeesById);
+    expect(sortRows(rows, { key: 'payee', dir: 'asc' }).map(r => r.id)).toEqual(['t1', 't2']);
   });
 });

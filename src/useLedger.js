@@ -87,7 +87,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       categoryId: txn.categoryId,
       ...(txn.subId ? { subId: txn.subId } : {}),
       description: txn.description || '',
-      payee: txn.payee ?? null,
+      payeeId: txn.payeeId ?? null,
       checkNumber: txn.checkNumber ?? null,
       transferId: txn.transferId ?? null,
       ...(splits ? { splits } : {}),
@@ -109,7 +109,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           amount: -1 * s.amount,
           categoryId: null,
           description: s.description || '',
-          payee: parent.payee,
+          payeeId: parent.payeeId,
           checkNumber: null,
           transferId: s.transferId,
         });
@@ -160,7 +160,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
           amount: -1 * nextLine.amount,
           categoryId: null,
           description: nextLine.description || '',
-          payee: next.payee ?? null,
+          payeeId: next.payeeId ?? null,
           checkNumber: null,
           transferId: nextLine.transferId,
         }];
@@ -180,7 +180,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
             amount: -1 * nextLine.amount,
             description: nextLine.description || '',
             date: next.date,
-            payee: next.payee ?? null,
+            payeeId: next.payeeId ?? null,
           };
         });
       }
@@ -210,7 +210,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     const transferId = nanoid(8);
     const mag = Math.abs(Number(amount)) || 0;
     const note = description || '';
-    const base = { date, categoryId: categoryId ?? null, description: note, payee: null, checkNumber: null, transferId };
+    const base = { date, categoryId: categoryId ?? null, description: note, payeeId: null, checkNumber: null, transferId };
     const sourceSplits = Array.isArray(splits) && splits.length > 0
       ? splits.map(s => ({
           id: s.id || nanoid(8),
@@ -262,13 +262,13 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
       const toLegId = legs[1] ? legs[1].id : null;
       return prev.map(t => {
         if (t.id === fromLegId) {
-          const base = { ...t, accountId: fromId, amount: fromAmount, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
+          const base = { ...t, accountId: fromId, amount: fromAmount, date, categoryId: cid, description: note, payeeId: null, checkNumber: null, transferId };
           if (sourceSplits) base.splits = sourceSplits;
           else delete base.splits;
           return base;
         }
         if (toLegId && t.id === toLegId) {
-          return { ...t, accountId: toId, amount: toAmount, date, categoryId: cid, description: note, payee: null, checkNumber: null, transferId };
+          return { ...t, accountId: toId, amount: toAmount, date, categoryId: cid, description: note, payeeId: null, checkNumber: null, transferId };
         }
         return t;
       });
@@ -297,6 +297,18 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     }));
   }, []);
 
+  // Null out one payee across the ledger (used by App when deleting a payee).
+  const clearPayee = useCallback((payeeId) => {
+    if (!payeeId) return;
+    setTransactions(prev => prev.map(t => (t.payeeId === payeeId ? { ...t, payeeId: null } : t)));
+  }, []);
+
+  // Move every transaction from one payee to another (used by App when merging).
+  const reassignPayee = useCallback((fromId, toId) => {
+    if (!fromId || !toId || fromId === toId) return;
+    setTransactions(prev => prev.map(t => (t.payeeId === fromId ? { ...t, payeeId: toId } : t)));
+  }, []);
+
   const snapshot = useCallback(() => ({ accounts, transactions }), [accounts, transactions]);
   const restore = useCallback((snap) => {
     if (!snap) return;
@@ -311,7 +323,7 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
     addAccount, updateAccount, deleteAccount,
     addTransaction, updateTransaction, deleteTransaction,
     addTransfer, updateTransfer, deleteTransfer,
-    clearSubcategory,
+    clearSubcategory, clearPayee, reassignPayee,
     snapshot, restore,
     storageError, clearStorageError,
   };

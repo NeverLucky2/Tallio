@@ -33,7 +33,7 @@ const COLUMNS = {
   ],
 };
 
-export default function Register({ account, transactions, accounts = [], categories, categoriesById, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null, onCopyEntry = null, onDuplicateEntry = null, onSaveTemplateEntry = null, clipboard = null, onPaste = () => {}, onClearClipboard = () => {}, templates = [], onApplyTemplate = () => {}, onDeleteTemplate = () => {}, onAddCategory = null }) {
+export default function Register({ account, transactions, accounts = [], categories, categoriesById, payeesById = null, typesById, onEditTransaction, onAddTransaction, onTransfer = () => {}, onSelectAccount = () => {}, onEditAccount = null, onCopyEntry = null, onDuplicateEntry = null, onSaveTemplateEntry = null, clipboard = null, onPaste = () => {}, onClearClipboard = () => {}, templates = [], onApplyTemplate = () => {}, onDeleteTemplate = () => {}, onAddCategory = null }) {
   const [search, setSearch] = useState('');
   const [month, setMonth] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -46,10 +46,10 @@ export default function Register({ account, transactions, accounts = [], categor
   const columns = COLUMNS[layout] || COLUMNS.compact;
 
   const rows = useMemo(() => {
-    const computed = computeRegister(account, transactions);
+    const computed = computeRegister(account, transactions, payeesById);
     const filtered = filterTransactions(computed, { search, month: month || null, categoryId: categoryId || null }, categoriesById);
     return sortRows(filtered, sort, categoriesById);
-  }, [account, transactions, search, month, categoryId, categoriesById, sort]);
+  }, [account, transactions, payeesById, search, month, categoryId, categoriesById, sort]);
 
   const accountsById = useMemo(() => new Map((accounts || []).map(a => [a.id, a])), [accounts]);
 

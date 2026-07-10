@@ -5,11 +5,12 @@ import { layoutFor, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
 import SplitsEditor from './SplitsEditor.jsx';
 import UndoButton from './UndoButton.jsx';
 import CategoryPicker from './CategoryPicker.jsx';
+import PayeePicker from './PayeePicker.jsx';
 import { makeTransactionDraft } from './entryDrafts.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, prefill = null, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null, onAddSub = null }) {
+export default function TransactionEditor({ account, transaction, categories, accounts = [], typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, prefill = null, onSave, onDelete, onClose, onUndo, undoCount = 0, onSaveAsTemplate = null, onAddCategory = null, onAddSub = null, payees = [], payeesById = null, onCreatePayee = null }) {
   const isEdit = !!transaction;
   const seed = transaction || prefill || null;
   const initialAmount = seed ? Math.abs(seed.amount) : '';
@@ -21,7 +22,10 @@ export default function TransactionEditor({ account, transaction, categories, ac
   const [direction, setDirection] = useState(initialDir);
   const [categoryId, setCategoryId] = useState(seed?.categoryId || (categories[0] && categories[0].id) || '');
   const [subId, setSubId] = useState(seed?.subId ?? null);
-  const [payee, setPayee] = useState(seed?.payee || '');
+  const [payeeId, setPayeeId] = useState(seed?.payeeId ?? null);
+  // Guard for payee-default auto-fill: a template prefill that names a category
+  // counts as a chosen category; the plain new-entry seed (categories[0]) does not.
+  const [categoryTouched, setCategoryTouched] = useState(isEdit || !!prefill?.categoryId);
   const [checkNumber, setCheckNumber] = useState(seed?.checkNumber || '');
   const [splits, setSplits] = useState(seed?.splits ?? null);
   const [splitTargets, setSplitTargets] = useState(prefill?.splitTargets instanceof Map ? prefill.splitTargets : new Map());
@@ -46,6 +50,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
 
   const onSplitsDone = ({ splits: nextSplits, splitTargets: nextTargets, categoryId: promotedCategoryId }) => {
     setPendingSeed(null);
+    setCategoryTouched(true); // splitting (or promoting back) is an explicit categorization act
     if (nextSplits === null) {
       setSplits(null);
       setSplitTargets(new Map());
@@ -55,6 +60,18 @@ export default function TransactionEditor({ account, transaction, categories, ac
       if (nextTargets) setSplitTargets(nextTargets);
     }
     setSplitsOpen(false);
+  };
+
+  // Picking a payee on a NEW entry pre-fills its default category — but only
+  // while the user hasn't explicitly chosen a category themselves.
+  const choosePayee = (id) => {
+    setPayeeId(id);
+    if (isEdit || categoryTouched || !id) return;
+    const p = payeesById && payeesById.get(id);
+    if (p && p.defaultCategoryId) {
+      setCategoryId(p.defaultCategoryId);
+      setSubId(p.defaultSubcategoryId || null);
+    }
   };
 
   const save = () => {
@@ -67,7 +84,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
       categoryId: categoryId || null,
       subId: subId || null, // explicit null so editing away a sub clears it (ledger drops null subId)
       description: description.trim(),
-      payee: isBank ? (payee.trim() || null) : null,
+      payeeId: isBank ? (payeeId || null) : null,
       checkNumber: isBank ? (checkNumber.trim() || null) : null,
       splits: hasSplits ? splits : null,
       ...(hasSplits ? { splitTargets } : {}),
@@ -78,7 +95,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
     description: description.trim(),
     amount: parentAmount,
     categoryId, subId,
-    payee: isBank ? (payee.trim() || null) : null,
+    payeeId: isBank ? (payeeId || null) : null,
     checkNumber: isBank ? (checkNumber.trim() || null) : null,
     splits: hasSplits ? splits : null,
   }, splitTargets);
@@ -98,9 +115,9 @@ export default function TransactionEditor({ account, transaction, categories, ac
 
         {isBank && (
           <>
-            <label className="field"><span>Payee</span>
-              <input type="text" aria-label="Payee" value={payee} onChange={(e) => setPayee(e.target.value)} className="input" />
-            </label>
+            <div className="field"><span>Payee</span>
+              <PayeePicker payees={payees} value={payeeId} onChange={choosePayee} onCreate={onCreatePayee} ariaLabel="Payee" />
+            </div>
             <label className="field"><span>Check #</span>
               <input type="text" aria-label="Check number" value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} className="input" />
             </label>
@@ -110,7 +127,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
         <div className="field">
           <span>Category</span>
           <CategoryPicker categories={categories} value={{ categoryId, subId }}
-            onChange={({ categoryId: c, subId: s }) => { setCategoryId(c); setSubId(s); }} ariaLabel="Category"
+            onChange={({ categoryId: c, subId: s }) => { setCategoryId(c); setSubId(s); setCategoryTouched(true); }} ariaLabel="Category"
             onCreateCategory={onAddCategory} onCreateSub={onAddSub}
             createFlow={direction === 'in' ? 'income' : 'expense'} />
           {hasSplits ? (
@@ -150,7 +167,7 @@ export default function TransactionEditor({ account, transaction, categories, ac
           <SplitsEditor
             parentAccountId={account.id}
             parentAmount={parentAmount}
-            parentPayee={payee}
+            parentPayee={payeesById?.get(payeeId)?.name || ''}
             parentDate={date}
             categories={categories}
             accounts={accounts}

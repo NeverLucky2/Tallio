@@ -201,6 +201,9 @@ export function netWorthByMonth(accounts, transactions, typesById, opts = {}, mo
 function normalizeLabel(s) {
   return (typeof s === 'string' ? s : '').toUpperCase().trim().replace(/\s+/g, ' ');
 }
+function payeeNameOf(t, payeesById) {
+  return (payeesById && t.payeeId && (payeesById.get(t.payeeId)?.name)) || '';
+}
 function monthsBetween(fromMonth, toMonth) {
   const [y1, m1] = fromMonth.split('-').map(n => parseInt(n, 10));
   const [y2, m2] = toMonth.split('-').map(n => parseInt(n, 10));
@@ -216,7 +219,7 @@ function mode(values) {
 
 // Repeating expense charges grouped by normalized payee/description, spanning ≥2 months.
 export function recurringCharges(transactions, categoriesById, opts = {}) {
-  const { now = new Date() } = opts;
+  const { now = new Date(), payeesById = null } = opts;
   const nowMonth = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
   const groups = new Map();
   for (const t of filterRows(transactions, opts)) {
@@ -232,14 +235,14 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
     if (isSplitParent ? !splitHasExpenseLine : (flowOf(t, categoriesById) !== 'expense')) continue;
     const date = typeof t.date === 'string' ? t.date : '';
     if (!DATE_RE.test(date)) continue;
-    const key = normalizeLabel(t.payee || t.description);
+    const key = normalizeLabel(payeeNameOf(t, payeesById) || t.description);
     if (!key) continue;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push({
       date, month: date.slice(0, 7),
       amount: -(Number.isFinite(t.amount) ? t.amount : 0),
       categoryId: t.categoryId,
-      label: (t.payee || t.description || '').trim(),
+      label: (payeeNameOf(t, payeesById) || t.description || '').trim(),
     });
   }
   const results = [];
@@ -273,13 +276,14 @@ export function recurringCharges(transactions, categoriesById, opts = {}) {
 // Likely dual charges: same account + date + amount + normalized label, ≥2 rows. Transfers excluded.
 export function findDuplicates(transactions, opts = {}) {
   const dismissed = opts.dismissed || null;
+  const payeesById = opts.payeesById || null;
   const groups = new Map();
   for (const t of filterRows(transactions, opts)) {
     if (t.transferId != null) continue;
     const date = typeof t.date === 'string' ? t.date : '';
     if (!DATE_RE.test(date)) continue;
     const amt = Number.isFinite(t.amount) ? Math.round(t.amount * 100) / 100 : 0;
-    const key = `${t.accountId}|${date}|${amt}|${normalizeLabel(t.payee || t.description)}`;
+    const key = `${t.accountId}|${date}|${amt}|${normalizeLabel(payeeNameOf(t, payeesById) || t.description)}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(t);
   }
@@ -292,7 +296,7 @@ export function findDuplicates(transactions, opts = {}) {
     if (dismissed && dismissed.has(signature)) continue;
     out.push({
       accountId: t0.accountId,
-      label: (t0.payee || t0.description || '').trim(),
+      label: (payeeNameOf(t0, payeesById) || t0.description || '').trim(),
       amount: t0.amount,
       date: t0.date,
       ids,
@@ -371,7 +375,7 @@ export function* flattenForReports(transactions) {
         id: `${t.id}#${s.id}`,
         accountId: t.accountId,
         date: t.date,
-        payee: t.payee,
+        payeeId: t.payeeId,
         description: s.description || t.description,
         categoryId: s.categoryId,
         subId: s.subId ?? null,

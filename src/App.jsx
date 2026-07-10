@@ -22,6 +22,7 @@ import { useIconLibrary } from './iconLibraryContext.js';
 import { coalesceHistory } from './appearanceHistory.js';
 import { extractBillFromImage } from './billExtractor.js';
 import useCategories from './useCategories.js';
+import usePayees from './usePayees.js';
 import useLedger from './useLedger.js';
 import useAccountTypes from './useAccountTypes.js';
 import useReportAcks from './useReportAcks.js';
@@ -38,6 +39,7 @@ import { draftFromTransaction, draftFromTransfer, instantiateTransaction, instan
 import { resolveTransfer, payFromUpdate, transferDraftForAccount } from './accountsModel.js';
 import AccountEditor from './AccountEditor.jsx';
 import ManageCategoriesScreen from './ManageCategoriesScreen.jsx';
+import ManagePayeesScreen from './ManagePayeesScreen.jsx';
 import UndoButton from './UndoButton.jsx';
 import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
@@ -149,6 +151,7 @@ function Tallio() {
   const cats = useCategories();
   const accountTypes = useAccountTypes();
   const acks = useReportAcks();
+  const payees = usePayees();
   const categoriesById = useMemo(() => new Map(cats.categories.map(c => [c.id, c])), [cats.categories]);
 
   const [screen, setScreen] = useState('main'); // 'main' | 'manage-categories' | 'account-types'
@@ -189,6 +192,7 @@ function Tallio() {
   const pushHistory = (opKey = null) => setHistory(prev => coalesceHistory(prev, () => ({
     ledger: ledger.snapshot(),
     acks: acks.exportSnapshot(),
+    payees: payees.snapshot(),
     categories: cats.snapshot(),
     accountTypes: accountTypes.snapshot(),
     appearance: appearance.snapshot(),
@@ -200,6 +204,7 @@ function Tallio() {
       const entry = prev[prev.length - 1];
       ledger.restore(entry.ledger);
       acks.restore(entry.acks);
+      payees.restore(entry.payees);
       cats.restore(entry.categories);
       accountTypes.restore(entry.accountTypes);
       appearance.restore(entry.appearance);
@@ -360,7 +365,8 @@ function Tallio() {
   // Transaction CRUD
   const saveTransaction = (data) => {
     pushHistory();
-    const { splitTargets, ...rest } = data;
+    // Strip display-only row fields that ride along when a register row is edited.
+    const { splitTargets, payeeName, balance, _matchedSplitId, ...rest } = data; // eslint-disable-line no-unused-vars
     const opts = splitTargets ? { splitTargets } : {};
     if (rest.id) ledger.updateTransaction(rest.id, rest, opts);
     else ledger.addTransaction(rest, opts);
@@ -391,7 +397,7 @@ function Tallio() {
   const copyEntry = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     const draft = pair ? draftFromTransfer(pair) : draftFromTransaction(row);
-    const label = labelFor(draft);
+    const label = labelFor(draft, payees.payeesById);
     clip.copy(draft, label);
     flashToast(`Copied “${label}”`);
   };
@@ -402,18 +408,18 @@ function Tallio() {
     if (draft.kind === 'transfer') {
       saveTransfer(instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }));
     } else if (selectedAccount) {
-      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+      saveTransaction(instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }));
     }
   };
 
   const duplicateEntry = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     if (pair) saveTransfer(instantiateTransfer(draftFromTransfer(pair), { fallbackCategoryId: fallbackCategoryId() }));
-    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }));
+    else if (selectedAccount) saveTransaction(instantiateTransaction(draftFromTransaction(row), { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }));
     flashToast('Duplicated');
   };
 
-  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft) });
+  const requestSaveTemplate = (draft) => setTemplateDraft({ draft, defaultName: labelFor(draft, payees.payeesById) });
   const saveTemplateFromRow = (row) => {
     const pair = resolveTransfer(row, ledger.transactions);
     requestSaveTemplate(pair ? draftFromTransfer(pair) : draftFromTransaction(row));
@@ -428,7 +434,7 @@ function Tallio() {
     if (tpl.kind === 'transfer') {
       setEditingTransfer({ mode: 'new', prefill: instantiateTransfer(draft, { fallbackCategoryId: fallbackCategoryId() }) });
     } else if (selectedAccount) {
-      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId() }) });
+      setEditingTxn({ mode: 'new', accountId: selectedAccount.id, prefill: instantiateTransaction(draft, { account: selectedAccount, typesById: accountTypes.typesById, fallbackCategoryId: fallbackCategoryId(), payeesById: payees.payeesById }) });
     }
   };
 
@@ -456,8 +462,9 @@ function Tallio() {
       categories: cats.categories, accountTypes: accountTypes.types,
       reportAcks: acks.exportSnapshot(),
       templates: templates.exportSnapshot(),
+      payees: payees.payees,
       images, appearance: appearanceSettings,
-      schemaVersion: 5, appVersion: pkg.version, now: new Date(),
+      schemaVersion: 6, appVersion: pkg.version, now: new Date(),
     });
   };
 
@@ -626,6 +633,37 @@ function Tallio() {
         />
       )}
 
+      {screen === 'manage-payees' && (
+        <ManagePayeesScreen
+          payees={payees.payees}
+          transactions={ledger.transactions}
+          categories={cats.categories}
+          onClose={() => setScreen('main')}
+          onRename={(id, name) => {
+            // Validate BEFORE pushing history so a rejected rename isn't an undo step.
+            const trimmed = (name || '').trim();
+            if (!trimmed) return { ok: false, reason: 'empty' };
+            const conflict = payees.payees.find(p => p.id !== id && p.name.trim().toLowerCase() === trimmed.toLowerCase());
+            if (conflict) return { ok: false, reason: 'duplicate', conflictId: conflict.id };
+            pushHistory();
+            return payees.renamePayee(id, trimmed);
+          }}
+          onSetDefaultCategory={(id, categoryId, subId) => { pushHistory(); payees.setDefaultCategory(id, categoryId, subId); }}
+          onMerge={(sourceId, targetId) => {
+            pushHistory(); // one step: reassignment + entity removal undo together
+            ledger.reassignPayee(sourceId, targetId);
+            payees.mergePayee(sourceId, targetId);
+          }}
+          onDelete={(id) => {
+            pushHistory(); // one step: clearing + entity removal undo together
+            ledger.clearPayee(id);
+            payees.deletePayee(id);
+          }}
+          onUndo={undo}
+          undoCount={history.length}
+        />
+      )}
+
       {screen === 'account-types' && (
         <AccountTypesScreen
           types={accountTypes.types}
@@ -645,6 +683,7 @@ function Tallio() {
           categories={cats.categories}
           types={accountTypes.types}
           typesById={accountTypes.typesById}
+          payeesById={payees.payeesById}
           subscriptions={acks.subscriptions}
           dismissedDuplicates={acks.dismissedDuplicates}
           onSetStatus={(key, status, month) => { pushHistory(); acks.setStatus(key, status, month); }}
@@ -728,6 +767,9 @@ function Tallio() {
           categories={cats.categories}
           accounts={ledger.accounts}
           typesById={accountTypes.typesById}
+          payees={payees.payees}
+          payeesById={payees.payeesById}
+          onCreatePayee={(name) => { pushHistory(); return payees.addPayee(name); }}
           onSave={saveTransaction} onDelete={deleteTransaction} onClose={() => setEditingTxn(null)}
           onSaveAsTemplate={requestSaveTemplate}
           onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
@@ -779,6 +821,11 @@ function Tallio() {
           <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={acks.clearStorageError}>×</button>
         </div>
       )}
+      {payees.storageError && (
+        <div className="toast toast-error">{payees.storageError.message}
+          <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={payees.clearStorageError}>×</button>
+        </div>
+      )}
 
       <header className="topbar">
         <div className="brand">
@@ -791,6 +838,7 @@ function Tallio() {
           <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('manage-payees')}>Payees</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account-types</button>
         </nav>
         <div className="header-actions">
@@ -840,6 +888,7 @@ function Tallio() {
                   accounts={ledger.accounts}
                   categories={cats.categories}
                   categoriesById={categoriesById}
+                  payeesById={payees.payeesById}
                   typesById={accountTypes.typesById}
                   onAddCategory={(p) => { pushHistory(); return cats.addCategory(p); }}
                   onEditTransaction={(t) => {

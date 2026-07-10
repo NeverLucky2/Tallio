@@ -1,16 +1,32 @@
 // src/initializeFromStorage.js
 import { migrateBills, migrateToV2, migrateToV3 } from './spendingMath.js';
 import { migrateToV4 } from './accountsMigration.js';
+import { migrateToPayees } from './payeesMigration.js';
 import { DEFAULT_CATEGORIES, V3_SEED_CATEGORIES } from './categoriesDefaults.js';
 
 const BILLS_KEY          = 'tallio-bills';
 const CATS_KEY           = 'tallio-categories';
 const ACCOUNTS_KEY       = 'tallio-accounts';
 const TXN_KEY            = 'tallio-transactions';
+const PAYEES_KEY         = 'tallio-payees';
+const TEMPLATES_KEY      = 'tallio-templates';
 const VERSION_KEY        = 'tallio-schema-version';
 const V1_BACKUP_KEY      = 'tallio-pre-categories-backup';
 const V2_CATS_BACKUP_KEY = 'tallio-categories-v2-backup';
 const V3_BILLS_BACKUP_KEY = 'tallio-pre-accounts-backup';
+
+// v4 → v5: promote payee strings to entities. Writes payees/transactions/
+// templates back and stamps version 5. Returns the migrated transactions.
+function runPayeesMigration(storage) {
+  const transactions = JSON.parse(storage.getItem(TXN_KEY) || '[]');
+  const templates = JSON.parse(storage.getItem(TEMPLATES_KEY) || '[]');
+  const migrated = migrateToPayees({ transactions, templates });
+  storage.setItem(PAYEES_KEY, JSON.stringify(migrated.payees));
+  storage.setItem(TXN_KEY, JSON.stringify(migrated.transactions));
+  storage.setItem(TEMPLATES_KEY, JSON.stringify(migrated.templates));
+  storage.setItem(VERSION_KEY, '5');
+  return migrated.transactions;
+}
 
 // Returns { accounts, transactions, migrationError }.
 // migrationError is null on success, or { message, recovered } on failure.
@@ -18,13 +34,20 @@ export function initializeFromStorage(storage) {
   try {
     const ver = parseInt(storage.getItem(VERSION_KEY) || '1', 10);
 
-    // Already on v4 — load directly, no migration.
-    if (ver >= 4) {
+    // Already on v5 — load directly, no migration.
+    if (ver >= 5) {
       return {
         accounts: JSON.parse(storage.getItem(ACCOUNTS_KEY) || '[]'),
         transactions: JSON.parse(storage.getItem(TXN_KEY) || '[]'),
         migrationError: null,
       };
+    }
+
+    // v4: accounts/transactions are already flat — only payees need promoting.
+    if (ver === 4) {
+      const accounts = JSON.parse(storage.getItem(ACCOUNTS_KEY) || '[]');
+      const transactions = runPayeesMigration(storage);
+      return { accounts, transactions, migrationError: null };
     }
 
     const rawBills = storage.getItem(BILLS_KEY);
@@ -55,10 +78,10 @@ export function initializeFromStorage(storage) {
 
     storage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     storage.setItem(TXN_KEY, JSON.stringify(transactions));
-    storage.setItem(VERSION_KEY, '4');
     // Legacy bills key is retained (untouched) so the backup path stays intact.
 
-    return { accounts, transactions, migrationError: null };
+    const migratedTxns = runPayeesMigration(storage); // also stamps VERSION_KEY '5'
+    return { accounts, transactions: migratedTxns, migrationError: null };
   } catch (e) {
     console.error('Migration failed:', e);
     return {

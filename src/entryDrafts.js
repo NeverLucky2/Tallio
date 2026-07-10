@@ -44,7 +44,7 @@ export function makeTransactionDraft(f, splitTargets = new Map()) {
     amount: f.amount,
     categoryId: f.categoryId || null,
     subId: f.subId || null,
-    payee: f.payee || null,
+    payeeId: f.payeeId || null,
     checkNumber: f.checkNumber || null,
     splits: draftSplits(f.splits, splitTargets),
   } };
@@ -54,7 +54,7 @@ export function draftFromTransaction(txn, splitTargets = new Map()) {
   return makeTransactionDraft(txn, splitTargets);
 }
 
-export function instantiateTransaction(draft, { account, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, date = todayISO(), fallbackCategoryId = null } = {}) {
+export function instantiateTransaction(draft, { account, typesById = DEFAULT_ACCOUNT_TYPES_BY_ID, date = todayISO(), fallbackCategoryId = null, payeesById = null } = {}) {
   const p = draft.payload;
   const isBank = layoutFor(account.type, typesById) === 'bank';
   const { splits, splitTargets } = buildSplits(p.splits, fallbackCategoryId);
@@ -66,7 +66,7 @@ export function instantiateTransaction(draft, { account, typesById = DEFAULT_ACC
     categoryId: p.categoryId || null,
     subId: p.subId || null,
     description: p.description || '',
-    payee: isBank ? (p.payee || null) : null,
+    payeeId: isBank && p.payeeId && (!payeesById || payeesById.has(p.payeeId)) ? p.payeeId : null,
     checkNumber: isBank ? (p.checkNumber || null) : null,
     splits: splits || null,
     ...(splitTargets ? { splitTargets } : {}),
@@ -109,8 +109,9 @@ export function instantiateTransfer(draft, { date = todayISO(), fallbackCategory
   };
 }
 
-export function labelFor(draft) {
+export function labelFor(draft, payeesById = null) {
   const p = (draft && draft.payload) || {};
   if (draft && draft.kind === 'transfer') return p.description || 'Transfer';
-  return p.payee || p.description || 'Transaction';
+  const payeeName = payeesById && p.payeeId ? (payeesById.get(p.payeeId)?.name || '') : '';
+  return payeeName || p.description || 'Transaction';
 }

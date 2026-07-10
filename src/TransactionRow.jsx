@@ -87,7 +87,7 @@ export default function TransactionRow({ layout, row, categoriesById, transfer =
         <tr className={`txn-row${isSplit ? ' txn-row-split' : ''}`} onClick={() => onEdit(row)}>
           <td className="txn-date">{fmtDate(row.date)}</td>
           <td className="txn-check">{row.checkNumber || '—'}</td>
-          <td className="txn-payee">{row.payee || '—'}</td>
+          <td className="txn-payee">{row.payeeName || '—'}</td>
           <td>{categoryCell}</td>
           <td className="txn-notes">{row.description}</td>
           <td className="txn-amt neg">{isPayment ? plain(row.amount) : ''}</td>

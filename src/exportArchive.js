@@ -12,7 +12,7 @@ function escapeCsv(value) {
   return str;
 }
 
-export function buildTransactionsCsv(accounts, transactions, categoriesById) {
+export function buildTransactionsCsv(accounts, transactions, categoriesById, payeesById = null) {
   const acctById = new Map((accounts || []).map(a => [a.id, a]));
   const rows = (transactions || [])
     .filter(t => t && Number.isFinite(t.amount))
@@ -29,7 +29,7 @@ export function buildTransactionsCsv(accounts, transactions, categoriesById) {
         amount: t.amount.toFixed(2),
         category: isTransfer ? '' : (cat ? cat.name : 'Uncategorized'),
         flow: isTransfer ? '' : ((cat && cat.flow) || 'expense'),
-        payee: t.payee || '',
+        payee: (payeesById && t.payeeId && (payeesById.get(t.payeeId)?.name)) || '',
         check: t.checkNumber || '',
         transfer: isTransfer ? partnerAcct.name : '',
       };
@@ -46,7 +46,7 @@ export function buildTransactionsCsv(accounts, transactions, categoriesById) {
   return '﻿' + lines.join('\n');
 }
 
-export function buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks = null, templates = null) {
+export function buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks = null, templates = null, payees = null) {
   return JSON.stringify({
     schemaVersion,
     exportedAt: now.toISOString(),
@@ -57,13 +57,15 @@ export function buildDataJson(accounts, transactions, categories, accountTypes, 
     accountTypes: accountTypes || [],
     reportAcks: reportAcks || { subscriptions: {}, dismissedDuplicates: [] },
     templates: templates || [],
+    payees: payees || [],
   }, null, 2);
 }
 
-export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, images, appearance, templates }) {
+export function buildArchive({ accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, images, appearance, templates, payees }) {
   const categoriesById = new Map((categories || []).map(c => [c.id, c]));
-  const jsonString = buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, templates);
-  const csvString = buildTransactionsCsv(accounts, transactions, categoriesById);
+  const payeesById = new Map((payees || []).map(p => [p.id, p]));
+  const jsonString = buildDataJson(accounts, transactions, categories, accountTypes, schemaVersion, appVersion, now, reportAcks, templates, payees);
+  const csvString = buildTransactionsCsv(accounts, transactions, categoriesById, payeesById);
   const encoder = new TextEncoder();
   const jsonBytes = new Uint8Array(Array.from(encoder.encode(jsonString)));
   const csvWithoutBom = csvString.charCodeAt(0) === 0xFEFF ? csvString.slice(1) : csvString;

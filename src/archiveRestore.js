@@ -4,7 +4,7 @@
 // fresh storage — no React-effect timing hazards. Framework-free + injectable.
 import * as realImageStore from './imageStore.js';
 
-export const SUPPORTED_SCHEMA_VERSION = 5;
+export const SUPPORTED_SCHEMA_VERSION = 6;
 
 export function assertSupportedSchema(parsed) {
   const v = parsed && parsed.data && parsed.data.schemaVersion;
@@ -16,7 +16,7 @@ export function assertSupportedSchema(parsed) {
 }
 
 export async function restoreArchiveToStorage(parsed, { storage = localStorage, imageStore = realImageStore } = {}) {
-  assertSupportedSchema(parsed);
+  const v = assertSupportedSchema(parsed);
   const { data, appearance, images } = parsed;
   storage.setItem('tallio-accounts', JSON.stringify(data.accounts || []));
   storage.setItem('tallio-transactions', JSON.stringify(data.transactions || []));
@@ -25,6 +25,16 @@ export async function restoreArchiveToStorage(parsed, { storage = localStorage, 
   storage.setItem('tallio-templates', JSON.stringify(data.templates || []));
   storage.setItem('tallio-report-acks', JSON.stringify(data.reportAcks || { subscriptions: {}, dismissedDuplicates: [] }));
   if (appearance) storage.setItem('tallio-appearance', JSON.stringify(appearance));
+
+  if (v >= 6) {
+    storage.setItem('tallio-payees', JSON.stringify(data.payees || []));
+    storage.setItem('tallio-schema-version', '5');
+  } else {
+    // Pre-payees archive: drop the storage version back so the payee migration
+    // re-runs from this archive's string payees on the post-restore reload.
+    storage.removeItem('tallio-payees');
+    storage.setItem('tallio-schema-version', '4');
+  }
 
   const records = (images || []).map(img => {
     const type = img.type || 'application/octet-stream';
