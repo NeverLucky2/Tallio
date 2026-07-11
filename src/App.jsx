@@ -44,6 +44,7 @@ import UndoButton from './UndoButton.jsx';
 import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
+import ProfitLossScreen from './ProfitLossScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive, parseArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
@@ -695,6 +696,17 @@ function Tallio() {
         />
       )}
 
+      {screen === 'pnl' && (
+        <ProfitLossScreen
+          accounts={ledger.accounts}
+          transactions={ledger.transactions}
+          categories={cats.categories}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
+          onClose={() => setScreen('main')}
+        />
+      )}
+
       {showCamera && <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />}
       {isProcessing && (
         <div className="processing-overlay">
@@ -837,6 +849,7 @@ function Tallio() {
         <nav className="top-nav" aria-label="Primary">
           <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('pnl')}>P&amp;L</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-payees')}>Payees</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account-types</button>
