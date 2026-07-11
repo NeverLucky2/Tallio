@@ -4076,3 +4076,13 @@
 .pnl-total-cell { font-weight: 600; border-left: 1px solid var(--border, #ddd); }
 .pnl-net { font-weight: 700; font-size: 1.05rem; }
 .pnl-net td, .pnl-net th { border-top: 2px solid var(--text, #222); border-bottom: 3px double var(--text, #222); }
+
+.granularity-control { margin-top: 0.25rem; }
+
+@media print {
+  .top-nav, .header-actions, .brand, .reports-controls,
+  .pnl-screen .screen-header .btn { display: none !important; }
+  .screen-overlay { position: static; background: none; }
+  .pnl-screen { box-shadow: none; max-height: none; overflow: visible; }
+  .pnl-scroll { overflow: visible; }
+}
