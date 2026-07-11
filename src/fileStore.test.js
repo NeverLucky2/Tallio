@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import {
   isLiveFileSupported, pickSaveFile, readHandle, writeHandle, ensurePermission,
-  saveHandle, loadHandle, clearHandle, readBytesFromFile,
+  saveHandle, loadHandle, clearHandle, readBytesFromFile, downloadTextFile,
 } from './fileStore.js';
 
 function fakeHandle(initialBytes = new Uint8Array()) {
@@ -87,5 +87,21 @@ describe('readBytesFromFile', () => {
     const file = new File([new Uint8Array([7, 8, 9])], 'x.bin'); // jsdom File has no arrayBuffer()
     expect(typeof file.arrayBuffer).not.toBe('function');
     expect(Array.from(await readBytesFromFile(file))).toEqual([7, 8, 9]);
+  });
+});
+
+describe('downloadTextFile', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it('creates a download anchor with the given filename and revokes the url', () => {
+    vi.stubGlobal('URL', { createObjectURL: () => 'blob:1', revokeObjectURL: vi.fn() });
+    const click = vi.fn();
+    const anchor = { href: '', download: '', click };
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor);
+
+    downloadTextFile('hello,world', 'out.csv', 'text/csv');
+
+    expect(anchor.download).toBe('out.csv');
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:1');
   });
 });
