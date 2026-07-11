@@ -4062,3 +4062,17 @@
 .avatar-drawer-status { padding: 0 1rem 0.5rem; }
 .live-file-pill { display: inline-flex; align-items: center; gap: .35em; font-size: .75rem; opacity: .85; padding: .15em .5em; border-radius: 999px; }
 .live-file-pill--linked { color: var(--good, #2e7d32); }
+
+/* Profit & Loss statement */
+.pnl-scroll { overflow-x: auto; }
+.pnl-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pnl-table th, .pnl-table td { padding: 0.4rem 0.75rem; text-align: right; white-space: nowrap; }
+.pnl-table .pnl-row-label, .pnl-table .pnl-col-head:first-child { text-align: left; }
+.pnl-col-head { font-size: 0.85rem; opacity: 0.75; border-bottom: 1px solid var(--border, #ddd); }
+.pnl-row-label { text-align: left; font-weight: 400; }
+.pnl-section th { text-align: left; font-weight: 700; padding-top: 0.9rem; letter-spacing: 0.03em; }
+.pnl-subtotal { font-weight: 600; }
+.pnl-subtotal td, .pnl-subtotal th { border-top: 1px solid var(--border, #ddd); }
+.pnl-total-cell { font-weight: 600; border-left: 1px solid var(--border, #ddd); }
+.pnl-net { font-weight: 700; font-size: 1.05rem; }
+.pnl-net td, .pnl-net th { border-top: 2px solid var(--text, #222); border-bottom: 3px double var(--text, #222); }
