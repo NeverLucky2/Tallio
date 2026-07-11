@@ -143,3 +143,28 @@ describe('profitAndLoss', () => {
     expect(pnl.expense.total).toBe(0);
   });
 });
+
+import { buildPnlCsv } from './pnlModel.js';
+
+describe('buildPnlCsv', () => {
+  it('renders the statement grid with a BOM, labels, and Net profit row', () => {
+    const pnl = profitAndLoss(ledger, catsById, monthOpts);
+    const csv = buildPnlCsv(pnl);
+    expect(csv.charCodeAt(0)).toBe(0xFEFF);
+    const lines = csv.slice(1).split('\n');
+    expect(lines[0]).toBe(',Jan,Feb,Total');
+    expect(lines).toContain('INCOME');
+    expect(lines).toContain('Sales,2100.00,1900.00,4000.00');
+    expect(lines).toContain('Total income,2120.00,1900.00,4020.00');
+    expect(lines).toContain('EXPENSES');
+    expect(lines).toContain('Total expense,1120.00,1000.00,2120.00');
+    expect(lines).toContain('NET PROFIT,1000.00,900.00,1900.00');
+  });
+
+  it('quotes labels containing commas', () => {
+    const cats = new Map([['c', { id: 'c', name: 'Meals, travel', flow: 'expense' }]]);
+    const t = [{ id: 't', accountId: 'x', date: '2026-01-01', amount: -50, categoryId: 'c' }];
+    const csv = buildPnlCsv(profitAndLoss(t, cats, monthOpts));
+    expect(csv.slice(1).split('\n')).toContain('"Meals, travel",50.00,0.00,50.00');
+  });
+});

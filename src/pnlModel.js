@@ -98,3 +98,32 @@ export function profitAndLoss(transactions, categoriesById, opts = {}) {
 
   return { buckets, income, expense, netByBucket, netTotal };
 }
+
+// A local CSV escaper (a trivial duplicate of exportArchive's) keeps pnlModel
+// free of a dependency on the archive/zip layer.
+function escapeCsv(value) {
+  const str = value == null ? '' : String(value);
+  if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+}
+
+// A UTF-8-BOM CSV of the P&L grid: header, INCOME items + total,
+// EXPENSES items + total, NET PROFIT. Amounts are plain .toFixed(2) numbers.
+export function buildPnlCsv(pnl) {
+  const { buckets, income, expense, netByBucket, netTotal } = pnl;
+  const keys = buckets.map(b => b.key);
+  const fmt = (n) => (Number.isFinite(n) ? n : 0).toFixed(2);
+  const dataRow = (label, byBucket, total) =>
+    [escapeCsv(label), ...keys.map(k => fmt(byBucket[k])), fmt(total)].join(',');
+
+  const lines = [];
+  lines.push(['', ...buckets.map(b => b.label), 'Total'].map(escapeCsv).join(','));
+  lines.push('INCOME');
+  for (const r of income.rows) lines.push(dataRow(r.name, r.byBucket, r.total));
+  lines.push(dataRow('Total income', income.totalsByBucket, income.total));
+  lines.push('EXPENSES');
+  for (const r of expense.rows) lines.push(dataRow(r.name, r.byBucket, r.total));
+  lines.push(dataRow('Total expense', expense.totalsByBucket, expense.total));
+  lines.push(dataRow('NET PROFIT', netByBucket, netTotal));
+  return '﻿' + lines.join('\n');
+}
