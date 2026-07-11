@@ -76,8 +76,9 @@ export function filterRows(transactions, { start = null, end = null, accountIds 
   });
 }
 
-// Internal: a row's countable flow, or null for transfer legs / uncategorized rows.
-function flowOf(t, categoriesById) {
+// A row's countable flow, or null for transfer legs / uncategorized rows.
+// Exported so pnlModel can reuse the exact flow test.
+export function flowOf(t, categoriesById) {
   if (!t || t.transferId != null) return null;
   const cat = categoriesById && categoriesById.get(t.categoryId);
   const f = cat && cat.flow;
