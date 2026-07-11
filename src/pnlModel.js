@@ -35,3 +35,66 @@ export function bucketsInRange(start, end, transactions = [], granularity = 'mon
   }
   return [...seen.entries()].map(([key, label]) => ({ key, label }));
 }
+
+// Trended P&L: income/expense category line items over period buckets + a grand
+// total. opts = { start, end, accountIds, granularity }. Net = income − expense.
+export function profitAndLoss(transactions, categoriesById, opts = {}) {
+  const granularity = opts.granularity || 'month';
+  const buckets = bucketsInRange(opts.start ?? null, opts.end ?? null, transactions, granularity);
+  const keys = buckets.map(b => b.key);
+  const keySet = new Set(keys);
+  const zero = () => Object.fromEntries(keys.map(k => [k, 0]));
+
+  // categoryId -> { byBucket: {key: signedSum}, total: signedSum }
+  const incomeAcc = new Map();
+  const expenseAcc = new Map();
+
+  for (const t of flattenForReports(filterRows(transactions, opts))) {
+    const f = flowOf(t, categoriesById);
+    if (f !== 'income' && f !== 'expense') continue;
+    const month = typeof t.date === 'string' ? t.date.slice(0, 7) : '';
+    const key = bucketKeyForMonth(month, granularity);
+    if (!key || !keySet.has(key)) continue;
+    const amt = Number.isFinite(t.amount) ? t.amount : 0;
+    const acc = f === 'income' ? incomeAcc : expenseAcc;
+    let rec = acc.get(t.categoryId);
+    if (!rec) { rec = { byBucket: zero(), total: 0 }; acc.set(t.categoryId, rec); }
+    rec.byBucket[key] += amt;
+    rec.total += amt;
+  }
+
+  // sign: +1 for income (deposits positive), -1 for expense (magnitude)
+  const buildSection = (acc, sign) => {
+    const rows = [];
+    const totalsByBucket = zero();
+    let total = 0;
+    for (const [categoryId, rec] of acc) {
+      const cat = (categoriesById && categoriesById.get(categoryId)) || {};
+      const byBucket = {};
+      for (const k of keys) byBucket[k] = sign * rec.byBucket[k];
+      const rowTotal = sign * rec.total;
+      const hasActivity = rowTotal !== 0 || keys.some(k => byBucket[k] !== 0);
+      if (!hasActivity) continue;
+      rows.push({
+        categoryId,
+        name: cat.name || 'Uncategorized',
+        icon: cat.icon || '📋',
+        color: cat.color || '#6B7280',
+        byBucket,
+        total: rowTotal,
+      });
+      for (const k of keys) totalsByBucket[k] += byBucket[k];
+      total += rowTotal;
+    }
+    rows.sort((a, b) => b.total - a.total);
+    return { rows, totalsByBucket, total };
+  };
+
+  const income = buildSection(incomeAcc, 1);
+  const expense = buildSection(expenseAcc, -1);
+  const netByBucket = {};
+  for (const k of keys) netByBucket[k] = income.totalsByBucket[k] - expense.totalsByBucket[k];
+  const netTotal = income.total - expense.total;
+
+  return { buckets, income, expense, netByBucket, netTotal };
+}
