@@ -1,6 +1,6 @@
 // src/ReportsScreen.test.jsx
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ReportsScreen from './ReportsScreen.jsx';
 import { DEFAULT_ACCOUNT_TYPES, DEFAULT_ACCOUNT_TYPES_BY_ID } from './accountsModel.js';
@@ -68,9 +68,18 @@ describe('ReportsScreen', () => {
       payeesById: new Map([['p_om', { id: 'p_om', name: 'OfficeMax' }]]),
       now: NOW, onClose: () => {},
     };
+    // OfficeMax also appears in the "By payee" panel, so scope this assertion to
+    // the Recurring & subscriptions panel where the duplicate is listed.
+    const recurringPanel = () => screen.getByRole('heading', { name: /recurring & subscriptions/i }).closest('.panel');
     const { rerender } = render(<ReportsScreen {...base} transactions={dupTxns} />);
-    expect(screen.getByText('OfficeMax')).toBeTruthy();
+    expect(within(recurringPanel()).getByText('OfficeMax')).toBeTruthy();
     rerender(<ReportsScreen {...base} transactions={dupTxns} dismissedDuplicates={['p1|p2']} />);
-    expect(screen.queryByText('OfficeMax')).toBeNull();
+    expect(within(recurringPanel()).queryByText('OfficeMax')).toBeNull();
+  });
+  it('renders the By payee panel with a (No payee) row from unpayeed activity', () => {
+    renderScreen();
+    expect(screen.getByText(/by payee/i)).toBeTruthy();
+    // The seeded transactions carry no payeeId → they land in the (No payee) bucket.
+    expect(screen.getByRole('rowheader', { name: '(No payee)' })).toBeTruthy();
   });
 });
