@@ -158,6 +158,39 @@ export function spendingByCategory(transactions, categoriesById, opts = {}) {
   return entries;
 }
 
+// Money out (expense magnitude) and in (income) per payee, with a "(No payee)"
+// bucket. Uncategorized non-transfer rows are attributed by amount sign as a
+// last resort. Transfer legs and savings-flow rows are excluded.
+export function payeeActivity(transactions, categoriesById, opts = {}) {
+  const payeesById = opts.payeesById || null;
+  const acc = new Map(); // key -> { payeeId, name, out, in }
+  for (const t of flattenForReports(filterRows(transactions, opts))) {
+    if (t.transferId != null) continue;
+    const f = flowOf(t, categoriesById);
+    if (f === 'savings') continue;
+    const amt = Number.isFinite(t.amount) ? t.amount : 0;
+    let addOut = 0, addIn = 0;
+    if (f === 'income') addIn = amt;
+    else if (f === 'expense') addOut = -amt;
+    else if (amt < 0) addOut = -amt;   // uncategorized, money out
+    else if (amt > 0) addIn = amt;     // uncategorized, money in
+    if (addOut === 0 && addIn === 0) continue;
+    const key = t.payeeId || '__none__';
+    let rec = acc.get(key);
+    if (!rec) {
+      const name = t.payeeId ? (payeeNameOf(t, payeesById) || 'Unknown payee') : '(No payee)';
+      rec = { payeeId: t.payeeId || null, name, out: 0, in: 0 };
+      acc.set(key, rec);
+    }
+    rec.out += addOut;
+    rec.in += addIn;
+  }
+  const rows = [...acc.values()].filter(r => r.out !== 0 || r.in !== 0);
+  rows.sort((a, b) => (b.out + b.in) - (a.out + a.in));
+  const totals = rows.reduce((s, r) => ({ out: s.out + r.out, in: s.in + r.in }), { out: 0, in: 0 });
+  return { rows, totals };
+}
+
 // Per-month income / spending / net across `months` (default: derived from period bounds).
 export function cashFlowByMonth(transactions, categoriesById, opts = {}, months = null) {
   const list = months || monthsInRange(opts.start || null, opts.end || null, transactions);
