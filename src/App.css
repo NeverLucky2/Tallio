@@ -4086,3 +4086,12 @@
   .pnl-screen { box-shadow: none; max-height: none; overflow: visible; }
   .pnl-scroll { overflow: visible; }
 }
+
+/* Spend-by-payee (payee activity) table */
+.payee-activity-scroll { overflow-x: auto; }
+.payee-activity-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.payee-activity-table th, .payee-activity-table td { padding: 0.4rem 0.75rem; text-align: right; white-space: nowrap; }
+.payee-activity-table .pa-name, .payee-activity-table .pa-name-head { text-align: left; font-weight: 400; }
+.payee-activity-table thead th { font-size: 0.85rem; opacity: 0.75; border-bottom: 1px solid var(--border, #ddd); }
+.pa-nopayee .pa-name { opacity: 0.7; font-style: italic; }
+.pa-total th, .pa-total td { border-top: 2px solid var(--text, #222); font-weight: 700; }
