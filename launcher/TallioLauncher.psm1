@@ -134,4 +134,98 @@ function Show-TallioError {
         [System.Windows.Forms.MessageBoxIcon]::Error)
 }
 
+# --- Icon (dev-time: used by New-TallioIcon.ps1) ----------------------------------------------
+
+# Packs PNG files into a PNG-compressed .ico (supported since Windows Vista).
+# Layout: ICONDIR (reserved 0, type 1, count) + one 16-byte ICONDIRENTRY per image + raw PNG bytes.
+function ConvertTo-Ico {
+    param(
+        [Parameter(Mandatory)][string[]]$PngPaths,
+        [Parameter(Mandatory)][string]$OutPath
+    )
+    $images = @($PngPaths | ForEach-Object { , [IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $_).Path) })
+    $stream = New-Object IO.MemoryStream
+    $w = New-Object IO.BinaryWriter($stream)
+    $w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$images.Count)
+    $offset = 6 + 16 * $images.Count
+    foreach ($png in $images) {
+        # IHDR width/height: big-endian u32 at bytes 16 and 20. 256 is stored as 0.
+        $width  = ([int]$png[16] -shl 24) -bor ([int]$png[17] -shl 16) -bor ([int]$png[18] -shl 8) -bor [int]$png[19]
+        $height = ([int]$png[20] -shl 24) -bor ([int]$png[21] -shl 16) -bor ([int]$png[22] -shl 8) -bor [int]$png[23]
+        $w.Write([byte]($width % 256)); $w.Write([byte]($height % 256))
+        $w.Write([byte]0); $w.Write([byte]0)              # palette colors, reserved
+        $w.Write([uint16]1); $w.Write([uint16]32)         # planes, bits per pixel
+        $w.Write([uint32]$png.Length); $w.Write([uint32]$offset)
+        $offset += $png.Length
+    }
+    foreach ($png in $images) { $w.Write($png) }
+    $w.Flush()
+    [IO.File]::WriteAllBytes($OutPath, $stream.ToArray())
+    $w.Dispose()
+}
+
+function Resize-Png {
+    param(
+        [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][string]$OutPath,
+        [Parameter(Mandatory)][int]$Size
+    )
+    Add-Type -AssemblyName System.Drawing
+    $src = [Drawing.Image]::FromFile((Resolve-Path -LiteralPath $SourcePath).Path)
+    $dst = New-Object Drawing.Bitmap($Size, $Size, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [Drawing.Graphics]::FromImage($dst)
+    try {
+        $g.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.SmoothingMode = [Drawing.Drawing2D.SmoothingMode]::HighQuality
+        $g.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.CompositingQuality = [Drawing.Drawing2D.CompositingQuality]::HighQuality
+        $g.DrawImage($src, 0, 0, $Size, $Size)
+        $dst.Save($OutPath, [Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $g.Dispose(); $dst.Dispose(); $src.Dispose()
+    }
+}
+
+# --- Install -------------------------------------------------------------------------------
+
+function New-TallioShortcut {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$ScriptPath,
+        [Parameter(Mandatory)][string]$IconPath,
+        [Parameter(Mandatory)][string]$WorkingDirectory
+    )
+    $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
+    $lnk.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+    $lnk.WorkingDirectory = $WorkingDirectory
+    $lnk.IconLocation = "$IconPath,0"
+    $lnk.WindowStyle = 7   # minimized, so the console never flashes up before -WindowStyle Hidden applies
+    $lnk.Description = 'Open Tallio'
+    $lnk.Save()
+}
+
+# Copies the runtime files out of the repo (so branch switches can't break the shortcut),
+# records where the repo is, and creates a Tallio.lnk in each shortcut folder.
+function Install-TallioLauncher {
+    [OutputType([string[]])]
+    param(
+        [Parameter(Mandatory)][string]$RepoPath,
+        [Parameter(Mandatory)][string]$InstallDir,
+        [Parameter(Mandatory)][string[]]$ShortcutDirs,
+        [string]$Url = 'http://localhost:5173/'
+    )
+    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+    foreach ($f in 'Start-Tallio.ps1', 'TallioLauncher.psm1', 'tallio.ico') {
+        Copy-Item -LiteralPath (Join-Path $RepoPath "launcher\$f") -Destination (Join-Path $InstallDir $f) -Force
+    }
+    Write-TallioConfig -Path (Join-Path $InstallDir 'launcher.json') -RepoPath $RepoPath -Url $Url
+    foreach ($dir in $ShortcutDirs) {
+        $lnk = Join-Path $dir 'Tallio.lnk'
+        New-TallioShortcut -Path $lnk -ScriptPath (Join-Path $InstallDir 'Start-Tallio.ps1') `
+            -IconPath (Join-Path $InstallDir 'tallio.ico') -WorkingDirectory $InstallDir
+        $lnk
+    }
+}
+
 Export-ModuleMember -Function *-Tallio*, *-AppBrowser, *-BrowserLaunch, ConvertTo-Ico, Resize-Png

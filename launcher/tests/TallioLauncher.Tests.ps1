@@ -138,3 +138,51 @@ Describe 'Invoke-TallioLaunch' {
         Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 0 -Exactly -Scope It
     }
 }
+
+function New-TestPng([string]$Path, [int]$Size) {
+    Add-Type -AssemblyName System.Drawing
+    $b = New-Object Drawing.Bitmap $Size, $Size; $b.Save($Path, [Drawing.Imaging.ImageFormat]::Png); $b.Dispose()
+}
+
+Describe 'ConvertTo-Ico' {
+    It 'packs PNGs into a valid ICO directory' {
+        New-TestPng "$TestDrive\16.png" 16; New-TestPng "$TestDrive\256.png" 256
+        ConvertTo-Ico -PngPaths "$TestDrive\16.png", "$TestDrive\256.png" -OutPath "$TestDrive\t.ico"
+        $b = [IO.File]::ReadAllBytes("$TestDrive\t.ico")
+        [BitConverter]::ToUInt16($b, 2) | Should Be 1          # type = icon
+        [BitConverter]::ToUInt16($b, 4) | Should Be 2          # count
+        $b[6] | Should Be 16                                    # entry 0 width
+        $b[6 + 16] | Should Be 0                                # entry 1 width 256 -> 0
+        $off = [BitConverter]::ToUInt32($b, 6 + 16 + 12)
+        $b[($off + 1)..($off + 3)] -join ',' | Should Be '80,78,71'   # 'PNG' signature at entry 1's offset
+        $len16 = (Get-Item "$TestDrive\16.png").Length; $len256 = (Get-Item "$TestDrive\256.png").Length
+        $b.Length | Should Be (6 + 32 + $len16 + $len256)
+    }
+}
+
+Describe 'Resize-Png' {
+    It 'writes a PNG of the requested size' {
+        New-TestPng "$TestDrive\src.png" 256
+        Resize-Png -SourcePath "$TestDrive\src.png" -OutPath "$TestDrive\32.png" -Size 32
+        $i = [Drawing.Image]::FromFile("$TestDrive\32.png"); try { $i.Width | Should Be 32 } finally { $i.Dispose() }
+    }
+}
+
+Describe 'Install-TallioLauncher' {
+    It 'copies runtime files, records the repo, and creates a hidden-PowerShell shortcut' {
+        $repo = "$TestDrive\my repo"; New-Item "$repo\launcher" -ItemType Directory | Out-Null
+        'Start-Tallio.ps1', 'TallioLauncher.psm1', 'tallio.ico' | ForEach-Object { Set-Content "$repo\launcher\$_" 'x' }
+        $inst = "$TestDrive\App Data\Tallio"; $desk = "$TestDrive\Desk"; New-Item $desk -ItemType Directory | Out-Null
+
+        $made = Install-TallioLauncher -RepoPath $repo -InstallDir $inst -ShortcutDirs @($desk)
+
+        $made | Should Be "$desk\Tallio.lnk"
+        'Start-Tallio.ps1', 'TallioLauncher.psm1', 'tallio.ico' | ForEach-Object { "$inst\$_" | Should Exist }
+        (Read-TallioConfig "$inst\launcher.json").repoPath | Should Be $repo
+        $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut("$desk\Tallio.lnk")
+        $lnk.TargetPath | Should Match 'WindowsPowerShell\\v1\.0\\powershell\.exe$'
+        $lnk.Arguments | Should Be "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$inst\Start-Tallio.ps1`""
+        $lnk.IconLocation | Should Be "$inst\tallio.ico,0"
+        $lnk.WindowStyle | Should Be 7
+    }
+}

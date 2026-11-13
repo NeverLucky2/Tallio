@@ -103,6 +103,21 @@ npm run dev
 ```
 Vite serves the app at **http://localhost:5173** (the port is pinned via `strictPort` so your `localStorage` data always stays at the same origin).
 
+### Desktop shortcut (Windows)
+Rather than typing `npm run dev` each time, run this once from the project folder:
+```powershell
+powershell -ExecutionPolicy Bypass -File launcher\Install-Launcher.ps1
+```
+It adds a **Tallio** icon to your Desktop and Start menu. You can pin it to the taskbar from Start. Double-clicking it:
+- starts the dev server hidden in the background, if it isn't already running;
+- opens Tallio in its own Chrome app window at the same `localhost:5173` address, so your data is all there.
+
+Things to know:
+- **Moved the project folder?** Run the installer again.
+- **Background server.** It keeps running until you sign out, so a manual `npm run dev` reports "port in use" while it's up.
+- **Startup errors.** If the app doesn't start within 30 seconds you'll see a message; the log is at `%LOCALAPPDATA%\Tallio\dev-server.log`.
+- **To remove it,** delete the two `Tallio` shortcuts and the `%LOCALAPPDATA%\Tallio` folder.
+
 ### Build for production
 ```bash
 npm run build      # outputs to dist/
