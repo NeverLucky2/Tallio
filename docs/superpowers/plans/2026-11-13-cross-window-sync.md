@@ -74,3 +74,35 @@
 - Run the dev server on **5174** (a different origin from 5173, so the real data is never touched).
 - Open two tabs. Add an account in tab 1. Tab 2 should reload and show the note, and tab 1 must not reload.
 - Confirm there's no ping-pong: both tabs stay settled for 10 s.
+
+## Final review (fresh reviewer) — outcome
+
+**Fixed (each RED→GREEN, suite 1187/1187, live two-tab re-check on 5174):**
+
+- **Important — a reloading window blind-wrote its startup copy on mount**, so it could erase a save
+  another window made between its render and its effects.
+  - `startCrossWindowSync()` now runs in `main.jsx` before render.
+  - New `useStorageWriter` (`src/storageWriter.js`) skips identical writes in all six stores.
+  - Tests: `storesNoBlindWrite.test.jsx`, `storageWriter.test.jsx`, `startCrossWindowSync` unit tests.
+- **Important — the image library (IndexedDB) had no cross-window signal**; a stale window's Undo
+  could wipe another window's uploads.
+  - Every library change and the end of an archive restore write a fresh `tallio-images-rev`,
+    which is now in `SYNCED_KEYS`.
+  - Tests: `useImageLibrary.test.jsx`, `archiveRestore.test.js`, `crossWindowSync.test.js`.
+
+**Rulings:**
+
+- **Keep the reload even while a scan, scan review or phone pairing is active** in the other window.
+  Deferring would leave that window stale and able to clobber. Cost if wrong: an interrupted scan or
+  pairing in the rare two-windows case.
+
+**Deferred minors:**
+
+- **Unload race.** In the few ms between another window's save and this window's unload, a commit
+  here still writes a stale copy. Closing it fully needs a revision check before each write, or Web Locks.
+- **Linked `.tallio` file can miss the last edit.** This happens when the window with a pending 1.5 s
+  autosave is reloaded by a non-ledger save elsewhere. The next ledger edit rewrites the file.
+- **Restore with a second window open.** The other window can reload mid-restore, and its startup
+  seeding or migration may reload the restoring window with a misleading note.
+- **Reload storm.** Dragging an appearance slider in one window reloads the other repeatedly.
+- **Windows opened before this change** aren't protected until reloaded once.
