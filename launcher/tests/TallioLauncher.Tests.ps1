@@ -11,14 +11,18 @@ function Get-FreePort {
 # HttpListener answering every request with $Status from a background runspace.
 # Returns the listener; .Close() it in `finally` — that unblocks GetContext() so the runspace exits
 # (PowerShell.Stop() would hang on the blocking native call).
-function Start-FakeServer([int]$Port, [int]$Status) {
+function Start-FakeServer([int]$Port, [int]$Status, [string]$Body = '') {
     $h = New-Object Net.HttpListener; $h.Prefixes.Add("http://localhost:$Port/"); $h.Start()
     $null = [powershell]::Create().AddScript({
-        param($h, $status)
+        param($h, $status, $body)
         while ($h.IsListening) {
-            try { $c = $h.GetContext(); $c.Response.StatusCode = $status; $c.Response.Close() } catch { break }
+            try {
+                $c = $h.GetContext(); $c.Response.StatusCode = $status
+                $bytes = [Text.Encoding]::UTF8.GetBytes($body)
+                $c.Response.OutputStream.Write($bytes, 0, $bytes.Length); $c.Response.Close()
+            } catch { break }
         }
-    }).AddArgument($h).AddArgument($Status).BeginInvoke()
+    }).AddArgument($h).AddArgument($Status).AddArgument($Body).BeginInvoke()
     $h
 }
 
@@ -33,6 +37,20 @@ Describe 'Test-TallioServer' {
     }
     It 'is false when nothing listens' {
         Test-TallioServer -Url "http://localhost:$(Get-FreePort)/" | Should Be $false
+    }
+}
+
+Describe 'Test-TallioPage' {
+    It 'is true when the page is Tallio' {
+        $port = Get-FreePort; $srv = Start-FakeServer $port 200 '<html><head><title>Tallio</title></head></html>'
+        try { Test-TallioPage -Url "http://localhost:$port/" | Should Be $true } finally { $srv.Close() }
+    }
+    It 'is false when some other app is on the port' {
+        $port = Get-FreePort; $srv = Start-FakeServer $port 200 '<html><head><title>Other Vite App</title></head></html>'
+        try { Test-TallioPage -Url "http://localhost:$port/" | Should Be $false } finally { $srv.Close() }
+    }
+    It 'is false when nothing listens' {
+        Test-TallioPage -Url "http://localhost:$(Get-FreePort)/" | Should Be $false
     }
 }
 
@@ -115,6 +133,7 @@ Describe 'Invoke-TallioLaunch' {
     Mock Find-AppBrowser { 'C:\chrome.exe' } -ModuleName TallioLauncher
     Mock Start-Process {} -ModuleName TallioLauncher
     Mock Start-TallioServer {} -ModuleName TallioLauncher
+    Mock Test-TallioPage { $true } -ModuleName TallioLauncher
 
     It 'just opens the window when the server is already up' {
         Mock Test-TallioServer { $true } -ModuleName TallioLauncher
@@ -136,6 +155,21 @@ Describe 'Invoke-TallioLaunch' {
         Mock Wait-TallioServer { $false } -ModuleName TallioLauncher
         { Invoke-TallioLaunch -Config $cfg -LogPath 'C:\l.log' } | Should Throw "Tallio didn't start within 30 seconds."
         Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 0 -Exactly -Scope It
+    }
+    Context 'another app already holds the port' {
+        It 'refuses to open that app in the Tallio window' {
+            Mock Test-TallioServer { $true } -ModuleName TallioLauncher
+            Mock Test-TallioPage { $false } -ModuleName TallioLauncher
+            { Invoke-TallioLaunch -Config $cfg -LogPath 'C:\l.log' } | Should Throw 'Something else is already using port 5173'
+            Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 0 -Exactly -Scope It
+        }
+    }
+}
+
+Describe 'New-TallioDialogOwner' {
+    It 'is a topmost owner so the error box cannot open behind other windows' {
+        $f = New-TallioDialogOwner
+        try { $f.TopMost | Should Be $true; $f.ShowInTaskbar | Should Be $false } finally { $f.Dispose() }
     }
 }
 
@@ -184,5 +218,19 @@ Describe 'Install-TallioLauncher' {
         $lnk.Arguments | Should Be "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$inst\Start-Tallio.ps1`""
         $lnk.IconLocation | Should Be "$inst\tallio.ico,0"
         $lnk.WindowStyle | Should Be 7
+    }
+}
+
+# Keep last: it unloads the module to simulate a damaged install, then re-imports it.
+Describe 'Start-Tallio.ps1' {
+    It 'reports damaged launcher files instead of failing silently' {
+        $inst = "$TestDrive\inst"; New-Item $inst -ItemType Directory | Out-Null
+        Copy-Item (Join-Path $here '..\Start-Tallio.ps1') $inst   # no TallioLauncher.psm1 beside it
+        $state = @{ msg = $null }
+        $notify = { param($m) $state.msg = $m }.GetNewClosure()
+        Remove-Module TallioLauncher -Force
+        try { & "$inst\Start-Tallio.ps1" -Notify $notify 2>$null } catch { }
+        finally { Import-Module (Join-Path $here '..\TallioLauncher.psm1') -Force }
+        $state.msg | Should Match 'missing or damaged'
     }
 }

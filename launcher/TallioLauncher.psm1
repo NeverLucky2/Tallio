@@ -23,6 +23,28 @@ function Test-TallioServer {
     }
 }
 
+# True only if the page at $Url is Tallio (index.html's <title>Tallio</title>). Guards against another
+# app (e.g. any other Vite project — 5173 is Vite's default port) holding the port: opening it in the
+# Tallio window would make the user's data look missing.
+function Test-TallioPage {
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory)][string]$Url,
+        [int]$TimeoutMilliseconds = 5000
+    )
+    $req = [Net.HttpWebRequest]::Create($Url)
+    $req.Proxy = $null
+    $req.Timeout = $TimeoutMilliseconds
+    try {
+        $res = $req.GetResponse()
+        try { $html = (New-Object IO.StreamReader($res.GetResponseStream())).ReadToEnd() } finally { $res.Close() }
+        return $html -match '<title>\s*Tallio\s*</title>'
+    } catch [Net.WebException] {
+        if ($_.Exception.Response) { $_.Exception.Response.Close() }
+        return $false
+    }
+}
+
 function Wait-TallioServer {
     [OutputType([bool])]
     param(
@@ -121,17 +143,30 @@ function Invoke-TallioLaunch {
             throw "Tallio didn't start within $TimeoutSeconds seconds.`n`nDetails are in:`n$LogPath"
         }
     }
+    if (-not (Test-TallioPage -Url $Config.url)) {
+        $port = ([Uri]$Config.url).Port
+        throw "Something else is already using port $port, so Tallio can't open there.`n`nClose the other program (or its terminal window) and try again."
+    }
     $launch = Get-BrowserLaunch -BrowserPath (Find-AppBrowser) -Url $Config.url
     Start-Process @launch
 }
 
+# The launcher runs from a hidden process, so an unowned MessageBox can open behind other windows —
+# indistinguishable from a dead click. An (unshown) TopMost owner keeps the box in front.
+function New-TallioDialogOwner {
+    Add-Type -AssemblyName System.Windows.Forms
+    New-Object System.Windows.Forms.Form -Property @{ TopMost = $true; ShowInTaskbar = $false }
+}
+
 function Show-TallioError {
     param([Parameter(Mandatory)][string]$Message)
-    Add-Type -AssemblyName System.Windows.Forms
-    [void][System.Windows.Forms.MessageBox]::Show(
-        $Message, 'Tallio',
-        [System.Windows.Forms.MessageBoxButtons]::OK,
-        [System.Windows.Forms.MessageBoxIcon]::Error)
+    $owner = New-TallioDialogOwner
+    try {
+        [void][System.Windows.Forms.MessageBox]::Show(
+            $owner, $Message, 'Tallio',
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error)
+    } finally { $owner.Dispose() }
 }
 
 # --- Icon (dev-time: used by New-TallioIcon.ps1) ----------------------------------------------
