@@ -1,0 +1,48 @@
+// src/crossWindowSync.js
+// Keeps several open Tallio windows from overwriting each other. Each window holds
+// its own in-memory copy and saves the whole copy on every edit, so a window that
+// missed a change made elsewhere would silently clobber it. The browser's `storage`
+// event fires only in OTHER same-origin windows; on a main-data change we reload.
+
+// Whole-blob stores a stale window could clobber. Deliberately excluded: the
+// copy/paste clipboard and celebration counters (harmless if stale) and settings
+// (useSettings.save writes only the fields being changed).
+export const SYNCED_KEYS = [
+  'tallio-accounts',
+  'tallio-transactions',
+  'tallio-categories',
+  'tallio-payees',
+  'tallio-templates',
+  'tallio-account-types',
+  'tallio-report-acks',
+  'tallio-appearance',
+];
+
+const NOTE_KEY = 'tallio-reloaded-by-other-window';
+
+// Calls onChange(key) when another window changes a synced key, or clears storage
+// (key null). Returns an unsubscribe function.
+export function watchOtherWindows(onChange, { target = window, storage = window.localStorage } = {}) {
+  const handler = (e) => {
+    if (e.storageArea !== storage) return;
+    if (e.key === null || SYNCED_KEYS.includes(e.key)) onChange(e.key);
+  };
+  target.addEventListener('storage', handler);
+  return () => target.removeEventListener('storage', handler);
+}
+
+// One-shot note carried across the reload so the fresh page can say why it jumped.
+// sessionStorage may be unavailable (privacy modes): the reload matters, the note doesn't.
+export function noteReloadFromOtherWindow(session = window.sessionStorage) {
+  try { session.setItem(NOTE_KEY, '1'); } catch { /* note is best-effort */ }
+}
+
+export function takeReloadNote(session = window.sessionStorage) {
+  try {
+    if (session.getItem(NOTE_KEY) === null) return false;
+    session.removeItem(NOTE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
