@@ -1,5 +1,6 @@
 // src/useTemplates.js
 import { useState, useCallback, useEffect } from 'react';
+import useStorageWriter from './storageWriter.js';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEY = 'tallio-templates';
@@ -18,11 +19,12 @@ function load() {
 // Named, persisted library of entry drafts (transactions and transfers).
 export default function useTemplates() {
   const [templates, setTemplates] = useState(load);
+  const writeTemplates = useStorageWriter(STORAGE_KEY);
   const [storageError, setStorageError] = useState(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+      writeTemplates(templates);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError !== null) setStorageError(null);
     } catch (e) {

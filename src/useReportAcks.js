@@ -1,5 +1,6 @@
 // src/useReportAcks.js
 import { useState, useCallback, useEffect } from 'react';
+import useStorageWriter from './storageWriter.js';
 
 const STORAGE_KEY = 'tallio-report-acks';
 
@@ -24,13 +25,14 @@ function load() {
 // (keyed by a recurring charge's normalized `key`) and dismissed duplicate signatures.
 export default function useReportAcks() {
   const [acks, setAcks] = useState(load);
+  const writeAcks = useStorageWriter(STORAGE_KEY);
   const [storageError, setStorageError] = useState(null);
 
   // Persist synchronously on change (no debounce) so an ack can't be lost to a
   // reload/background within a debounce window.
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(acks));
+      writeAcks(acks);
       // Clear a prior quota error once a save succeeds. No-op when already null.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError !== null) setStorageError(null);

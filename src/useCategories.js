@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import useStorageWriter from './storageWriter.js';
 import { nanoid } from 'nanoid';
 import { autoCategorize as ruleAutoCategorize, findItemsMatchingKeyword } from './categoryRules.js';
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_NAME, withTransferSeeds, withBackfillCategories, normalizeCategories } from './categoriesDefaults.js';
@@ -23,13 +24,14 @@ function load() {
 
 export default function useCategories() {
   const [categories, setCategories] = useState(load);
+  const writeCategories = useStorageWriter(STORAGE_KEY);
   const [storageError, setStorageError] = useState(null);
 
   // Persist synchronously on every change (like useLedger/useSettings) so a change
   // can't be lost to a reload/background within a debounce window.
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+      writeCategories(categories);
       // Clear a prior quota error once a save succeeds. No-op when already null.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError !== null) setStorageError(null);

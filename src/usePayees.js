@@ -1,5 +1,6 @@
 // src/usePayees.js
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import useStorageWriter from './storageWriter.js';
 import { nanoid } from 'nanoid';
 
 const STORAGE_KEY = 'tallio-payees';
@@ -21,11 +22,12 @@ const norm = (name) => (name || '').trim().toLowerCase();
 // Names are unique case-insensitively; addPayee returns the existing id on a match.
 export default function usePayees() {
   const [payees, setPayees] = useState(load);
+  const writePayees = useStorageWriter(STORAGE_KEY);
   const [storageError, setStorageError] = useState(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payees));
+      writePayees(payees);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError !== null) setStorageError(null);
     } catch (e) {
