@@ -57,4 +57,52 @@ function Start-TallioServer {
         -WorkingDirectory $RepoPath -WindowStyle Hidden
 }
 
+# --- Config --------------------------------------------------------------------------------
+
+function Write-TallioConfig {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$RepoPath,
+        [string]$Url = 'http://localhost:5173/'
+    )
+    [pscustomobject]@{ repoPath = $RepoPath; url = $Url } |
+        ConvertTo-Json | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Read-TallioConfig {
+    param([Parameter(Mandatory)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Tallio's launcher isn't set up yet. Run launcher\Install-Launcher.ps1 from the Tallio project folder."
+    }
+    Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+}
+
+# --- Browser -------------------------------------------------------------------------------
+
+function Find-AppBrowser {
+    param(
+        # Chrome first (the user's default browser and where their data lives), then Edge.
+        [string[]]$Candidates = @(
+            "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+            "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+        )
+    )
+    foreach ($c in $Candidates) { if (Test-Path -LiteralPath $c) { return $c } }
+    return $null
+}
+
+# Returns a hashtable to splat into Start-Process. No --user-data-dir / --profile-directory:
+# the app window must use the default profile, where Tallio's localStorage lives.
+function Get-BrowserLaunch {
+    param(
+        [AllowNull()][AllowEmptyString()][string]$BrowserPath,
+        [Parameter(Mandatory)][string]$Url
+    )
+    if ([string]::IsNullOrEmpty($BrowserPath)) { return @{ FilePath = $Url } }
+    return @{ FilePath = $BrowserPath; ArgumentList = @("--app=$Url") }
+}
+
 Export-ModuleMember -Function *-Tallio*, *-AppBrowser, *-BrowserLaunch, ConvertTo-Ico, Resize-Png

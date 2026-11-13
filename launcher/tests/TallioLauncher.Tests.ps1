@@ -73,3 +73,38 @@ Describe 'Start-TallioServer' {
         }
     }
 }
+
+Describe 'Tallio config' {
+    It 'round-trips repoPath and the default url' {
+        Write-TallioConfig -Path "$TestDrive\launcher.json" -RepoPath 'C:\My Projects\tallio'
+        $c = Read-TallioConfig -Path "$TestDrive\launcher.json"
+        $c.repoPath | Should Be 'C:\My Projects\tallio'
+        $c.url | Should Be 'http://localhost:5173/'
+    }
+    It 'explains how to set up when the config is missing' {
+        { Read-TallioConfig -Path "$TestDrive\none.json" } | Should Throw "Tallio's launcher isn't set up yet"
+    }
+}
+
+Describe 'Find-AppBrowser' {
+    It 'returns the first candidate that exists' {
+        New-Item "$TestDrive\edge.exe" -ItemType File | Out-Null
+        Find-AppBrowser -Candidates @("$TestDrive\chrome.exe", "$TestDrive\edge.exe") | Should Be "$TestDrive\edge.exe"
+    }
+    It 'returns null when none exist' {
+        Find-AppBrowser -Candidates @("$TestDrive\nope.exe") | Should BeNullOrEmpty
+    }
+}
+
+Describe 'Get-BrowserLaunch' {
+    It 'opens an app window when a browser was found' {
+        $l = Get-BrowserLaunch -BrowserPath 'C:\chrome.exe' -Url 'http://localhost:5173/'
+        $l.FilePath | Should Be 'C:\chrome.exe'
+        $l.ArgumentList | Should Be '--app=http://localhost:5173/'
+    }
+    It 'falls back to the default browser' {
+        $l = Get-BrowserLaunch -BrowserPath $null -Url 'http://localhost:5173/'
+        $l.FilePath | Should Be 'http://localhost:5173/'
+        $l.ContainsKey('ArgumentList') | Should Be $false
+    }
+}
