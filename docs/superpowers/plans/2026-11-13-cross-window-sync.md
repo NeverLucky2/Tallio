@@ -52,6 +52,12 @@
 
 - An effect that calls `watchOtherWindows(() => { noteReloadFromOtherWindow(); reloadApp(); })`.
 - A mount effect: `if (takeReloadNote()) flashToast('Updated from another Tallio window')`.
+- **Ruling (during implementation):** `main.jsx` renders inside `<StrictMode>`, which runs mount
+  effects twice in dev (and the launcher runs dev). Taking the one-shot note inside an effect
+  would get `true` then `false`, and the existing toast-timer cleanup would cancel the hide timer,
+  leaving the note stuck on screen. So `main.jsx` calls `takeReloadNote()` once before render and
+  passes `reloadedByOtherWindow` to `<App>` → `<Tallio>`. The effect only reads the prop, so it is
+  idempotent. The smoke test renders `<App reloadedByOtherWindow />` instead of pre-setting the flag.
 
 **Smoke tests (`src/__smoke__/crossWindow.test.jsx`, mock `../reloadApp.js`):**
 
