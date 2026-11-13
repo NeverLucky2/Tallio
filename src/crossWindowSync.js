@@ -3,6 +3,7 @@
 // its own in-memory copy and saves the whole copy on every edit, so a window that
 // missed a change made elsewhere would silently clobber it. The browser's `storage`
 // event fires only in OTHER same-origin windows; on a main-data change we reload.
+import { reloadApp } from './reloadApp.js';
 
 // Whole-blob stores a stale window could clobber. Deliberately excluded: the
 // copy/paste clipboard and celebration counters (harmless if stale) and settings
@@ -29,6 +30,12 @@ export function watchOtherWindows(onChange, { target = window, storage = window.
   };
   target.addEventListener('storage', handler);
   return () => target.removeEventListener('storage', handler);
+}
+
+// Called from main.jsx BEFORE React renders, so there is no gap between the stores
+// reading storage and this window listening for changes made elsewhere.
+export function startCrossWindowSync({ reload = reloadApp } = {}) {
+  return watchOtherWindows(() => { noteReloadFromOtherWindow(); reload(); });
 }
 
 // One-shot note carried across the reload so the fresh page can say why it jumped.

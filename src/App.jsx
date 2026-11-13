@@ -51,7 +51,6 @@ import { listImages } from './imageStore.js';
 import { restoreArchiveToStorage } from './archiveRestore.js';
 import { downloadArchive, readBytesFromFile } from './fileStore.js';
 import { reloadApp } from './reloadApp.js';
-import { watchOtherWindows, noteReloadFromOtherWindow } from './crossWindowSync.js';
 import useLiveFile from './useLiveFile.js';
 import LiveFilePill from './LiveFilePill.jsx';
 import { requestPersistentStorage } from './storagePersist.js';
@@ -175,9 +174,8 @@ function Tallio({ reloadedByOtherWindow = false }) {
   }, []);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
-  // Another Tallio window saved main data: reload so this window never overwrites
-  // that change with its stale in-memory copy. The fresh page then says why it jumped.
-  useEffect(() => watchOtherWindows(() => { noteReloadFromOtherWindow(); reloadApp(); }), []);
+  // main.jsx reloads this window when another Tallio window saves main data
+  // (startCrossWindowSync); the fresh page then says why it jumped.
   useEffect(() => {
     if (reloadedByOtherWindow) flashToast('Updated from another Tallio window');
   }, [reloadedByOtherWindow, flashToast]);

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   SYNCED_KEYS, watchOtherWindows, noteReloadFromOtherWindow, takeReloadNote,
+  startCrossWindowSync,
 } from './crossWindowSync.js';
 
 function fire(key, storageArea = localStorage) {
@@ -56,6 +57,28 @@ describe('watchOtherWindows', () => {
     watchOtherWindows(onChange)();
     fire('tallio-transactions');
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('startCrossWindowSync', () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('notes and reloads when another window saves main data', () => {
+    const reload = vi.fn();
+    const stop = startCrossWindowSync({ reload });
+    fire('tallio-transactions');
+    stop();
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(takeReloadNote()).toBe(true);
+  });
+
+  it('ignores keys that are not main data', () => {
+    const reload = vi.fn();
+    const stop = startCrossWindowSync({ reload });
+    fire('tallio-clipboard');
+    stop();
+    expect(reload).not.toHaveBeenCalled();
+    expect(takeReloadNote()).toBe(false);
   });
 });
 
