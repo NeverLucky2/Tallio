@@ -151,22 +151,22 @@ function Invoke-TallioLaunch {
     Start-Process @launch
 }
 
-# The launcher runs from a hidden process, so an unowned MessageBox can open behind other windows —
-# indistinguishable from a dead click. An (unshown) TopMost owner keeps the box in front.
-function New-TallioDialogOwner {
-    Add-Type -AssemblyName System.Windows.Forms
-    New-Object System.Windows.Forms.Form -Property @{ TopMost = $true; ShowInTaskbar = $false }
+# The launcher runs from a hidden process, so a plain message box can open behind other windows —
+# indistinguishable from a dead click. (A TopMost WinForms owner didn't help: the box itself stayed
+# non-topmost.) So ask Windows directly: MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST.
+function Get-TallioMessageBoxFlags {
+    [OutputType([uint32])]
+    param()
+    [uint32](0x0 -bor 0x10 -bor 0x10000 -bor 0x40000)
 }
 
 function Show-TallioError {
     param([Parameter(Mandatory)][string]$Message)
-    $owner = New-TallioDialogOwner
-    try {
-        [void][System.Windows.Forms.MessageBox]::Show(
-            $owner, $Message, 'Tallio',
-            [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Error)
-    } finally { $owner.Dispose() }
+    if (-not ('Tallio.NativeMessageBox' -as [type])) {
+        Add-Type -Namespace Tallio -Name NativeMessageBox -MemberDefinition `
+            '[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);'
+    }
+    [void][Tallio.NativeMessageBox]::MessageBoxW([IntPtr]::Zero, $Message, 'Tallio', (Get-TallioMessageBoxFlags))
 }
 
 # --- Icon (dev-time: used by New-TallioIcon.ps1) ----------------------------------------------

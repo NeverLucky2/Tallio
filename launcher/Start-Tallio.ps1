@@ -11,11 +11,11 @@ try {
 } catch {
     $msg = "Tallio's launcher files are missing or damaged. Run launcher\Install-Launcher.ps1 again from the Tallio project folder."
     if ($Notify) { & $Notify $msg; return }
-    # The module (and its Show-TallioError) didn't load, so show a plain box directly.
-    Add-Type -AssemblyName System.Windows.Forms
-    $owner = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true; ShowInTaskbar = $false }
-    [void][System.Windows.Forms.MessageBox]::Show($owner, $msg, 'Tallio', 'OK', 'Error')
-    $owner.Dispose()
+    # The module (and its Show-TallioError) didn't load, so show the same topmost box directly:
+    # MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST.
+    Add-Type -Namespace Tallio -Name NativeMessageBox -MemberDefinition `
+        '[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int MessageBoxW(IntPtr hWnd, string text, string caption, uint type);'
+    [void][Tallio.NativeMessageBox]::MessageBoxW([IntPtr]::Zero, $msg, 'Tallio', [uint32]0x50010)
     return
 }
 

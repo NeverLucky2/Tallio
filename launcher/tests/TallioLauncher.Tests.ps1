@@ -166,10 +166,14 @@ Describe 'Invoke-TallioLaunch' {
     }
 }
 
-Describe 'New-TallioDialogOwner' {
-    It 'is a topmost owner so the error box cannot open behind other windows' {
-        $f = New-TallioDialogOwner
-        try { $f.TopMost | Should Be $true; $f.ShowInTaskbar | Should Be $false } finally { $f.Dispose() }
+Describe 'Get-TallioMessageBoxFlags' {
+    # A TopMost owner Form did NOT work (live check: the box itself was neither topmost nor foreground),
+    # so the box asks Windows directly via user32 MessageBox flags.
+    It 'asks Windows for a topmost, foreground error box so it cannot open behind other windows' {
+        $f = Get-TallioMessageBoxFlags
+        $f -band 0x40000 | Should Be 0x40000   # MB_TOPMOST
+        $f -band 0x10000 | Should Be 0x10000   # MB_SETFOREGROUND
+        $f -band 0xF0    | Should Be 0x10      # MB_ICONERROR
     }
 }
 
