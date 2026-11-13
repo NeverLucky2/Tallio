@@ -1,6 +1,7 @@
 // src/useImageLibrary.js
 import { useState, useEffect, useCallback } from 'react';
 import * as store from './imageStore.js';
+import { markImagesChanged } from './crossWindowSync.js';
 
 // deps lets tests inject store functions (e.g. a canvas-free putImage).
 export default function useImageLibrary(deps = {}) {
@@ -10,6 +11,7 @@ export default function useImageLibrary(deps = {}) {
     deleteImage: deps.deleteImage || store.deleteImage,
     updateImageMeta: deps.updateImageMeta || store.updateImageMeta,
     replaceAllImages: deps.replaceAllImages || store.replaceAllImages,
+    markChanged: deps.markImagesChanged || markImagesChanged,
   };
   const [images, setImages] = useState([]);
 
@@ -26,6 +28,7 @@ export default function useImageLibrary(deps = {}) {
 
   const addFromFile = useCallback(async (file, meta) => {
     const saved = await api.putImage(file, meta);
+    api.markChanged();
     await reload();
     return saved;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,12 +36,14 @@ export default function useImageLibrary(deps = {}) {
 
   const remove = useCallback(async (id) => {
     await api.deleteImage(id);
+    api.markChanged();
     await reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
   const updateMeta = useCallback(async (id, patch) => {
     await api.updateImageMeta(id, patch);
+    api.markChanged();
     await reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
@@ -49,6 +54,7 @@ export default function useImageLibrary(deps = {}) {
   const snapshot = useCallback(() => images, [images]);
   const restore = useCallback(async (records) => {
     await api.replaceAllImages(records || []);
+    api.markChanged();
     await reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);

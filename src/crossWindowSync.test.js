@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   SYNCED_KEYS, watchOtherWindows, noteReloadFromOtherWindow, takeReloadNote,
-  startCrossWindowSync,
+  startCrossWindowSync, markImagesChanged,
 } from './crossWindowSync.js';
 
 function fire(key, storageArea = localStorage) {
@@ -13,8 +13,23 @@ describe('watchOtherWindows', () => {
   it('syncs exactly the main data keys', () => {
     expect([...SYNCED_KEYS].sort()).toEqual([
       'tallio-account-types', 'tallio-accounts', 'tallio-appearance', 'tallio-categories',
-      'tallio-payees', 'tallio-report-acks', 'tallio-templates', 'tallio-transactions',
+      'tallio-images-rev', 'tallio-payees', 'tallio-report-acks', 'tallio-templates',
+      'tallio-transactions',
     ]);
+  });
+
+  it('marks the image library changed with a new value each time', () => {
+    localStorage.removeItem('tallio-images-rev');
+    markImagesChanged();
+    const first = localStorage.getItem('tallio-images-rev');
+    markImagesChanged();
+    expect(first).not.toBeNull();
+    expect(localStorage.getItem('tallio-images-rev')).not.toBe(first);
+  });
+
+  it('marking the image library changed never throws', () => {
+    const broken = { setItem() { throw new Error('QuotaExceededError'); } };
+    expect(() => markImagesChanged(broken)).not.toThrow();
   });
 
   it('calls onChange for every synced key', () => {

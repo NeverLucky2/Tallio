@@ -8,6 +8,7 @@ import { reloadApp } from './reloadApp.js';
 // Whole-blob stores a stale window could clobber. Deliberately excluded: the
 // copy/paste clipboard and celebration counters (harmless if stale) and settings
 // (useSettings.save writes only the fields being changed).
+const IMAGES_REV_KEY = 'tallio-images-rev';
 export const SYNCED_KEYS = [
   'tallio-accounts',
   'tallio-transactions',
@@ -17,9 +18,19 @@ export const SYNCED_KEYS = [
   'tallio-account-types',
   'tallio-report-acks',
   'tallio-appearance',
+  IMAGES_REV_KEY,
 ];
 
 const NOTE_KEY = 'tallio-reloaded-by-other-window';
+
+// The image library lives in IndexedDB, which fires no `storage` event, and Undo
+// restores it wholesale, so a stale window could delete another window's uploads.
+// Every library change therefore writes a fresh marker here for other windows to see.
+export function markImagesChanged(storage = window.localStorage) {
+  try {
+    storage.setItem(IMAGES_REV_KEY, `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+  } catch { /* quota: other windows just won't reload for this change */ }
+}
 
 // Calls onChange(key) when another window changes a synced key, or clears storage
 // (key null). Returns an unsubscribe function.
