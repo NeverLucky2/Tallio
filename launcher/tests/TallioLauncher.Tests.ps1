@@ -108,3 +108,33 @@ Describe 'Get-BrowserLaunch' {
         $l.ContainsKey('ArgumentList') | Should Be $false
     }
 }
+
+# Pester 3.x: Assert-MockCalled defaults to Describe scope, so every assertion here passes -Scope It.
+Describe 'Invoke-TallioLaunch' {
+    $cfg = [pscustomobject]@{ repoPath = 'C:\repo'; url = 'http://localhost:5173/' }
+    Mock Find-AppBrowser { 'C:\chrome.exe' } -ModuleName TallioLauncher
+    Mock Start-Process {} -ModuleName TallioLauncher
+    Mock Start-TallioServer {} -ModuleName TallioLauncher
+
+    It 'just opens the window when the server is already up' {
+        Mock Test-TallioServer { $true } -ModuleName TallioLauncher
+        Invoke-TallioLaunch -Config $cfg -LogPath 'C:\l.log'
+        Assert-MockCalled Start-TallioServer -ModuleName TallioLauncher -Times 0 -Exactly -Scope It
+        Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 1 -Exactly -Scope It -ParameterFilter {
+            $FilePath -eq 'C:\chrome.exe' -and $ArgumentList -eq '--app=http://localhost:5173/' }
+    }
+    It 'starts the server first when it is down, then opens the window' {
+        Mock Test-TallioServer { $false } -ModuleName TallioLauncher
+        Mock Wait-TallioServer { $true } -ModuleName TallioLauncher
+        Invoke-TallioLaunch -Config $cfg -LogPath 'C:\l.log'
+        Assert-MockCalled Start-TallioServer -ModuleName TallioLauncher -Times 1 -Exactly -Scope It -ParameterFilter {
+            $RepoPath -eq 'C:\repo' -and $LogPath -eq 'C:\l.log' }
+        Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 1 -Exactly -Scope It
+    }
+    It 'throws the timeout message and opens no window when the server never comes up' {
+        Mock Test-TallioServer { $false } -ModuleName TallioLauncher
+        Mock Wait-TallioServer { $false } -ModuleName TallioLauncher
+        { Invoke-TallioLaunch -Config $cfg -LogPath 'C:\l.log' } | Should Throw "Tallio didn't start within 30 seconds."
+        Assert-MockCalled Start-Process -ModuleName TallioLauncher -Times 0 -Exactly -Scope It
+    }
+}

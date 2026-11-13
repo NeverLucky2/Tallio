@@ -105,4 +105,33 @@ function Get-BrowserLaunch {
     return @{ FilePath = $BrowserPath; ArgumentList = @("--app=$Url") }
 }
 
+# --- Launch --------------------------------------------------------------------------------
+
+# Start the dev server if it isn't already answering, then open Tallio in an app window.
+# Throws (with user-facing copy) on any failure; Start-Tallio.ps1 turns that into a message box.
+function Invoke-TallioLaunch {
+    param(
+        [Parameter(Mandatory)][pscustomobject]$Config,
+        [Parameter(Mandatory)][string]$LogPath,
+        [int]$TimeoutSeconds = 30
+    )
+    if (-not (Test-TallioServer -Url $Config.url)) {
+        Start-TallioServer -RepoPath $Config.repoPath -LogPath $LogPath
+        if (-not (Wait-TallioServer -Url $Config.url -TimeoutSeconds $TimeoutSeconds)) {
+            throw "Tallio didn't start within $TimeoutSeconds seconds.`n`nDetails are in:`n$LogPath"
+        }
+    }
+    $launch = Get-BrowserLaunch -BrowserPath (Find-AppBrowser) -Url $Config.url
+    Start-Process @launch
+}
+
+function Show-TallioError {
+    param([Parameter(Mandatory)][string]$Message)
+    Add-Type -AssemblyName System.Windows.Forms
+    [void][System.Windows.Forms.MessageBox]::Show(
+        $Message, 'Tallio',
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Error)
+}
+
 Export-ModuleMember -Function *-Tallio*, *-AppBrowser, *-BrowserLaunch, ConvertTo-Ico, Resize-Png
