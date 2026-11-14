@@ -52,8 +52,8 @@ import { restoreArchiveToStorage } from './archiveRestore.js';
 import { downloadArchive, readBytesFromFile } from './fileStore.js';
 import { reloadApp } from './reloadApp.js';
 import useLiveFile from './useLiveFile.js';
-import LiveFilePill from './LiveFilePill.jsx';
-import { requestPersistentStorage } from './storagePersist.js';
+import BudgetFileCard from './BudgetFileCard.jsx';
+import { requestPersistentStorage, getStorageEstimate, formatStorageNote } from './storagePersist.js';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -192,6 +192,14 @@ function Tallio({ reloadedByOtherWindow = false }) {
   const eggs = useEasterEggs();
   useEffect(() => { printConsoleArt(); }, []);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [storageNote, setStorageNote] = useState('');
+  // Refresh the drawer's "N MB stored" footer each time it opens.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    let cancelled = false;
+    getStorageEstimate().then((info) => { if (!cancelled) setStorageNote(formatStorageNote(info)); });
+    return () => { cancelled = true; };
+  }, [drawerOpen]);
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
@@ -600,19 +608,25 @@ function Tallio({ reloadedByOtherWindow = false }) {
       <AvatarDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        version={pkg.version}
+        footerNote={storageNote}
         avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
-        statusSlot={liveFile.supported ? <LiveFilePill status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt} /> : null}
-        items={[
-          { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
-          { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
-          { icon: '↗', label: 'Export', onSelect: () => exportData() },
-          { icon: '↙', label: 'Restore from backup', onSelect: () => importInputRef.current?.click() },
-          ...(liveFile.supported ? [
-            { icon: '🔗', label: liveFile.status === 'linked' ? 'Save to a different file' : 'Save to a budget file', onSelect: () => liveFile.linkNewFile() },
-            { icon: '📂', label: 'Open a budget file', onSelect: () => liveFile.openFile() },
-            ...(liveFile.status === 'linked' ? [{ icon: '⛓', label: 'Unlink file', onSelect: () => liveFile.unlink() }] : []),
-          ] : []),
+        fileCard={liveFile.supported ? (
+          <BudgetFileCard
+            status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt}
+            onLink={() => { liveFile.linkNewFile(); setDrawerOpen(false); }}
+            onOpen={() => { liveFile.openFile(); setDrawerOpen(false); }}
+            onUnlink={() => { liveFile.unlink(); setDrawerOpen(false); }}
+          />
+        ) : null}
+        sections={[
+          { title: 'Personalize', items: [
+            { icon: 'palette', label: 'Appearance', hint: 'Theme, icons, background', chevron: true, onSelect: () => setScreen('appearance') },
+            { icon: 'settings', label: 'Settings', hint: 'Scanning, display size, celebrations', chevron: true, onSelect: () => openSettings() },
+          ] },
+          { title: 'Backups', items: [
+            { icon: 'download', label: 'Download a backup', hint: 'One-time copy as a .tallio file', onSelect: () => exportData() },
+            { icon: 'restore', label: 'Restore from backup…', hint: 'Replaces everything on this device', danger: true, onSelect: () => importInputRef.current?.click() },
+          ] },
         ]}
       />
 

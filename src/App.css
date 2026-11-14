@@ -4058,11 +4058,6 @@
 .phone-tray-actions { display: flex; gap: 8px; flex-wrap: wrap; flex: none; position: sticky; bottom: 0; margin: 0 -16px -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(10, 10, 15, 0.88); backdrop-filter: blur(10px); border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .phone-tray-actions .phone-btn { flex: 1; min-width: 96px; display: flex; align-items: center; justify-content: center; text-align: center; margin-top: 0; }
 
-/* Live-file status pill (linked .tallio document, Chrome/Edge) */
-.avatar-drawer-status { padding: 0 1rem 0.5rem; }
-.live-file-pill { display: inline-flex; align-items: center; gap: .35em; font-size: .75rem; opacity: .85; padding: .15em .5em; border-radius: 999px; }
-.live-file-pill--linked { color: var(--good, #2e7d32); }
-
 /* Profit & Loss statement */
 .pnl-scroll { overflow-x: auto; }
 .pnl-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
