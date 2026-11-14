@@ -2553,10 +2553,11 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
-  align-items: center;
+  align-items: safe center; /* a dialog taller than the window starts at the top instead of losing its top edge */
   justify-content: center;
   z-index: 100;
   padding: 14px;
+  overflow-y: auto; /* ...and scrolls, so Save/Cancel stay reachable (large display size, short window, many split lines) */
 }
 
 .dialog-backdrop {
