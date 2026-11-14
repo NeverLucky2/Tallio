@@ -1,6 +1,8 @@
 // src/AvatarDrawer.jsx
 // Right slide-in menu drawer, anchored to the header avatar. Rows are grouped
-// into titled sections; an optional file card sits after the first section.
+// into titled sections; an optional file card sits after the first section
+// (`fileCard` is a node, or `(act) => node` where `act(fn)` wraps a card action
+// so it closes the drawer the same guarded way a row does).
 // Closes on scrim click, ×, Escape, or item select. Reduced motion skips the slide.
 import React, { useEffect, useRef, useState } from 'react';
 import UiIcon from './ui/UiIcon.jsx';
@@ -36,6 +38,7 @@ function DrawerPanel({ onClose, sections = [], fileCard = null, footerNote = '',
   const timerRef = useRef(null);
   const panelRef = useRef(null);
   const closeBtnRef = useRef(null);
+  const keepFocusRef = useRef(false); // a row opened something; don't pull focus back to the trigger
 
   const finish = () => {
     if (doneRef.current) return;
@@ -56,9 +59,19 @@ function DrawerPanel({ onClose, sections = [], fileCard = null, footerNote = '',
 
   const select = (it) => {
     if (closingRef.current) return;
+    keepFocusRef.current = true;
     it.onSelect();
     requestClose();
   };
+
+  // Wraps a file-card action so it shares the rows' guarded close (runs once,
+  // ignored while closing, slides out) and returns focus to the trigger.
+  const act = (fn) => () => {
+    if (closingRef.current) return;
+    fn();
+    requestClose();
+  };
+  const card = typeof fileCard === 'function' ? fileCard(act) : fileCard;
 
   // Focus moves into the drawer on open and back to where it was on close.
   useEffect(() => {
@@ -66,6 +79,7 @@ function DrawerPanel({ onClose, sections = [], fileCard = null, footerNote = '',
     if (closeBtnRef.current) closeBtnRef.current.focus();
     return () => {
       clearTimeout(timerRef.current);
+      if (keepFocusRef.current) return;
       if (previous && previous.isConnected && typeof previous.focus === 'function') previous.focus();
     };
   }, []);
@@ -124,7 +138,7 @@ function DrawerPanel({ onClose, sections = [], fileCard = null, footerNote = '',
                   </button>
                 ))}
               </Section>
-              {i === 0 && fileCard && <Section title="Budget file">{fileCard}</Section>}
+              {i === 0 && card && <Section title="Budget file">{card}</Section>}
             </React.Fragment>
           ))}
         </nav>

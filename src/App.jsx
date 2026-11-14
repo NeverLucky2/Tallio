@@ -610,12 +610,12 @@ function Tallio({ reloadedByOtherWindow = false }) {
         onClose={() => setDrawerOpen(false)}
         footerNote={storageNote}
         avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
-        fileCard={liveFile.supported ? (
+        fileCard={liveFile.supported ? (act) => (
           <BudgetFileCard
             status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt}
-            onLink={() => { liveFile.linkNewFile(); setDrawerOpen(false); }}
-            onOpen={() => { liveFile.openFile(); setDrawerOpen(false); }}
-            onUnlink={() => { liveFile.unlink(); setDrawerOpen(false); }}
+            onLink={act(() => liveFile.linkNewFile())}
+            onOpen={act(() => liveFile.openFile())}
+            onUnlink={act(() => liveFile.unlink())}
           />
         ) : null}
         sections={[

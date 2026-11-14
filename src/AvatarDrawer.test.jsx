@@ -170,4 +170,41 @@ describe('AvatarDrawer', () => {
     rerender(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion={false} />);
     expect(container.querySelector('.avatar-drawer-panel').className).not.toContain('closing');
   });
+
+  it('does not pull focus back to the trigger when a row opened something', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const { getByText, rerender } = render(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion />);
+    fireEvent.click(getByText('Settings'));
+    rerender(<AvatarDrawer open={false} onClose={() => {}} sections={mkSections()} reducedMotion />);
+    expect(document.activeElement).not.toBe(trigger);
+    trigger.remove();
+  });
+
+  it('file card actions go through the guarded close: once each, slide-out first', () => {
+    const calls = []; let closed = 0;
+    const card = (act) => <button type="button" onClick={act(() => calls.push('unlink'))}>Unlink</button>;
+    const { getByText, container } = render(
+      <AvatarDrawer open onClose={() => { closed += 1; }} sections={mkSections(calls)} fileCard={card} reducedMotion={false} />,
+    );
+    fireEvent.click(getByText('Unlink'));
+    fireEvent.click(getByText('Unlink'));
+    fireEvent.click(getByText('Settings'));
+    expect(calls).toEqual(['unlink']);
+    expect(closed).toBe(0);
+    fireEvent.animationEnd(container.querySelector('.avatar-drawer-panel'));
+    expect(closed).toBe(1);
+  });
+
+  it('a file card action is ignored once a close is under way', () => {
+    const calls = [];
+    const card = (act) => <button type="button" onClick={act(() => calls.push('unlink'))}>Unlink</button>;
+    const { getByText, getByLabelText } = render(
+      <AvatarDrawer open onClose={() => {}} sections={mkSections()} fileCard={card} reducedMotion={false} />,
+    );
+    fireEvent.click(getByLabelText('Close menu'));
+    fireEvent.click(getByText('Unlink'));
+    expect(calls).toEqual([]);
+  });
 });
