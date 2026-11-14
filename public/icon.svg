@@ -5,7 +5,9 @@
       <stop offset="0" stop-color="#1a1712"/>
       <stop offset="1" stop-color="#100e0b"/>
     </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <!-- userSpaceOnUse spans the whole mark: an objectBoundingBox gradient on the vertical
+         strokes (zero-width bbox) is invalid per SVG spec, so browsers dropped the four uprights. -->
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="168" y1="182" x2="344" y2="330">
       <stop offset="0" stop-color="#f0c669"/>
       <stop offset="1" stop-color="#c9962f"/>
     </linearGradient>

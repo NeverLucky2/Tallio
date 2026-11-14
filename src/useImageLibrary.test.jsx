@@ -57,4 +57,31 @@ describe('useImageLibrary', () => {
     await act(async () => { await result.current.restore(snap); });
     await waitFor(() => expect(result.current.images.map(i => i.id).sort()).toEqual(['a', 'b']));
   });
+
+  // IndexedDB changes fire no `storage` event, so each library change bumps a
+  // localStorage marker that other Tallio windows watch (crossWindowSync.js).
+  it('every library change leaves a new marker for other windows', async () => {
+    localStorage.clear();
+    await putRecord(rec('a'));
+    const fakePut = async (file, meta) => putRecord(rec('new', { name: meta.name }));
+    const { result } = renderHook(() => useImageLibrary({ putImage: fakePut }));
+    await waitFor(() => expect(result.current.images.length).toBe(1));
+    expect(localStorage.getItem('tallio-images-rev')).toBeNull(); // loading changes nothing
+    const seen = new Set();
+    const bumped = () => {
+      const rev = localStorage.getItem('tallio-images-rev');
+      expect(rev).not.toBeNull();
+      expect(seen.has(rev)).toBe(false);
+      seen.add(rev);
+    };
+    const snap = result.current.snapshot();
+    await act(async () => { await result.current.addFromFile(new File(['x'], 'x.jpg'), { name: 'Pic' }); });
+    bumped();
+    await act(async () => { await result.current.updateMeta('a', { name: 'Renamed' }); });
+    bumped();
+    await act(async () => { await result.current.remove('new'); });
+    bumped();
+    await act(async () => { await result.current.restore(snap); });
+    bumped();
+  });
 });

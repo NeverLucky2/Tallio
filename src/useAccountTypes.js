@@ -1,5 +1,6 @@
 // src/useAccountTypes.js
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import useStorageWriter from './storageWriter.js';
 import { nanoid } from 'nanoid';
 import { DEFAULT_ACCOUNT_TYPES } from './accountsModel.js';
 
@@ -15,11 +16,12 @@ export default function useAccountTypes() {
     } catch { /* fall through to seed */ }
     return DEFAULT_ACCOUNT_TYPES.map(t => ({ ...t }));
   });
+  const writeTypes = useStorageWriter(TYPES_KEY);
   const [storageError, setStorageError] = useState(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(TYPES_KEY, JSON.stringify(types));
+      writeTypes(types);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError) setStorageError(null);
     } catch (e) {

@@ -1,6 +1,6 @@
 // src/storagePersist.test.js
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { requestPersistentStorage, getStorageEstimate } from './storagePersist.js';
+import { requestPersistentStorage, getStorageEstimate, formatStorageNote } from './storagePersist.js';
 
 const orig = navigator.storage;
 afterEach(() => { Object.defineProperty(navigator, 'storage', { value: orig, configurable: true }); });
@@ -28,5 +28,19 @@ describe('storagePersist', () => {
   it('estimates usage and quota', async () => {
     mockStorage({ estimate: vi.fn().mockResolvedValue({ usage: 10, quota: 100 }) });
     expect(await getStorageEstimate()).toEqual({ supported: true, usage: 10, quota: 100 });
+  });
+});
+
+describe('formatStorageNote', () => {
+  it('formats usage in MB', () => {
+    expect(formatStorageNote({ supported: true, usage: 419430, quota: 1 })).toBe('0.4 MB stored');
+  });
+  it('is empty when usage would round to 0.0 MB', () => {
+    expect(formatStorageNote({ supported: true, usage: 1871, quota: 1 })).toBe('');
+    expect(formatStorageNote({ supported: true, usage: 0, quota: 1 })).toBe('');
+  });
+  it('is empty when unsupported or missing', () => {
+    expect(formatStorageNote({ supported: false, usage: 0, quota: 0 })).toBe('');
+    expect(formatStorageNote(null)).toBe('');
   });
 });

@@ -1,5 +1,6 @@
 // src/useLedger.js
 import { useState, useCallback, useEffect } from 'react';
+import useStorageWriter from './storageWriter.js';
 import { nanoid } from 'nanoid';
 import { validateSplits } from './accountsModel.js';
 
@@ -12,11 +13,13 @@ export default function useLedger(initial = { accounts: [], transactions: [] }) 
   const [accounts, setAccounts] = useState(initial.accounts || []);
   const [transactions, setTransactions] = useState(initial.transactions || []);
   const [storageError, setStorageError] = useState(null);
+  const writeAccounts = useStorageWriter(ACCOUNTS_KEY);
+  const writeTransactions = useStorageWriter(TXN_KEY);
 
   useEffect(() => {
     try {
-      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-      localStorage.setItem(TXN_KEY, JSON.stringify(transactions));
+      writeAccounts(accounts);
+      writeTransactions(transactions);
       // Clear a prior quota error once a save succeeds. No-op when already null.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (storageError) setStorageError(null);

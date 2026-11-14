@@ -1,6 +1,6 @@
 // src/reportsModel.test.js
 import { describe, it, expect } from 'vitest';
-import { resolvePeriod, monthsInRange, scopeAccountIds, filterRows } from './reportsModel.js';
+import { resolvePeriod, monthsInRange, scopeAccountIds, filterRows, payeeActivity } from './reportsModel.js';
 
 const NOW = new Date(2026, 4, 20); // May 20, 2026 (local)
 
@@ -566,5 +566,60 @@ describe('duplicate/recurring detection ignores split lines', () => {
     expect(out).toHaveLength(1);
     expect(out[0].label).toBe('Costco');
     expect(out[0].monthCount).toBe(2);
+  });
+});
+
+describe('payeeActivity', () => {
+  const cats = new Map([
+    ['inc', { id: 'inc', name: 'Salary', flow: 'income' }],
+    ['gro', { id: 'gro', name: 'Groceries', flow: 'expense' }],
+    ['sav', { id: 'sav', name: 'Brokerage', flow: 'savings' }],
+    // note: 'huh' is intentionally absent → uncategorized
+  ]);
+  const payeesById = new Map([
+    ['p1', { id: 'p1', name: 'Amazon' }],
+    ['p2', { id: 'p2', name: 'Acme Corp' }],
+  ]);
+  const txns = [
+    { id: 'a', accountId: 'x', date: '2026-01-05', amount: -100, categoryId: 'gro', payeeId: 'p1' }, // out 100 Amazon
+    { id: 'b', accountId: 'x', date: '2026-01-06', amount: -60, categoryId: 'gro', payeeId: 'p1' },  // out 60 Amazon
+    { id: 'c', accountId: 'x', date: '2026-01-07', amount: 5000, categoryId: 'inc', payeeId: 'p2' }, // in 5000 Acme
+    { id: 'd', accountId: 'x', date: '2026-01-08', amount: -40, categoryId: 'huh', payeeId: 'p1' },  // uncat neg → out 40 Amazon
+    { id: 'e', accountId: 'x', date: '2026-01-09', amount: -25, categoryId: 'gro' },                 // no payee → out 25
+    { id: 'f', accountId: 'x', date: '2026-01-10', amount: -999, categoryId: 'sav', payeeId: 'p1' }, // savings: excluded
+    { id: 'g', accountId: 'x', date: '2026-01-11', amount: -70, transferId: 't1', payeeId: 'p1' },   // transfer: excluded
+  ];
+  const opts = { start: '2026-01-01', end: '2026-01-31', accountIds: null, payeesById };
+
+  it('sums out/in per payee, sorts by activity, savings + transfers excluded', () => {
+    const { rows, totals } = payeeActivity(txns, cats, opts);
+    // Acme (5000) first, then Amazon (200), then (No payee) (25)
+    expect(rows.map(r => r.name)).toEqual(['Acme Corp', 'Amazon', '(No payee)']);
+    const amazon = rows.find(r => r.payeeId === 'p1');
+    expect(amazon.out).toBe(200); // 100 + 60 + 40 uncategorized; savings + transfer excluded
+    expect(amazon.in).toBe(0);
+    const acme = rows.find(r => r.payeeId === 'p2');
+    expect(acme).toMatchObject({ out: 0, in: 5000 });
+    expect(totals).toEqual({ out: 225, in: 5000 });
+  });
+
+  it('groups no-payee rows into a null "(No payee)" bucket', () => {
+    const { rows } = payeeActivity(txns, cats, opts);
+    const none = rows.find(r => r.payeeId === null);
+    expect(none).toMatchObject({ name: '(No payee)', out: 25, in: 0 });
+  });
+
+  it('attributes uncategorized rows by amount sign', () => {
+    const only = [
+      { id: 'u1', accountId: 'x', date: '2026-01-02', amount: -30, categoryId: 'huh', payeeId: 'p1' },
+      { id: 'u2', accountId: 'x', date: '2026-01-03', amount: 200, categoryId: 'huh', payeeId: 'p1' },
+    ];
+    const { rows } = payeeActivity(only, cats, opts);
+    expect(rows[0]).toMatchObject({ payeeId: 'p1', out: 30, in: 200 });
+  });
+
+  it('respects period + account scope and returns empty for no matches', () => {
+    expect(payeeActivity(txns, cats, { ...opts, accountIds: new Set(['other']) })).toEqual({ rows: [], totals: { out: 0, in: 0 } });
+    expect(payeeActivity([], cats, opts)).toEqual({ rows: [], totals: { out: 0, in: 0 } });
   });
 });

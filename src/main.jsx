@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import IconLibraryProvider from './IconLibraryProvider.jsx'
 import { migrateStorageNamespace } from './migrateStorageNamespace.js'
+import { takeReloadNote, startCrossWindowSync } from './crossWindowSync.js'
 import { registerSW } from 'virtual:pwa-register'
 
 // Relocate any legacy billtracker-* localStorage to the tallio-* namespace
@@ -13,10 +14,16 @@ migrateStorageNamespace()
 // Install the offline service worker in production builds only.
 if (import.meta.env.PROD) registerSW({ immediate: true })
 
+// Taken once per page load, outside React: StrictMode runs mount effects twice in dev.
+const reloadedByOtherWindow = takeReloadNote()
+
+// Listen for saves from other Tallio windows before any store reads storage.
+startCrossWindowSync()
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <IconLibraryProvider>
-      <App />
+      <App reloadedByOtherWindow={reloadedByOtherWindow} />
     </IconLibraryProvider>
   </StrictMode>,
 )

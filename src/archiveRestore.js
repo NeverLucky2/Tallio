@@ -3,6 +3,7 @@
 // and image store. Callers reload the page afterward so every provider re-reads
 // fresh storage — no React-effect timing hazards. Framework-free + injectable.
 import * as realImageStore from './imageStore.js';
+import { markImagesChanged } from './crossWindowSync.js';
 
 export const SUPPORTED_SCHEMA_VERSION = 6;
 
@@ -46,4 +47,6 @@ export async function restoreArchiveToStorage(parsed, { storage = localStorage, 
     };
   });
   await imageStore.replaceAllImages(records);
+  // Other windows may have reloaded on the data keys above before the images landed.
+  markImagesChanged(storage);
 }

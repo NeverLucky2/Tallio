@@ -20,6 +20,11 @@ const PATHS = {
   tag:      'M4 4h7l9 9-7 7-9-9V4z M8.5 8.5h.01',
   layers:   'M12 3l9 5-9 5-9-5 9-5z M3 14l9 5 9-5',
   check:    'M5 12l5 5L20 6',
+  palette:  'M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.1-.9-1.5-.9-2.5 0-.9.7-1.6 1.7-1.6H17a4 4 0 0 0 4-4c0-4.5-4-8.2-9-8.2z M7.5 12h.01 M9.5 7.8h.01 M14.5 7.8h.01',
+  download: 'M12 4v12 M7 11l5 5 5-5 M5 20h14',
+  restore:  'M4 12a8 8 0 1 0 2.6-5.9 M4 4v4.5h4.5 M12 8v4.5l3 1.8',
+  close:    'M6 6l12 12 M18 6L6 18',
+  chevronRight: 'M9 6l6 6-6 6',
 };
 
 export default function UiIcon({ name, label, className = '', size = 18 }) {

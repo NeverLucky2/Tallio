@@ -17,6 +17,14 @@ export function downloadArchive(bytes, filename = DEFAULT_FILE_NAME) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadTextFile(text, filename, mime = 'text/plain') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function readBytesFromFile(file) {
   if (typeof file.arrayBuffer === 'function') return new Uint8Array(await file.arrayBuffer());
   // Fallback for environments without Blob.arrayBuffer (jsdom, older Safari).

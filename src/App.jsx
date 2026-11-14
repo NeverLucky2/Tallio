@@ -44,6 +44,7 @@ import UndoButton from './UndoButton.jsx';
 import TallyMark from './TallyMark.jsx';
 import UiIcon from './ui/UiIcon.jsx';
 import ReportsScreen from './ReportsScreen.jsx';
+import ProfitLossScreen from './ProfitLossScreen.jsx';
 import { initializeFromStorage } from './initializeFromStorage.js';
 import { buildArchive, parseArchive } from './exportArchive.js';
 import { listImages } from './imageStore.js';
@@ -51,8 +52,8 @@ import { restoreArchiveToStorage } from './archiveRestore.js';
 import { downloadArchive, readBytesFromFile } from './fileStore.js';
 import { reloadApp } from './reloadApp.js';
 import useLiveFile from './useLiveFile.js';
-import LiveFilePill from './LiveFilePill.jsx';
-import { requestPersistentStorage } from './storagePersist.js';
+import BudgetFileCard from './BudgetFileCard.jsx';
+import { requestPersistentStorage, getStorageEstimate, formatStorageNote } from './storagePersist.js';
 import './App.css';
 import './finishes.css';
 import './microMotion.css';
@@ -140,7 +141,7 @@ const CameraCapture = ({ onCapture, onClose }) => {
 
 // ---- Main App ----
 
-function Tallio() {
+function Tallio({ reloadedByOtherWindow = false }) {
   // One-time schema migration runs here (v1→v4). initializeFromStorage returns the
   // flat ledger ({ accounts, transactions }) plus any migration error to surface.
   const [{ accounts: initAccounts, transactions: initTransactions, migrationError }] =
@@ -173,6 +174,12 @@ function Tallio() {
   }, []);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
+  // main.jsx reloads this window when another Tallio window saves main data
+  // (startCrossWindowSync); the fresh page then says why it jumped.
+  useEffect(() => {
+    if (reloadedByOtherWindow) flashToast('Updated from another Tallio window');
+  }, [reloadedByOtherWindow, flashToast]);
+
   const appearance = useAppearance();
   const library = useIconLibrary();
 
@@ -185,6 +192,14 @@ function Tallio() {
   const eggs = useEasterEggs();
   useEffect(() => { printConsoleArt(); }, []);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [storageNote, setStorageNote] = useState('');
+  // Refresh the drawer's "N MB stored" footer each time it opens.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    let cancelled = false;
+    getStorageEstimate().then((info) => { if (!cancelled) setStorageNote(formatStorageNote(info)); });
+    return () => { cancelled = true; };
+  }, [drawerOpen]);
 
   // Undo: snapshots of the whole ledger + report acks + appearance + image library.
   const [history, setHistory] = useState([]);
@@ -593,19 +608,25 @@ function Tallio() {
       <AvatarDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        version={pkg.version}
+        footerNote={storageNote}
         avatar={<Icon value={appearance.appIcons.headerAvatar} fallback="✦" className="avatar-drawer-avatar" />}
-        statusSlot={liveFile.supported ? <LiveFilePill status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt} /> : null}
-        items={[
-          { icon: '🎨', label: 'Appearance', onSelect: () => setScreen('appearance') },
-          { icon: '⚙', label: 'Settings', onSelect: () => openSettings() },
-          { icon: '↗', label: 'Export', onSelect: () => exportData() },
-          { icon: '↙', label: 'Restore from backup', onSelect: () => importInputRef.current?.click() },
-          ...(liveFile.supported ? [
-            { icon: '🔗', label: liveFile.status === 'linked' ? 'Save to a different file' : 'Save to a budget file', onSelect: () => liveFile.linkNewFile() },
-            { icon: '📂', label: 'Open a budget file', onSelect: () => liveFile.openFile() },
-            ...(liveFile.status === 'linked' ? [{ icon: '⛓', label: 'Unlink file', onSelect: () => liveFile.unlink() }] : []),
-          ] : []),
+        fileCard={liveFile.supported ? (act) => (
+          <BudgetFileCard
+            status={liveFile.status} fileName={liveFile.fileName} lastSavedAt={liveFile.lastSavedAt}
+            onLink={act(() => liveFile.linkNewFile())}
+            onOpen={act(() => liveFile.openFile())}
+            onUnlink={act(() => liveFile.unlink())}
+          />
+        ) : null}
+        sections={[
+          { title: 'Personalize', items: [
+            { icon: 'palette', label: 'Appearance', hint: 'Theme, icons, background', chevron: true, onSelect: () => setScreen('appearance') },
+            { icon: 'settings', label: 'Settings', hint: 'Scanning, display size, celebrations', chevron: true, onSelect: () => openSettings() },
+          ] },
+          { title: 'Backups', items: [
+            { icon: 'download', label: 'Download a backup', hint: 'One-time copy as a .tallio file', onSelect: () => exportData() },
+            { icon: 'restore', label: 'Restore from backup…', hint: 'Replaces everything on this device', danger: true, onSelect: () => importInputRef.current?.click() },
+          ] },
         ]}
       />
 
@@ -691,6 +712,17 @@ function Tallio() {
           onDismissDuplicate={(sig) => { pushHistory(); acks.dismissDuplicate(sig); }}
           onUndo={undo}
           undoCount={history.length}
+          onClose={() => setScreen('main')}
+        />
+      )}
+
+      {screen === 'pnl' && (
+        <ProfitLossScreen
+          accounts={ledger.accounts}
+          transactions={ledger.transactions}
+          categories={cats.categories}
+          types={accountTypes.types}
+          typesById={accountTypes.typesById}
           onClose={() => setScreen('main')}
         />
       )}
@@ -837,6 +869,7 @@ function Tallio() {
         <nav className="top-nav" aria-label="Primary">
           <button type="button" className="top-nav-link on" aria-current="page">Accounts</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('reports')}>Reports</button>
+          <button type="button" className="top-nav-link" onClick={() => setScreen('pnl')}>P&amp;L</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-categories')}>Categories</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('manage-payees')}>Payees</button>
           <button type="button" className="top-nav-link" onClick={() => setScreen('account-types')}>Account-types</button>
@@ -919,10 +952,10 @@ function Tallio() {
   );
 }
 
-export default function App() {
+export default function App({ reloadedByOtherWindow = false }) {
   if (typeof window !== 'undefined' && window.location.pathname === '/pair') {
     const { mode } = parsePairHash(window.location.hash);
     return mode === 'library' ? <PhonePhotoUpload /> : <PhoneCapture />;
   }
-  return <Tallio />;
+  return <Tallio reloadedByOtherWindow={reloadedByOtherWindow} />;
 }

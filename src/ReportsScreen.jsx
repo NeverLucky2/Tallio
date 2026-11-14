@@ -3,12 +3,13 @@ import React, { useMemo, useState } from 'react';
 import {
   resolvePeriod, monthsInRange, scopeAccountIds,
   incomeExpenseSummary, spendingByCategory, cashFlowByMonth, netWorthByMonth,
-  recurringCharges, findDuplicates, classifyRecurring,
+  recurringCharges, findDuplicates, classifyRecurring, payeeActivity,
 } from './reportsModel.js';
 import PeriodControl from './PeriodControl.jsx';
 import ScopeControl from './ScopeControl.jsx';
 import SummaryScorecard from './SummaryScorecard.jsx';
 import CategoryBarList from './CategoryBarList.jsx';
+import PayeeActivityTable from './PayeeActivityTable.jsx';
 import CashFlowChart from './CashFlowChart.jsx';
 import NetWorthChart from './NetWorthChart.jsx';
 import RecurringList from './RecurringList.jsx';
@@ -35,6 +36,7 @@ export default function ReportsScreen({
 
   const summary = useMemo(() => incomeExpenseSummary(transactions, categoriesById, opts), [transactions, categoriesById, opts]);
   const categoryRows = useMemo(() => spendingByCategory(transactions, categoriesById, opts), [transactions, categoriesById, opts]);
+  const payeeSummary = useMemo(() => payeeActivity(transactions, categoriesById, { ...opts, payeesById }), [transactions, categoriesById, opts, payeesById]);
   const cashFlow = useMemo(() => cashFlowByMonth(transactions, categoriesById, opts, months), [transactions, categoriesById, opts, months]);
   const netWorth = useMemo(() => netWorthByMonth(accounts, transactions, typesById, opts, months), [accounts, transactions, typesById, opts, months]);
   const recurring = useMemo(() => recurringCharges(transactions, categoriesById, { ...opts, now: nowDate, payeesById }), [transactions, categoriesById, opts, nowDate, payeesById]);
@@ -64,6 +66,11 @@ export default function ReportsScreen({
         <section className="panel">
           <div className="panel-header"><h3 className="panel-title">Spending by category</h3></div>
           <CategoryBarList items={categoryRows} />
+        </section>
+
+        <section className="panel">
+          <div className="panel-header"><h3 className="panel-title">By payee</h3></div>
+          <PayeeActivityTable data={payeeSummary} />
         </section>
 
         <section className="panel">

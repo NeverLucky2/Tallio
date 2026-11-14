@@ -16,3 +16,12 @@ export async function getStorageEstimate() {
   const { usage = 0, quota = 0 } = await s.estimate();
   return { supported: true, usage, quota };
 }
+
+// Footer note for the menu drawer, e.g. "0.4 MB stored"; empty when unknown or negligible.
+export function formatStorageNote(info) {
+  if (!info || !info.supported) return '';
+  const mb = (info.usage / 1048576).toFixed(1);
+  // The browser's estimate leaves out localStorage (where the ledger lives), so
+  // a small library reads as "0.0 MB" — say nothing rather than that.
+  return mb === '0.0' ? '' : `${mb} MB stored`;
+}

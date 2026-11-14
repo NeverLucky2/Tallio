@@ -89,4 +89,19 @@ describe('restoreArchiveToStorage', () => {
     expect(storage.getItem('tallio-payees')).toBeNull();
     expect(storage.getItem('tallio-schema-version')).toBe('4');
   });
+
+  // Other windows reload on the first data key written, possibly before the images
+  // land; a final marker makes them reload once more onto the restored images.
+  it('marks the image library changed only after the images are replaced', async () => {
+    let revWhenImagesWritten = 'unset';
+    imageStore.replaceAllImages.mockImplementation(async () => {
+      revWhenImagesWritten = storage.getItem('tallio-images-rev');
+    });
+    await restoreArchiveToStorage({ data: {
+      schemaVersion: 6, accounts: [], transactions: [], categories: [], accountTypes: [], templates: [],
+      reportAcks: { subscriptions: {}, dismissedDuplicates: [] }, payees: [],
+    }, appearance: null, images: [] }, { storage, imageStore });
+    expect(revWhenImagesWritten).toBeNull();
+    expect(storage.getItem('tallio-images-rev')).not.toBeNull();
+  });
 });
