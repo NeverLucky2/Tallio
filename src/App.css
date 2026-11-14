@@ -3896,6 +3896,11 @@
 }
 
 /* ---- Background tab controls ---- */
+/* The Appearance screen sits in flow above the top bar. Both are z-index 1 and
+   the top bar comes later, so it painted over any picker dropdown that hung
+   below a short Appearance screen. Lift the screen one level so its dropdowns
+   win. */
+.appearance-screen { z-index: 2; }
 .appearance-hint { color: var(--text-muted); font-size: 12px; margin: 0 0 18px; }
 .bg-effect-toggles { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
 .bg-toggle { display: inline-flex; align-items: center; gap: 9px; background: var(--bg-input);
