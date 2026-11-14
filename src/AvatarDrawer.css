@@ -10,6 +10,10 @@
 }
 @keyframes avatar-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .avatar-drawer-panel.no-anim { animation: none; }
+.avatar-drawer-panel.closing { animation: avatar-drawer-out .18s ease-in forwards; }
+@keyframes avatar-drawer-out { to { transform: translateX(100%); } }
+.avatar-drawer-scrim { transition: opacity .18s ease-in; }
+.avatar-drawer-scrim.closing { opacity: 0; }
 
 /* Head */
 .avatar-drawer-head {
@@ -120,6 +124,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .avatar-drawer-panel { animation: none; }
+  .avatar-drawer-panel, .avatar-drawer-panel.closing { animation: none; }
+  .avatar-drawer-scrim { transition: none; }
   .avatar-trigger .header-avatar, .avatar-trigger-gear { transition: none; }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import AvatarDrawer from './AvatarDrawer.jsx';
 
@@ -102,5 +102,72 @@ describe('AvatarDrawer', () => {
     expect(getByText('0.4 MB stored')).toBeTruthy();
     rerender(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion />);
     expect(container.querySelector('.avatar-drawer-foot-note')).toBeNull();
+  });
+
+  it('moves focus to the close button on open and restores it on close', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const { getByLabelText, rerender } = render(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion />);
+    expect(document.activeElement).toBe(getByLabelText('Close menu'));
+    rerender(<AvatarDrawer open={false} onClose={() => {}} sections={mkSections()} reducedMotion />);
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('traps Tab within the panel', () => {
+    const { getByLabelText, getByText } = render(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion />);
+    const first = getByLabelText('Close menu');
+    const last = getByText('Restore from backup…').closest('button');
+    last.focus();
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('animated close: onClose fires once, after the slide-out ends', () => {
+    let closed = 0;
+    const { container, getByLabelText } = render(<AvatarDrawer open onClose={() => { closed += 1; }} sections={mkSections()} reducedMotion={false} />);
+    fireEvent.click(getByLabelText('Close menu'));
+    const panel = container.querySelector('.avatar-drawer-panel');
+    expect(panel.className).toContain('closing');
+    expect(closed).toBe(0);
+    fireEvent.animationEnd(panel);
+    fireEvent.animationEnd(panel);
+    expect(closed).toBe(1);
+  });
+
+  it('animated close falls back to a 220ms timer', () => {
+    vi.useFakeTimers();
+    try {
+      let closed = 0;
+      const { container } = render(<AvatarDrawer open onClose={() => { closed += 1; }} sections={mkSections()} reducedMotion={false} />);
+      fireEvent.click(container.querySelector('.avatar-drawer-scrim'));
+      vi.advanceTimersByTime(219);
+      expect(closed).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(closed).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('double-clicking a row runs the action once and closes once', () => {
+    const calls = []; let closed = 0;
+    const { getByText, container } = render(<AvatarDrawer open onClose={() => { closed += 1; }} sections={mkSections(calls)} reducedMotion={false} />);
+    fireEvent.click(getByText('Settings'));
+    fireEvent.click(getByText('Settings'));
+    fireEvent.animationEnd(container.querySelector('.avatar-drawer-panel'));
+    expect(calls).toEqual(['settings']);
+    expect(closed).toBe(1);
+  });
+
+  it('reopening clears the closing state', () => {
+    const { container, getByLabelText, rerender } = render(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion={false} />);
+    fireEvent.click(getByLabelText('Close menu'));
+    rerender(<AvatarDrawer open={false} onClose={() => {}} sections={mkSections()} reducedMotion={false} />);
+    rerender(<AvatarDrawer open onClose={() => {}} sections={mkSections()} reducedMotion={false} />);
+    expect(container.querySelector('.avatar-drawer-panel').className).not.toContain('closing');
   });
 });
